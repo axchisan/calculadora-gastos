@@ -51,6 +51,7 @@ Costo operativo estimado: **~$0.01 USD/mes**. Ver [`docs/COSTOS.md`](docs/COSTOS
 - [Modelo de dominio](docs/MODELO-DOMINIO.md) — entidades y esquema de base de datos
 - [Festivos y transporte](docs/FESTIVOS-Y-TRANSPORTE.md) — Ley Emiliani y motor de cálculo
 - [API REST](docs/API.md) — endpoints y formato de errores
+- [Despliegue](docs/DESPLIEGUE.md) — infraestructura en AWS e integración continua
 - [Configuración de Neon](docs/CONFIGURACION-NEON.md) — base de datos de producción
 - [Costos](docs/COSTOS.md) — desglose de gastos en AWS
 - [Plan de trabajo](docs/ROADMAP.md) — fases y estado actual

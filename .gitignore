@@ -44,6 +44,7 @@ app/ios/Flutter/ephemeral/
 .terraform.lock.hcl
 *.tfstate
 *.tfstate.*
+*.tfplan
 *.tfvars
 !example.tfvars
 crash.log

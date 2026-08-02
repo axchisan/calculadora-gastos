@@ -2,10 +2,20 @@ spring:
   application:
     name: calculadora-gastos
 
+  autoconfigure:
+    exclude:
+      # La seguridad la define ConfiguracionSeguridad. Sin esta exclusión, Spring Boot crea
+      # además un usuario en memoria con contraseña aleatoria y la escribe en el arranque, lo
+      # que ensucia los registros y hace dudar de qué configuración está activa.
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+
   datasource:
-    url: ${DB_URL}
-    username: ${DB_USER}
-    password: ${DB_PASSWORD}
+    # En AWS estos valores llegan desde SSM Parameter Store, que tiene mayor precedencia que
+    # este fichero. Los valores por defecto vacíos evitan que el arranque falle por el
+    # marcador sin resolver antes de que SSM aporte el suyo.
+    url: ${DB_URL:}
+    username: ${DB_USER:}
+    password: ${DB_PASSWORD:}
     hikari:
       # Lambda multiplica instancias concurrentes, cada una con su propio pool.
       # Un pool pequeño evita agotar el límite de conexiones de PostgreSQL.
@@ -14,6 +24,10 @@ spring:
       connection-timeout: 10000
       idle-timeout: 30000
       max-lifetime: 300000
+      # Imprescindible con SnapStart: permite que Spring vacíe el pool antes de tomar el
+      # snapshot y lo reabra al restaurarlo. Sin esto, la función revive con conexiones que ya
+      # no existen al otro lado.
+      allow-pool-suspension: true
 
   jpa:
     hibernate:
@@ -39,7 +53,7 @@ spring:
 app:
   jwt:
     # En AWS se inyecta desde SSM Parameter Store.
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:}
     access-token-minutes: 15
     refresh-token-days: 30
   cors:
@@ -57,6 +71,32 @@ logging:
     root: INFO
     com.axchisan.gastos: INFO
     org.hibernate.SQL: WARN
+
+---
+# Perfil de ejecución en AWS Lambda.
+#
+# La configuración sensible llega desde SSM Parameter Store; la importación se activa con la
+# variable de entorno SPRING_CONFIG_IMPORT, que define Terraform, para que en local no se
+# intente contactar con AWS.
+spring:
+  config:
+    activate:
+      on-profile: aws
+
+  flyway:
+    # Las migraciones se ejecutan durante la inicialización, que con SnapStart ocurre una sola
+    # vez al publicar la versión y no en cada arranque en frío. Si alguna fallara, el
+    # despliegue no llega a publicarse, que es el comportamiento deseado. Aun sin SnapStart
+    # sería seguro: Flyway se serializa con un bloqueo consultivo de PostgreSQL.
+    enabled: true
+
+logging:
+  level:
+    root: WARN
+    com.axchisan.gastos: INFO
+  pattern:
+    # CloudWatch ya añade su propia marca de tiempo a cada línea.
+    console: "%-5level %logger{36} - %msg%n"
 
 ---
 # Perfil de desarrollo local: PostgreSQL en local, sin depender de Neon.

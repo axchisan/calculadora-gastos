@@ -1,0 +1,147 @@
+name: Backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - '.github/workflows/backend.yml'
+  pull_request:
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+# Requerido para obtener el token de OIDC con el que se asume el rol de AWS. Sin claves de
+# acceso permanentes guardadas en el repositorio.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  FUNCION: calculadora-gastos-api
+  BUCKET: calculadora-gastos-artefactos-612216903994
+  REGION: us-east-1
+
+jobs:
+  pruebas:
+    name: Pruebas
+    runs-on: ubuntu-latest
+
+    services:
+      # Las pruebas de integración corren contra PostgreSQL de verdad, igual que en local.
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: gastos
+          POSTGRES_PASSWORD: gastos
+          POSTGRES_DB: gastos_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: gradle
+
+      - name: Ejecutar pruebas
+        working-directory: backend
+        run: ./gradlew test --no-daemon
+
+      - name: Publicar informe
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: informe-pruebas
+          path: backend/build/reports/tests/test
+          retention-days: 7
+
+  desplegar:
+    name: Desplegar
+    needs: pruebas
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: temurin
+          cache: gradle
+
+      - name: Construir el artefacto
+        working-directory: backend
+        run: ./gradlew paqueteLambda --no-daemon
+
+      - name: Obtener credenciales temporales
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Subir el artefacto
+        working-directory: backend
+        run: |
+          aws s3 cp build/distributions/backend-lambda.zip "s3://$BUCKET/lambda/backend.zip"
+
+      - name: Actualizar el código de la función
+        run: |
+          aws lambda update-function-code \
+            --function-name "$FUNCION" \
+            --s3-bucket "$BUCKET" \
+            --s3-key lambda/backend.zip \
+            --no-cli-pager > /dev/null
+          aws lambda wait function-updated --function-name "$FUNCION"
+
+      - name: Publicar la versión
+        id: version
+        run: |
+          # Publicar dispara la creación del snapshot de SnapStart: aquí es donde arranca
+          # Spring y se aplican las migraciones. Si algo falla, no llega a publicarse.
+          VERSION=$(aws lambda publish-version \
+            --function-name "$FUNCION" \
+            --description "${GITHUB_SHA::7}" \
+            --query Version --output text)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Versión publicada: $VERSION"
+
+      - name: Esperar a que el snapshot esté listo
+        run: |
+          aws lambda wait published-version-active \
+            --function-name "$FUNCION" \
+            --qualifier "${{ steps.version.outputs.version }}"
+
+      - name: Dirigir el tráfico a la versión nueva
+        run: |
+          # El alias solo se mueve cuando la versión está lista, de modo que el cambio es
+          # instantáneo y sin peticiones fallidas.
+          aws lambda update-alias \
+            --function-name "$FUNCION" \
+            --name live \
+            --function-version "${{ steps.version.outputs.version }}" \
+            --no-cli-pager > /dev/null
+
+      - name: Comprobar que responde
+        run: |
+          URL=$(aws lambda get-function-url-config \
+            --function-name "$FUNCION" --qualifier live \
+            --query FunctionUrl --output text)
+          for i in $(seq 1 10); do
+            if curl -sf "${URL}api/salud" > /dev/null; then
+              echo "La API responde correctamente"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "La API no respondió tras el despliegue"
+          exit 1

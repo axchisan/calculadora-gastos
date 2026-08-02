@@ -2,7 +2,6 @@ plugins {
     java
     id("org.springframework.boot") version "3.5.4"
     id("io.spring.dependency-management") version "1.1.7"
-    id("com.gradleup.shadow") version "8.3.6"
 }
 
 group = "com.axchisan"
@@ -20,6 +19,13 @@ repositories {
 
 extra["awsLambdaContainerVersion"] = "2.1.3"
 extra["jjwtVersion"] = "0.12.6"
+extra["springCloudAwsVersion"] = "3.3.0"
+
+dependencyManagement {
+    imports {
+        mavenBom("io.awspring.cloud:spring-cloud-aws-dependencies:${property("springCloudAwsVersion")}")
+    }
+}
 
 dependencies {
     // --- Spring Boot ---
@@ -50,6 +56,11 @@ dependencies {
     // CRaC: hooks para reinicializar recursos tras restaurar el snapshot de SnapStart.
     implementation("org.crac:crac:1.5.0")
 
+    // Lee la configuración sensible desde SSM Parameter Store al arrancar, de modo que las
+    // credenciales no viajan en el código, ni en variables de entorno, ni en el estado de
+    // Terraform.
+    implementation("io.awspring.cloud:spring-cloud-aws-starter-parameter-store")
+
     // --- Documentación de la API ---
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
 
@@ -68,17 +79,35 @@ tasks.withType<Test> {
     useJUnitPlatform()
 }
 
-// El artefacto que se despliega en Lambda es el JAR sombreado, no el de Spring Boot:
-// Lambda necesita las clases en la raíz del ZIP, no anidadas en BOOT-INF.
-tasks.shadowJar {
-    archiveClassifier = "lambda"
-    mergeServiceFiles()
-    // Firmas de dependencias que rompen la validación del JAR resultante.
-    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+// Paquete de despliegue para Lambda.
+//
+// Usa el formato nativo del runtime de Java: las clases de la aplicación en la raíz y las
+// dependencias como JAR independientes dentro de "lib/", que Lambda añade al classpath por su
+// cuenta.
+//
+// No se usa un JAR sombreado (shadow/uber-jar) porque fusionar todas las dependencias en un
+// único JAR sobrescribe los metadatos de Spring: los descriptores de autoconfiguración bajo
+// META-INF existen con el mismo nombre en varios artefactos, y al perderse parte de ellos
+// Spring Data deja de registrar los repositorios. Manteniendo las dependencias separadas, el
+// classpath es idéntico al de una ejecución normal.
+//
+// Tampoco sirve el JAR ejecutable de Spring Boot: anida todo bajo "BOOT-INF/", que el runtime
+// de Lambda no sabe leer.
+tasks.register<Zip>("paqueteLambda") {
+    group = "distribution"
+    description = "Empaqueta la aplicación en el formato que espera AWS Lambda"
+
+    archiveFileName = "backend-lambda.zip"
+    destinationDirectory = layout.buildDirectory.dir("distributions")
+
+    from(sourceSets.main.get().output)
+    into("lib") {
+        from(configurations.runtimeClasspath)
+    }
 }
 
 tasks.named("build") {
-    dependsOn(tasks.shadowJar)
+    dependsOn("paqueteLambda")
 }
 
 // El JAR ejecutable de Spring Boot se sigue generando para ejecutar en local.
