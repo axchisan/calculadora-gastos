@@ -1,0 +1,85 @@
+# Plan de trabajo
+
+Orden de construcción pensado para tener algo **usable cuanto antes** y para que cada fase
+deje valor por sí sola, en lugar de construir toda la infraestructura antes de ver la primera
+pantalla.
+
+## Fase 0 — Fundamentos
+
+- [x] Investigar el estado real del free tier de la cuenta AWS
+- [x] Decidir arquitectura, autenticación, plataformas y estructura del repositorio
+- [x] Documentar arquitectura, modelo de dominio, costos y decisiones (ADR)
+- [x] Especificar el algoritmo de festivos colombianos y el motor de transporte
+- [ ] Esqueleto del backend (Spring Boot 3, Java 21, Gradle)
+- [ ] Esqueleto del cliente (Flutter, tres objetivos de compilación)
+- [ ] Repositorio en GitHub con CI básica
+
+## Fase 1 — Backend: base
+
+- [ ] Migraciones Flyway con el esquema completo
+- [ ] Entidades JPA y repositorios
+- [ ] Registro, inicio de sesión y refresh de tokens
+- [ ] Filtro de seguridad y aislamiento por usuario en todas las consultas
+- [ ] Base de datos en Neon aprovisionada
+- [ ] Pruebas de integración con Testcontainers
+
+## Fase 2 — Backend: motor de cálculo
+
+- [ ] Calculadora de festivos colombianos (Ley Emiliani) con pruebas de 2020 a 2035
+- [ ] Motor de transporte: clasificación de días, pasajes y escenarios
+- [ ] Resumen mensual: disponible hoy, saldo proyectado, patrimonio neto
+- [ ] Creación de un mes a partir de las plantillas de gastos fijos
+- [ ] Endpoints REST y documentación OpenAPI
+
+## Fase 3 — Cliente: base
+
+- [ ] Navegación, tema visual y diseño adaptable a móvil/escritorio
+- [ ] Pantallas de autenticación y almacenamiento seguro de tokens
+- [ ] Cliente HTTP con renovación automática de token
+- [ ] Pantalla del mes: sueldo, gastos, marcar como pagado
+- [ ] Duplicación del motor de cálculo en Dart, con los mismos casos de prueba
+
+## Fase 4 — Cliente: módulos
+
+- [ ] Calendario interactivo de transporte
+- [ ] Gestión de deudas externas y abonos
+- [ ] Metas de ahorro y distribución del excedente
+- [ ] Plantillas de gastos fijos editables
+- [ ] Cierre de mes y creación del siguiente
+
+## Fase 5 — Gráficas
+
+- [ ] Distribución del gasto por categoría
+- [ ] Evolución de ingresos, gastos y saldo mes a mes
+- [ ] Avance de deudas y proyección de liquidación
+- [ ] Progreso de las metas de ahorro
+- [ ] Presupuestado vs. real en transporte
+
+## Fase 6 — Infraestructura y despliegue
+
+- [ ] Terraform: Lambda, Function URL, S3, CloudFront, ACM, SSM
+- [ ] Alerta de presupuesto a $1 y retención de logs a 7 días
+- [ ] Rol OIDC para despliegues desde GitHub Actions
+- [ ] Registros DNS en Hostinger y validación de certificados
+- [ ] Publicación de versión de Lambda con SnapStart en cada despliegue
+- [ ] Volcado semanal de la base de datos a S3
+
+## Fase 7 — Pulido
+
+- [ ] Modo sin conexión con sincronización
+- [ ] Compilación y firma del APK de Android
+- [ ] Compilación de la aplicación de macOS (requiere Xcode completo)
+- [ ] Recordatorios de vencimiento de pagos
+- [ ] Exportación a CSV/PDF
+
+## Dependencias del entorno
+
+| Herramienta | Estado |
+|---|---|
+| Java 21 | ✅ instalado (21.0.12) |
+| Flutter | ✅ instalado (3.44.8, Dart 3.12.2) |
+| AWS CLI | ✅ configurado (cuenta 612216903994) |
+| GitHub CLI | ✅ autenticado (axchisan) |
+| Terraform | ⬜ pendiente |
+| Android SDK | ⬜ pendiente (para compilar el APK) |
+| Xcode completo | ⬜ pendiente (solo para la versión de macOS) |
