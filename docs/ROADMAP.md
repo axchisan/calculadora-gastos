@@ -21,18 +21,20 @@ pantalla.
 - [x] Registro, inicio de sesión, refresh con rotación y cierre de sesión
 - [x] Filtro de seguridad, CORS y limitación de intentos
 - [x] Pruebas de integración contra PostgreSQL local
-- [ ] Entidades JPA del resto del dominio (meses, gastos, deudas, ahorro, transporte)
-- [ ] Endpoints CRUD del presupuesto mensual
-- [ ] Base de datos en Neon aprovisionada — ver [CONFIGURACION-NEON.md](CONFIGURACION-NEON.md)
+- [x] Entidades JPA del resto del dominio (meses, gastos, deudas, ahorro, transporte)
+- [x] Endpoints CRUD del presupuesto mensual
+- [x] Base de datos en Neon aprovisionada y migrada
 
 ## Fase 2 — Backend: motor de cálculo
 
 - [x] Calculadora de festivos colombianos (Ley Emiliani), verificada de 2015 a 2050
 - [x] Motor de transporte: clasificación de días, pasajes y escenarios
-- [x] 89 pruebas unitarias cubriendo ambos motores
-- [ ] Resumen mensual: disponible hoy, saldo proyectado, patrimonio neto
-- [ ] Creación de un mes a partir de las plantillas de gastos fijos
-- [ ] Endpoints REST y documentación OpenAPI
+- [x] Resumen mensual: disponible hoy, saldo proyectado, patrimonio neto
+- [x] Creación de un mes a partir de las plantillas de gastos fijos
+- [x] Endpoints REST y documentación OpenAPI
+- [x] 139 pruebas cubriendo los motores y la API completa
+
+**El backend está terminado.** Ver [API.md](API.md).
 
 ## Fase 3 — Cliente: base
 

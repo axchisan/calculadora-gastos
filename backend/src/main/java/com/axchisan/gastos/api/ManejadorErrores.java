@@ -1,6 +1,9 @@
 package com.axchisan.gastos.api;
 
 import com.axchisan.gastos.seguridad.ExcepcionesAutenticacion;
+import com.axchisan.gastos.servicio.RecursoNoEncontrado;
+import com.axchisan.gastos.servicio.ServicioGastos;
+import com.axchisan.gastos.servicio.ServicioMeses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -47,6 +50,26 @@ public class ManejadorErrores {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                 .header("Retry-After", String.valueOf(e.getSegundosEspera()))
                 .body(cuerpo("demasiados_intentos", e.getMessage()));
+    }
+
+    @ExceptionHandler(RecursoNoEncontrado.class)
+    public ResponseEntity<Map<String, Object>> noEncontrado(RecursoNoEncontrado e) {
+        return respuesta(HttpStatus.NOT_FOUND, "no_encontrado", e.getMessage());
+    }
+
+    @ExceptionHandler(ServicioMeses.MesYaExiste.class)
+    public ResponseEntity<Map<String, Object>> mesDuplicado(ServicioMeses.MesYaExiste e) {
+        return respuesta(HttpStatus.CONFLICT, "mes_ya_existe", e.getMessage());
+    }
+
+    @ExceptionHandler(ServicioMeses.MesCerrado.class)
+    public ResponseEntity<Map<String, Object>> mesCerrado(ServicioMeses.MesCerrado e) {
+        return respuesta(HttpStatus.CONFLICT, "mes_cerrado", e.getMessage());
+    }
+
+    @ExceptionHandler(ServicioGastos.GastoNoEditable.class)
+    public ResponseEntity<Map<String, Object>> gastoNoEditable(ServicioGastos.GastoNoEditable e) {
+        return respuesta(HttpStatus.CONFLICT, "gasto_no_editable", e.getMessage());
     }
 
     /** Errores de validación de los datos recibidos, campo por campo. */
