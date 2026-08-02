@@ -38,8 +38,19 @@ start de 5-15 s a 200-500 ms, sin costo adicional en runtimes de Java.
 Se expone mediante **Lambda Function URL** en lugar de API Gateway, porque no factura por
 petición y no se necesitan las funciones avanzadas de API Gateway.
 
-El empaquetado es un **ZIP** (fat JAR de ~40 MB), no una imagen de contenedor: ECR solo
-ofrece free tier durante 12 meses, del que esta cuenta no dispone.
+El empaquetado es un **ZIP en el formato nativo del runtime de Java** (~67 MB): las clases de
+la aplicación en la raíz y las dependencias como JAR independientes dentro de `lib/`. No se usa
+una imagen de contenedor porque ECR solo ofrece free tier durante 12 meses, del que esta cuenta
+no dispone.
+
+> **Un uber-jar no funciona con Spring, y el fallo es silencioso.** El primer intento usó el
+> plugin Shadow para fusionar todo en un único JAR. El despliegue se completaba, pero la
+> función fallaba al arrancar con `No qualifying bean of type MetaAhorroRepository`. La causa:
+> los descriptores de autoconfiguración de Spring bajo `META-INF` existen con el mismo nombre
+> en decenas de artefactos, y al fusionarlos unos sobrescriben a otros. Se pierde parte de la
+> autoconfiguración y Spring Data deja de registrar los repositorios. Manteniendo las
+> dependencias como JAR separados en `lib/`, el classpath es idéntico al de una ejecución
+> normal y el problema desaparece.
 
 ## Alternativas consideradas
 

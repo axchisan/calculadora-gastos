@@ -62,12 +62,16 @@ pantalla.
 
 ## Fase 6 — Infraestructura y despliegue
 
-- [ ] Terraform: Lambda, Function URL, S3, CloudFront, ACM, SSM
-- [ ] Alerta de presupuesto a $1 y retención de logs a 7 días
-- [ ] Rol OIDC para despliegues desde GitHub Actions
+- [x] Terraform: Lambda, Function URL, S3, CloudFront, SSM
+- [x] Alerta de presupuesto a $1 y retención de logs a 7 días
+- [x] Alarmas de errores y de duración excesiva
+- [x] Rol OIDC para despliegues desde GitHub Actions
+- [x] Flujos de integración continua para backend y web
+- [x] Publicación de versión de Lambda con SnapStart en cada despliegue
 - [ ] Registros DNS en Hostinger y validación de certificados
-- [ ] Publicación de versión de Lambda con SnapStart en cada despliegue
 - [ ] Volcado semanal de la base de datos a S3
+
+Ver [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ## Fase 7 — Pulido
 

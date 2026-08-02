@@ -1,0 +1,101 @@
+name: Aplicación web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/web.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: us-east-1
+
+jobs:
+  verificar:
+    name: Análisis y pruebas
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Descargar dependencias
+        working-directory: app
+        run: flutter pub get
+
+      - name: Comprobar el formato
+        working-directory: app
+        run: dart format --set-exit-if-changed .
+
+      - name: Análisis estático
+        working-directory: app
+        run: flutter analyze
+
+      - name: Pruebas
+        working-directory: app
+        run: flutter test
+
+  desplegar:
+    name: Publicar
+    needs: verificar
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Compilar para web
+        working-directory: app
+        run: |
+          flutter build web --release \
+            --dart-define=API_URL=${{ vars.API_URL }}
+
+      - name: Obtener credenciales temporales
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Publicar en S3
+        working-directory: app/build/web
+        run: |
+          # Los archivos con hash en el nombre pueden cachearse indefinidamente.
+          aws s3 sync . "s3://${{ vars.BUCKET_WEB }}" \
+            --delete \
+            --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" \
+            --exclude "flutter_service_worker.js" \
+            --exclude "version.json"
+
+          # Estos tres no llevan hash y deben revalidarse siempre, o el navegador seguiría
+          # sirviendo la versión anterior tras un despliegue.
+          aws s3 sync . "s3://${{ vars.BUCKET_WEB }}" \
+            --cache-control "no-cache,must-revalidate" \
+            --exclude "*" \
+            --include "index.html" \
+            --include "flutter_service_worker.js" \
+            --include "version.json"
+
+      - name: Invalidar la caché de CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.DISTRIBUCION_WEB }}" \
+            --paths "/index.html" "/flutter_service_worker.js" "/version.json" \
+            --no-cli-pager > /dev/null
