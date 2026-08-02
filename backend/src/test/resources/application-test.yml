@@ -1,0 +1,38 @@
+# Perfil de pruebas de integración.
+#
+# Se ejecutan contra el PostgreSQL local (Homebrew) en vez de Testcontainers, para no exigir
+# Docker en la máquina de desarrollo. En integración continua, GitHub Actions levanta el mismo
+# PostgreSQL como servicio, así que la configuración sirve en ambos entornos.
+#
+# Requisito previo:
+#   createdb gastos_test -O gastos
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/gastos_test
+    username: gastos
+    password: gastos
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    # Cada ejecución parte de un esquema limpio, para que las pruebas no dependan del orden.
+    clean-disabled: false
+
+app:
+  jwt:
+    secret: secreto-de-pruebas-con-al-menos-256-bits-de-longitud-suficiente
+    access-token-minutes: 15
+    refresh-token-days: 30
+  cors:
+    allowed-origins: http://localhost:*
+  seguridad:
+    # BCrypt con coste 12 tarda ~300 ms por verificación; en pruebas se multiplicaría por cada
+    # caso. El coste real de producción se valida aparte, en las pruebas del codificador.
+    bcrypt-coste: 4
+
+logging:
+  level:
+    org.hibernate.SQL: WARN
+    org.flywaydb: WARN

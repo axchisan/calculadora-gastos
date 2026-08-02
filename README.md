@@ -50,16 +50,38 @@ Costo operativo estimado: **~$0.01 USD/mes**. Ver [`docs/COSTOS.md`](docs/COSTOS
 - [Arquitectura](docs/ARQUITECTURA.md) — visión general, componentes y despliegue
 - [Modelo de dominio](docs/MODELO-DOMINIO.md) — entidades y esquema de base de datos
 - [Festivos y transporte](docs/FESTIVOS-Y-TRANSPORTE.md) — Ley Emiliani y motor de cálculo
+- [API REST](docs/API.md) — endpoints y formato de errores
+- [Configuración de Neon](docs/CONFIGURACION-NEON.md) — base de datos de producción
 - [Costos](docs/COSTOS.md) — desglose de gastos en AWS
+- [Plan de trabajo](docs/ROADMAP.md) — fases y estado actual
 - [Decisiones de arquitectura](docs/adr/) — registro de decisiones (ADR)
 
-## Requisitos de desarrollo
+## Desarrollo local
 
-- Java 21
-- Flutter 3.x
-- Terraform 1.x
-- AWS CLI configurado
-- Xcode (solo para compilar la versión de macOS)
+Requisitos: Java 21, Flutter 3.x, PostgreSQL 17. Para desplegar además Terraform y AWS CLI;
+para compilar la versión de macOS, Xcode completo.
+
+```bash
+# Base de datos (una sola vez)
+brew services start postgresql@17
+createuser gastos --createdb && createdb gastos -O gastos && createdb gastos_test -O gastos
+
+# Backend — arranca en http://localhost:8080, documentación en /docs
+cd backend
+SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+
+# Pruebas
+./gradlew test
+
+# Cliente
+cd app
+flutter run -d chrome     # web
+flutter run -d macos      # escritorio
+flutter run               # dispositivo Android conectado
+```
+
+Las pruebas de integración corren contra el PostgreSQL local en vez de Testcontainers, para no
+requerir Docker en la máquina de desarrollo.
 
 ## Licencia
 

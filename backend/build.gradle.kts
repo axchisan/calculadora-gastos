@@ -33,6 +33,10 @@ dependencies {
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 
+    // Identificadores UUID v7: ordenables por tiempo, lo que preserva la localidad en los
+    // índices B-tree frente a los v4 aleatorios.
+    implementation("com.fasterxml.uuid:java-uuid-generator:5.1.0")
+
     // --- Autenticación JWT ---
     implementation("io.jsonwebtoken:jjwt-api:${property("jjwtVersion")}")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:${property("jjwtVersion")}")
@@ -52,15 +56,7 @@ dependencies {
     // --- Pruebas ---
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testImplementation("org.springframework.security:spring-security-test")
-    testImplementation("org.testcontainers:junit-jupiter")
-    testImplementation("org.testcontainers:postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-}
-
-dependencyManagement {
-    imports {
-        mavenBom("org.testcontainers:testcontainers-bom:1.20.6")
-    }
 }
 
 tasks.withType<JavaCompile> {

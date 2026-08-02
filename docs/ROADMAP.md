@@ -17,12 +17,13 @@ pantalla.
 
 ## Fase 1 — Backend: base
 
-- [ ] Migraciones Flyway con el esquema completo
-- [ ] Entidades JPA y repositorios
-- [ ] Registro, inicio de sesión y refresh de tokens
-- [ ] Filtro de seguridad y aislamiento por usuario en todas las consultas
-- [ ] Base de datos en Neon aprovisionada
-- [ ] Pruebas de integración con Testcontainers
+- [x] Migraciones Flyway con el esquema completo (13 tablas)
+- [x] Registro, inicio de sesión, refresh con rotación y cierre de sesión
+- [x] Filtro de seguridad, CORS y limitación de intentos
+- [x] Pruebas de integración contra PostgreSQL local
+- [ ] Entidades JPA del resto del dominio (meses, gastos, deudas, ahorro, transporte)
+- [ ] Endpoints CRUD del presupuesto mensual
+- [ ] Base de datos en Neon aprovisionada — ver [CONFIGURACION-NEON.md](CONFIGURACION-NEON.md)
 
 ## Fase 2 — Backend: motor de cálculo
 

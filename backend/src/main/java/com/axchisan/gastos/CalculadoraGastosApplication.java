@@ -2,6 +2,7 @@ package com.axchisan.gastos;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 /**
  * Punto de entrada de la aplicación.
@@ -10,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * controla {@link com.axchisan.gastos.lambda.LambdaHandler}, que reutiliza este mismo contexto.
  */
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class CalculadoraGastosApplication {
 
     public static void main(String[] args) {
