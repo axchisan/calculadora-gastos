@@ -1,0 +1,88 @@
+# ---------- Java / Gradle ----------
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/**/build/
+out/
+*.class
+*.jar
+!gradle-wrapper.jar
+!**/libs/*.jar
+
+# ---------- Flutter / Dart ----------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+app/build/
+app/.dart_tool/
+**/generated_plugin_registrant.dart
+*.g.dart
+*.freezed.dart
+*.mocks.dart
+
+# Android
+app/android/.gradle/
+app/android/local.properties
+app/android/key.properties
+app/android/app/upload-keystore.jks
+*.keystore
+*.jks
+
+# macOS / iOS
+app/macos/Pods/
+app/macos/Flutter/ephemeral/
+app/ios/Pods/
+app/ios/Flutter/ephemeral/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+
+# ---------- Terraform ----------
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+
+# ---------- Secretos y entorno ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/src/**/*.key
+credentials.json
+secrets.yml
+application-local.yml
+application-local.properties
+
+# ---------- Sistema operativo ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Editores ----------
+.idea/
+*.iml
+*.iws
+.vscode/
+!.vscode/settings.json
+!.vscode/extensions.json
+.settings/
+.project
+.classpath
+*.swp
+*~
+
+# ---------- Registros y temporales ----------
+*.log
+logs/
+tmp/
+temp/
