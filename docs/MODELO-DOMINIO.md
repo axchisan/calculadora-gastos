@@ -244,6 +244,26 @@ La distinción entre **disponible hoy** (lo que queda contando solo lo ya pagado
 proyectado** (lo que quedará al terminar el mes) es la métrica más útil del día a día: la
 primera dice cuánto hay en el bolsillo, la segunda si el mes cierra en positivo.
 
+## Datos iniciales de referencia
+
+Plantilla de gastos fijos con la que arranca la aplicación. Todos los montos, incluido el
+sueldo, son editables mes a mes.
+
+| Concepto | Categoría | Monto |
+|---|---|---|
+| Sueldo mensual | — | $3.174.000 |
+| Tía (arriendo y comida) | `VIVIENDA` | $600.000 |
+| Karate | `DEPORTE` | $150.000 |
+| Transporte | `TRANSPORTE` | calculado |
+| Celular | `SERVICIOS` | $100.000 |
+| Claude Code | `HERRAMIENTAS` | $90.000 |
+| YouTube, Netflix y Spotify | `SUSCRIPCIONES` | $50.000 |
+
+Con el transporte calculado para agosto de 2026 en el escenario esperado ($142.000), los
+gastos fijos suman **$1.132.000** y queda un excedente de **$2.042.000** para deudas y ahorro.
+
+El arriendo y la comida se manejan como **un solo gasto**, según se paga en la práctica.
+
 ## Convenciones
 
 - **Dinero**: `numeric(14,2)` en base de datos, `BigDecimal` en Java, `Decimal` en Dart.
