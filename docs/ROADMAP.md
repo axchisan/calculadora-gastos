@@ -10,9 +10,10 @@ pantalla.
 - [x] Decidir arquitectura, autenticación, plataformas y estructura del repositorio
 - [x] Documentar arquitectura, modelo de dominio, costos y decisiones (ADR)
 - [x] Especificar el algoritmo de festivos colombianos y el motor de transporte
-- [ ] Esqueleto del backend (Spring Boot 3, Java 21, Gradle)
-- [ ] Esqueleto del cliente (Flutter, tres objetivos de compilación)
-- [ ] Repositorio en GitHub con CI básica
+- [x] Esqueleto del backend (Spring Boot 3, Java 21, Gradle)
+- [x] Esqueleto del cliente (Flutter, tres objetivos de compilación)
+- [x] Repositorio en GitHub
+- [ ] Integración continua
 
 ## Fase 1 — Backend: base
 
@@ -25,8 +26,9 @@ pantalla.
 
 ## Fase 2 — Backend: motor de cálculo
 
-- [ ] Calculadora de festivos colombianos (Ley Emiliani) con pruebas de 2020 a 2035
-- [ ] Motor de transporte: clasificación de días, pasajes y escenarios
+- [x] Calculadora de festivos colombianos (Ley Emiliani), verificada de 2015 a 2050
+- [x] Motor de transporte: clasificación de días, pasajes y escenarios
+- [x] 89 pruebas unitarias cubriendo ambos motores
 - [ ] Resumen mensual: disponible hoy, saldo proyectado, patrimonio neto
 - [ ] Creación de un mes a partir de las plantillas de gastos fijos
 - [ ] Endpoints REST y documentación OpenAPI

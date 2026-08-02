@@ -4,8 +4,14 @@ Este documento especifica las dos reglas de negocio más particulares del proyec
 
 ## 1. Festivos de Colombia
 
-Colombia tiene **18 festivos al año**, regidos por la **Ley 51 de 1983** (conocida como *Ley
+Colombia celebra **18 festivos al año**, regidos por la **Ley 51 de 1983** (conocida como *Ley
 Emiliani*), que traslada varios de ellos al lunes siguiente para generar puentes.
+
+> **18 celebraciones no siempre son 18 días.** Cuando el 29 de junio cae en domingo, *San Pedro
+> y San Pablo* se traslada al lunes 30 y coincide con el *Sagrado Corazón*, que ya caía ese
+> mismo día. Esos años el calendario tiene **17 días festivos**: ocurre en 2019, 2025, 2030,
+> 2038 y 2041. Contar celebraciones en lugar de días distintos produce un día hábil de menos en
+> el cálculo, por eso la API expone ambas cosas por separado.
 
 Se calculan en el backend de forma determinista, sin depender de servicios externos, y se
 exponen vía API para que el cliente los muestre en el calendario.
@@ -86,15 +92,20 @@ día  = ((h + l - 7m + 114) mod 31) + 1
 
 ### 1.5 Implementación
 
+`CalculadoraFestivos` expone:
+
 ```java
-public interface HolidayCalculator {
-    List<Holiday> forYear(int year);
-    List<Holiday> forMonth(YearMonth month);
-    boolean isHoliday(LocalDate date);
-}
+List<Festivo>   delAnio(int anio);        // las 18 celebraciones
+List<LocalDate> diasFestivos(int anio);   // fechas únicas: 17 o 18 según el año
+List<Festivo>   delMes(YearMonth mes);
+boolean         esFestivo(LocalDate fecha);
+boolean         esNoLaborable(LocalDate fecha);
 ```
 
-El resultado se cachea en memoria por año, dado que es una función pura del año.
+El resultado se memoriza por año, dado que es una función pura del año.
+
+Cubierto por 89 pruebas que verifican las fechas de 2015 a 2050, incluidos los años con
+coincidencia.
 
 ---
 
@@ -107,15 +118,16 @@ en que realmente hay que desplazarse.
 
 | Parámetro | Descripción | Valor por defecto |
 |---|---|---|
-| `valorPasaje` | Costo de un pasaje sencillo | — (editable) |
+| `valorPasaje` | Costo de un pasaje sencillo | $3.550 (Bogotá) |
 | `pasajesDiaOficina` | Pasajes en un día normal de oficina | 2 (ida y vuelta) |
 | `pasajesExtraKarate` | Pasajes adicionales si hay karate ese día | 1 |
 | `pasajesKarateDesdeCasa` | Pasajes si hay karate en un día remoto o no laboral | 2 |
 | `diasLaborales` | Días de la semana que se trabaja | lunes a viernes |
-| `diasKarate` | Días de la semana con clase de karate | configurable |
+| `diasKarate` | Días de la semana con clase de karate | martes y jueves |
 | `diasRemotosPorSemana` | Estimación inicial de días remotos | 1 |
 
-Todos los valores son editables porque pueden cambiar mes a mes.
+**Todos los valores son editables desde la interfaz**, porque tanto la tarifa como la rutina
+pueden cambiar de un mes a otro.
 
 ### 2.2 Clasificación de días
 
@@ -153,6 +165,21 @@ El razonamiento detrás de `pasajesKarateDesdeCasa`: en un día de trabajo remot
 desplazarse a la clase de karate y volver, lo que cuesta dos pasajes en lugar del pasaje
 adicional que costaría saliendo desde la oficina.
 
+Los recorridos, en concreto:
+
+| Situación | Recorrido | Pasajes |
+|---|---|---|
+| Oficina sin karate | casa → oficina → casa | 2 |
+| Oficina con karate | casa → oficina → karate → casa | 3 |
+| Remoto con karate | casa → karate → casa | 2 |
+| Remoto sin karate | — | 0 |
+| Festivo o fin de semana con karate | casa → karate → casa | 2 |
+| Vacaciones o ausencia | — | 0 |
+
+> Que un **festivo en martes o jueves siga costando dos pasajes** es fácil de pasar por alto:
+> no se trabaja, pero la clase de karate sigue. Diciembre de 2026 es el caso: la Inmaculada
+> Concepción cae martes 8.
+
 ### 2.4 Escenarios comparativos
 
 Como los días remotos varían ("uno seguro, a veces dos"), la app muestra tres proyecciones
@@ -163,6 +190,25 @@ simultáneas para saber en qué rango se moverá el gasto:
 | Optimista | 2 días remotos por semana |
 | Esperado | 1 día remoto por semana |
 | Pesimista | 0 días remotos (todo presencial) |
+
+Con la configuración por defecto (pasaje $3.550, karate martes y jueves, jornada de lunes a
+viernes), estos son los meses que quedan de 2026:
+
+| Mes | Días oficina | Festivos hábiles | Días de karate | Todo presencial | 1 remoto/sem | 2 remotos/sem |
+|---|---|---|---|---|---|---|
+| Agosto | 19 | 2 | 8 | $163.300 | $142.000 | $113.600 |
+| Septiembre | 22 | 0 | 9 | $188.150 | $159.750 | $131.350 |
+| Octubre | 21 | 1 | 9 | $181.050 | $145.550 | $124.250 |
+| Noviembre | 19 | 2 | 8 | $163.300 | $134.900 | $113.600 |
+| Diciembre | 21 | 2 | 10 | $188.150 | $166.850 | $138.450 |
+
+La variación entre meses llega al **18%** en el mismo escenario (septiembre no tiene ningún
+festivo; agosto tiene dos), que es precisamente el motivo de calcular mes a mes en lugar de
+presupuestar una cifra fija.
+
+Los días remotos se proponen ocupando un día completo de la semana, empezando por el viernes.
+Si ese día cae festivo, no se recupera en otro: en agosto hay cuatro viernes pero el 7 es la
+Batalla de Boyacá, así que quedan tres días de trabajo desde casa, no cuatro.
 
 ### 2.5 Seguimiento contra lo real
 
