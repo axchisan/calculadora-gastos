@@ -79,4 +79,20 @@ public final class DtosGasto {
 
     public record MarcarPagadoRequest(LocalDate fecha) {
     }
+
+    /**
+     * Corrección de lo que se lleva pagado.
+     *
+     * <p>A diferencia del abono, sustituye el valor en lugar de sumarlo: sirve para deshacer un
+     * pago apuntado por error o ajustar la cifra cuando no se pagó el total. Con cero, el gasto
+     * vuelve a estar pendiente.
+     */
+    public record CorregirPagoRequest(
+
+            @NotNull(message = "El monto pagado es obligatorio")
+            @PositiveOrZero(message = "El monto pagado no puede ser negativo")
+            BigDecimal montoPagado,
+
+            LocalDate fecha) {
+    }
 }

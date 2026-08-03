@@ -4,6 +4,7 @@ import com.axchisan.gastos.api.dto.DtosMes.ActualizarMesRequest;
 import com.axchisan.gastos.api.dto.DtosMes.CrearIngresoRequest;
 import com.axchisan.gastos.api.dto.DtosMes.CrearMesRequest;
 import com.axchisan.gastos.api.dto.DtosMes.IngresoDto;
+import com.axchisan.gastos.api.dto.DtosGasto.GastoDto;
 import com.axchisan.gastos.api.dto.DtosMes.MesDto;
 import com.axchisan.gastos.dominio.Ingreso;
 import com.axchisan.gastos.dominio.MesPresupuestal;
@@ -109,6 +110,15 @@ public class MesesController {
             meses.actualizarNotas(usuarioId, mesId, peticion.notas());
         }
         return MesDto.de(meses.buscar(usuarioId, mesId));
+    }
+
+    @PostMapping("/{mesId}/aplicar-plantillas")
+    @Operation(summary = "Añade al mes los gastos fijos que le falten. No duplica los que ya "
+            + "están ni pisa los importes ajustados a mano")
+    public List<GastoDto> aplicarPlantillas(@PathVariable UUID mesId) {
+        return meses.aplicarPlantillasPendientes(UsuarioActual.id(), mesId).stream()
+                .map(GastoDto::de)
+                .toList();
     }
 
     @PostMapping("/{mesId}/cerrar")

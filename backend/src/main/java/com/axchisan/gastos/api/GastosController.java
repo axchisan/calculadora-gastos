@@ -2,6 +2,7 @@ package com.axchisan.gastos.api;
 
 import com.axchisan.gastos.api.dto.DtosGasto.AbonarRequest;
 import com.axchisan.gastos.api.dto.DtosGasto.ActualizarGastoRequest;
+import com.axchisan.gastos.api.dto.DtosGasto.CorregirPagoRequest;
 import com.axchisan.gastos.api.dto.DtosGasto.CrearGastoRequest;
 import com.axchisan.gastos.api.dto.DtosGasto.GastoDto;
 import com.axchisan.gastos.api.dto.DtosGasto.MarcarPagadoRequest;
@@ -69,6 +70,15 @@ public class GastosController {
     @Operation(summary = "Deshace el pago y devuelve el gasto a pendiente")
     public GastoDto marcarPendiente(@PathVariable UUID gastoId) {
         return GastoDto.de(gastos.marcarPendiente(UsuarioActual.id(), gastoId));
+    }
+
+    @PostMapping("/api/gastos/{gastoId}/corregir-pago")
+    @Operation(summary = "Corrige cuánto se lleva pagado. Con cero, el gasto vuelve a estar "
+            + "pendiente")
+    public GastoDto corregirPago(@PathVariable UUID gastoId,
+                                 @Valid @RequestBody CorregirPagoRequest peticion) {
+        return GastoDto.de(gastos.corregirPago(UsuarioActual.id(), gastoId,
+                peticion.montoPagado(), peticion.fecha()));
     }
 
     @PostMapping("/api/gastos/{gastoId}/abonar")

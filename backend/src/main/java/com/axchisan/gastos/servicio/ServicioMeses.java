@@ -14,8 +14,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.YearMonth;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /** Alta y gestión de los meses del presupuesto. */
 @Service
@@ -77,6 +80,43 @@ public class ServicioMeses {
         log.info("Mes {} creado para el usuario {} con {} gastos fijos",
                 periodo, usuarioId, activas.size());
         return nuevo;
+    }
+
+    /**
+     * Añade a un mes ya creado los gastos fijos que le faltan.
+     *
+     * <p>Las plantillas se copian al crear el mes, así que una creada después no aparece en los
+     * meses que ya existían. Esto lo resuelve sin tocar lo que ya hay: se comparan por la
+     * plantilla de origen y solo se añaden las que faltan, de modo que repetir la operación no
+     * duplica nada ni pisa importes ya ajustados a mano.
+     *
+     * @return los gastos añadidos
+     */
+    @Transactional
+    public List<Gasto> aplicarPlantillasPendientes(UUID usuarioId, UUID mesId) {
+        MesPresupuestal mes = buscar(usuarioId, mesId);
+        verificarAbierto(mes);
+
+        Set<UUID> yaPresentes = mes.getGastos().stream()
+                .map(Gasto::getPlantillaId)
+                .filter(java.util.Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        List<Gasto> anadidos = new ArrayList<>();
+        for (PlantillaGasto plantilla : plantillas.listarActivas(usuarioId)) {
+            if (yaPresentes.contains(plantilla.getId())) {
+                continue;
+            }
+            Gasto gasto = plantilla.generarGasto();
+            mes.agregarGasto(gasto);
+            anadidos.add(gasto);
+        }
+
+        if (!anadidos.isEmpty()) {
+            meses.save(mes);
+            log.info("Se añadieron {} gastos fijos al mes {}", anadidos.size(), mes.periodo());
+        }
+        return anadidos;
     }
 
     /** Crea el mes solo si no existía; si ya estaba, devuelve el existente. */
