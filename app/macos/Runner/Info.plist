@@ -14,6 +14,18 @@
 	<string>6.0</string>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
+	<!-- Nombre completo, el que muestra el Finder y el conmutador de aplicaciones. -->
+	<key>CFBundleDisplayName</key>
+	<string>Calculadora de gastos</string>
+	<!-- La interfaz está solo en español; sin esto macOS anuncia la aplicación como inglesa y
+	     el formato de las fechas del sistema no coincide con el de la app. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>es</string>
+	</array>
+	<!-- La aplicación no tiene modo oscuro propio: sigue el tema del sistema. -->
+	<key>NSRequiresAquaSystemAppearance</key>
+	<false/>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

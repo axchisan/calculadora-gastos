@@ -79,26 +79,31 @@ jobs:
       - name: Publicar en S3
         working-directory: app/build/web
         run: |
-          # Los archivos con hash en el nombre pueden cachearse indefinidamente.
-          aws s3 sync . "s3://${{ vars.BUCKET_WEB }}" \
-            --delete \
-            --cache-control "public,max-age=31536000,immutable" \
-            --exclude "index.html" \
-            --exclude "flutter_service_worker.js" \
-            --exclude "version.json"
-
-          # Estos tres no llevan hash y deben revalidarse siempre, o el navegador seguiría
-          # sirviendo la versión anterior tras un despliegue.
-          aws s3 sync . "s3://${{ vars.BUCKET_WEB }}" \
+          # Flutter web NO pone hash en los nombres: main.dart.js, flutter.js y el resto se
+          # llaman igual en cada compilación. Cachearlos como inmutables dejaba a CloudFront
+          # sirviendo la versión anterior indefinidamente, incluso en incógnito y en
+          # dispositivos nuevos, porque el caché es del CDN y no del navegador.
+          #
+          # Un único sync con --delete, para que no haya dos pasadas compitiendo por borrar
+          # lo que la otra acaba de subir.
+          aws s3 sync . "s3://${{ vars.BUCKET_WEB }}" --delete \
             --cache-control "no-cache,must-revalidate" \
-            --exclude "*" \
-            --include "index.html" \
-            --include "flutter_service_worker.js" \
-            --include "version.json"
+            --only-show-errors
 
-      - name: Invalidar la caché de CloudFront
+          # assets/ y canvaskit/ sí son estables entre compilaciones y pesan varios MB, así
+          # que se les recoloca un caché largo sin volver a subirlos.
+          aws s3 cp "s3://${{ vars.BUCKET_WEB }}/assets" "s3://${{ vars.BUCKET_WEB }}/assets" \
+            --recursive --metadata-directive REPLACE \
+            --cache-control "public,max-age=604800" --only-show-errors
+          aws s3 cp "s3://${{ vars.BUCKET_WEB }}/canvaskit" "s3://${{ vars.BUCKET_WEB }}/canvaskit" \
+            --recursive --metadata-directive REPLACE \
+            --cache-control "public,max-age=604800" --only-show-errors
+
+      - name: Vaciar el caché de CloudFront
         run: |
+          # Se invalida todo: con archivos sin hash, cualquier ruta puede haber cambiado.
+          # CloudFront incluye 1.000 invalidaciones al mes, muy por encima de este ritmo.
           aws cloudfront create-invalidation \
             --distribution-id "${{ vars.DISTRIBUCION_WEB }}" \
-            --paths "/index.html" "/flutter_service_worker.js" "/version.json" \
+            --paths "/*" \
             --no-cli-pager > /dev/null

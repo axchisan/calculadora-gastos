@@ -3,7 +3,7 @@
     "short_name": "Gastos",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#ffffff",
+    "background_color": "#00695C",
     "theme_color": "#00695C",
     "description": "Presupuesto mensual, deudas, ahorro y cálculo de transporte",
     "orientation": "portrait-primary",
