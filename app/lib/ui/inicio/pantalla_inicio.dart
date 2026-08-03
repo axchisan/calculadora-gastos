@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../app.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
 import '../../dominio/modelos.dart';
-import '../../estado/autenticacion.dart';
 import '../../estado/mes.dart';
 import 'widgets/lista_gastos.dart';
 import 'widgets/tarjeta_saldo.dart';
@@ -24,6 +25,11 @@ class PantallaInicio extends ConsumerWidget {
         title: Text(Formato.mesYAnio(periodo)),
         actions: [
           IconButton(
+            icon: const Icon(Icons.calendar_month_outlined),
+            tooltip: 'Calendario de transporte',
+            onPressed: () => context.push(Rutas.transporte),
+          ),
+          IconButton(
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Mes anterior',
             onPressed: () => _moverMes(ref, -1),
@@ -35,8 +41,8 @@ class PantallaInicio extends ConsumerWidget {
           ),
           PopupMenuButton<String>(
             onSelected: (opcion) {
-              if (opcion == 'salir') {
-                ref.read(sesionProvider.notifier).cerrarSesion();
+              if (opcion == 'cuenta') {
+                context.push(Rutas.cuenta);
               }
               if (opcion == 'recargar') {
                 ref.read(mesProvider.notifier).cargar();
@@ -44,7 +50,7 @@ class PantallaInicio extends ConsumerWidget {
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'recargar', child: Text('Recargar')),
-              PopupMenuItem(value: 'salir', child: Text('Cerrar sesión')),
+              PopupMenuItem(value: 'cuenta', child: Text('Mi cuenta')),
             ],
           ),
         ],

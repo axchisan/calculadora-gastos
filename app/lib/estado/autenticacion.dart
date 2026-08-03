@@ -103,3 +103,68 @@ final sesionProvider = StateNotifierProvider<ControladorSesion, EstadoSesion>(
 final haySesionProvider = Provider<bool>(
   (ref) => ref.watch(sesionProvider) is SesionAbierta,
 );
+
+/// Indica si el servidor admite cuentas nuevas.
+///
+/// La aplicación es de uso personal: el registro solo está abierto mientras no exista ninguna
+/// cuenta. Consultarlo permite ocultar la opción de crear cuenta en lugar de ofrecerla para
+/// que acabe en un error.
+///
+/// Ante un fallo de red se asume cerrado, que es lo habitual: mostrar el registro cuando no
+/// procede confunde más que ocultarlo de menos.
+final registroAbiertoProvider = FutureProvider<bool>((ref) async {
+  try {
+    final respuesta = await ref
+        .watch(clienteApiProvider)
+        .obtener<Map<String, dynamic>>('/api/auth/registro-abierto');
+    return respuesta['abierto'] as bool? ?? false;
+  } on ErrorApi {
+    return false;
+  }
+});
+
+/// Cambios sobre las credenciales de la cuenta.
+class ControladorCuenta {
+  const ControladorCuenta(this._cliente);
+
+  final ClienteApi _cliente;
+
+  /// Cambia la contraseña. El servidor revoca el resto de sesiones y devuelve una nueva.
+  Future<SesionGuardada> cambiarPassword({
+    required String actual,
+    required String nueva,
+  }) async {
+    final respuesta = await _cliente.modificar<Map<String, dynamic>>(
+      '/api/auth/password',
+      cuerpo: {'passwordActual': actual, 'passwordNueva': nueva},
+    );
+    return _guardar(respuesta);
+  }
+
+  Future<SesionGuardada> cambiarEmail({
+    required String password,
+    required String emailNuevo,
+  }) async {
+    final respuesta = await _cliente.modificar<Map<String, dynamic>>(
+      '/api/auth/email',
+      cuerpo: {'password': password, 'emailNuevo': emailNuevo.trim()},
+    );
+    return _guardar(respuesta);
+  }
+
+  Future<void> cambiarNombre(String nombre) =>
+      _cliente.modificar<Map<String, dynamic>>(
+        '/api/auth/nombre',
+        cuerpo: {'nombre': nombre.trim()},
+      );
+
+  Future<SesionGuardada> _guardar(Map<String, dynamic> respuesta) async {
+    final sesion = SesionGuardada.deRespuesta(respuesta);
+    await _cliente.establecerSesion(sesion);
+    return sesion;
+  }
+}
+
+final cuentaProvider = Provider<ControladorCuenta>(
+  (ref) => ControladorCuenta(ref.watch(clienteApiProvider)),
+);
