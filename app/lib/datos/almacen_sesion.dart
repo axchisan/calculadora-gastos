@@ -80,6 +80,13 @@ class AlmacenSesion {
           almacen ??
           const FlutterSecureStorage(
             aOptions: AndroidOptions(encryptedSharedPreferences: true),
+            // En macOS hay que desactivar el «data protection keychain». Es el modo por
+            // defecto del paquete y exige el entitlement keychain-access-groups, que a su vez
+            // requiere firmar la aplicación con un equipo de desarrollador de Apple. Sin eso,
+            // cada lectura o escritura falla con el código -34018 («A required entitlement
+            // isn't present»). El keychain tradicional de archivo no lo necesita y protege
+            // igual el contenido.
+            mOptions: MacOsOptions(useDataProtectionKeyChain: false),
           );
 
   static const String _clave = 'sesion';

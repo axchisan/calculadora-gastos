@@ -92,6 +92,21 @@ La aplicación **no está firmada con un certificado de desarrollador de Apple**
 primera vez macOS la bloqueará. Para abrirla: clic derecho sobre ella → **Abrir** → **Abrir** en
 el aviso. Solo hace falta la primera vez.
 
+### Acceso al Keychain
+
+El almacén de la sesión se configura con `useDataProtectionKeyChain: false`. El modo por
+defecto del paquete exige el entitlement `keychain-access-groups`, que a su vez requiere firmar
+la aplicación con un equipo de desarrollador de Apple. Sin eso, cada lectura o escritura falla
+con el código **-34018** («A required entitlement isn't present»).
+
+El síntoma es engañoso: la aplicación abre con normalidad y el botón de entrar deja de
+responder, sin error ni indicador. Está cubierto por
+`integration_test/almacen_sesion_test.dart`, que se ejecuta contra el Keychain real:
+
+```bash
+flutter test integration_test -d macos
+```
+
 ### Permiso de red
 
 Los *entitlements* declaran `com.apple.security.network.client`. Sin ese permiso, el sandbox de
