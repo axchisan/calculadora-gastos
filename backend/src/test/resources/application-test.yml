@@ -8,6 +8,19 @@
 #   createdb gastos_test -O gastos
 
 spring:
+  # Sin esto, la autoconfiguración de Spring Cloud AWS intenta construir el cliente de SSM al
+  # levantar el contexto y falla al no encontrar credenciales ni región. En una máquina con el
+  # CLI de AWS configurado el problema pasa inadvertido, porque el SDK toma las credenciales
+  # del entorno; en integración continua no existen y fallan todas las pruebas.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.AwsAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.CredentialsProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.RegionProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.config.parameterstore.ParameterStoreAutoConfiguration
+      - io.awspring.cloud.autoconfigure.config.parameterstore.ParameterStoreReloadAutoConfiguration
+
   datasource:
     url: jdbc:postgresql://localhost:5432/gastos_test
     username: gastos

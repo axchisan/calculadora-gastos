@@ -104,6 +104,19 @@ spring:
   config:
     activate:
       on-profile: local
+
+  # Desarrollar no debe exigir tener credenciales de AWS configuradas: sin estas exclusiones,
+  # la autoconfiguración de Spring Cloud AWS intenta crear el cliente de SSM y el arranque
+  # falla en cualquier máquina sin el CLI configurado.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.AwsAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.CredentialsProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.core.RegionProviderAutoConfiguration
+      - io.awspring.cloud.autoconfigure.config.parameterstore.ParameterStoreAutoConfiguration
+      - io.awspring.cloud.autoconfigure.config.parameterstore.ParameterStoreReloadAutoConfiguration
+
   datasource:
     url: jdbc:postgresql://localhost:5432/gastos
     username: gastos
