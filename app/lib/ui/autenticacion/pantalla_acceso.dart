@@ -86,6 +86,10 @@ class _PantallaAccesoState extends ConsumerState<PantallaAcceso> {
   @override
   Widget build(BuildContext context) {
     final esquema = Theme.of(context).colorScheme;
+    // Ante un fallo de red se asume cerrado: ofrecer el registro cuando no procede lleva
+    // directo a un error.
+    final registroAbierto =
+        ref.watch(registroAbiertoProvider).valueOrNull ?? false;
 
     return Scaffold(
       body: Center(
@@ -215,14 +219,15 @@ class _PantallaAccesoState extends ConsumerState<PantallaAcceso> {
                         : Text(_esRegistro ? 'Crear cuenta' : 'Entrar'),
                   ),
                   const SizedBox(height: 12),
-                  TextButton(
-                    onPressed: _enviando ? null : _alternarModo,
-                    child: Text(
-                      _esRegistro
-                          ? '¿Ya tienes cuenta? Entra'
-                          : '¿No tienes cuenta? Créala',
+                  if (registroAbierto)
+                    TextButton(
+                      onPressed: _enviando ? null : _alternarModo,
+                      child: Text(
+                        _esRegistro
+                            ? '¿Ya tienes cuenta? Entra'
+                            : '¿No tienes cuenta? Créala',
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
