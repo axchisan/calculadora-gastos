@@ -1,11 +1,11 @@
 {
-    "name": "calculadora_gastos",
-    "short_name": "calculadora_gastos",
+    "name": "Calculadora de gastos",
+    "short_name": "Gastos",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "Calculadora de gastos mensuales",
+    "background_color": "#ffffff",
+    "theme_color": "#00695C",
+    "description": "Presupuesto mensual, deudas, ahorro y cálculo de transporte",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

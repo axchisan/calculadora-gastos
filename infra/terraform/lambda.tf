@@ -191,21 +191,17 @@ resource "aws_lambda_permission" "url_invocar_funcion" {
   invoked_via_function_url = true
 }
 
+# CORS lo resuelve Spring Security dentro de la función, no la Function URL.
+#
+# Configurarlo en ambos sitios hace que la respuesta lleve la cabecera
+# Access-Control-Allow-Origin por duplicado, y los navegadores rechazan las respuestas con más
+# de un valor en esa cabecera: la aplicación web dejaría de poder llamar a la API, aunque con
+# curl todo pareciera correcto.
+#
+# Se deja en Spring porque ahí los orígenes permitidos vienen de SSM y pueden cambiarse sin
+# volver a desplegar la infraestructura.
 resource "aws_lambda_function_url" "api" {
   function_name      = aws_lambda_function.api.function_name
   qualifier          = aws_lambda_alias.live.name
   authorization_type = "NONE"
-
-  cors {
-    allow_origins = [
-      "https://${var.subdominio_web}.${var.dominio}",
-      "http://localhost:*"
-    ]
-    # No se incluye OPTIONS: las peticiones preflight las responde la propia Function URL, y
-    # además su validación rechaza cualquier método de más de seis caracteres.
-    allow_methods     = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-    allow_headers     = ["authorization", "content-type"]
-    max_age           = 3600
-    allow_credentials = false
-  }
 }
