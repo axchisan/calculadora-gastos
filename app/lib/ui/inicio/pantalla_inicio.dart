@@ -6,8 +6,10 @@ import '../../app.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
+import '../../datos/repositorio_meses.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/mes.dart';
+import 'widgets/editor_ingreso.dart';
 import 'widgets/lista_gastos.dart';
 import 'widgets/tarjeta_saldo.dart';
 
@@ -35,18 +37,23 @@ class PantallaInicio extends ConsumerWidget {
             onPressed: () => _moverMes(ref, 1),
           ),
           PopupMenuButton<String>(
-            onSelected: (opcion) {
-              if (opcion == 'cuenta') {
-                context.push(Rutas.cuenta);
-              }
-              if (opcion == 'recargar') {
-                ref.read(mesProvider.notifier).cargar();
-              }
+            onSelected: (opcion) => _menu(context, ref, opcion, datos),
+            itemBuilder: (_) {
+              final cerrado = datos.valueOrNull?.resumen.cerrado ?? false;
+              return [
+                const PopupMenuItem(
+                  value: 'plantillas',
+                  child: Text('Gastos fijos'),
+                ),
+                PopupMenuItem(
+                  value: cerrado ? 'reabrir' : 'cerrar',
+                  child: Text(cerrado ? 'Reabrir el mes' : 'Cerrar el mes'),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(value: 'recargar', child: Text('Recargar')),
+                const PopupMenuItem(value: 'cuenta', child: Text('Mi cuenta')),
+              ];
             },
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'recargar', child: Text('Recargar')),
-              PopupMenuItem(value: 'cuenta', child: Text('Mi cuenta')),
-            ],
           ),
         ],
       ),
@@ -58,7 +65,11 @@ class PantallaInicio extends ConsumerWidget {
               : 'No se pudo cargar el mes',
           alReintentar: () => ref.read(mesProvider.notifier).cargar(),
         ),
-        data: (d) => _Contenido(datos: d),
+        data: (d) => _Contenido(
+          datos: d,
+          alEditarIngreso: () =>
+              _editarIngreso(context, ref, d.resumen.ingresoBase),
+        ),
       ),
       floatingActionButton: datos.hasValue
           ? FloatingActionButton.extended(
@@ -68,6 +79,83 @@ class PantallaInicio extends ConsumerWidget {
             )
           : null,
     );
+  }
+
+  Future<void> _menu(
+    BuildContext context,
+    WidgetRef ref,
+    String opcion,
+    AsyncValue<DatosMes> datos,
+  ) async {
+    switch (opcion) {
+      case 'cuenta':
+        context.push(Rutas.cuenta);
+      case 'plantillas':
+        context.push(Rutas.plantillas);
+      case 'recargar':
+        await ref.read(mesProvider.notifier).cargar();
+      case 'cerrar':
+        await _cerrarMes(context, ref);
+      case 'reabrir':
+        await _ejecutar(
+          context,
+          () => ref.read(mesProvider.notifier).reabrir(),
+        );
+    }
+  }
+
+  Future<void> _cerrarMes(BuildContext context, WidgetRef ref) async {
+    final confirmado = await showDialog<bool>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('Cerrar el mes'),
+        content: const Text(
+          'El mes queda como registro histórico y deja de admitir cambios. Puedes reabrirlo '
+          'cuando quieras desde el mismo menú.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(contexto, true),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
+    );
+
+    if (!(confirmado ?? false) || !context.mounted) return;
+    await _ejecutar(context, () => ref.read(mesProvider.notifier).cerrar());
+  }
+
+  Future<void> _editarIngreso(
+    BuildContext context,
+    WidgetRef ref,
+    double actual,
+  ) async {
+    final nuevo = await EditorIngreso.abrir(context, actual);
+    if (nuevo == null || !context.mounted) return;
+    await _ejecutar(
+      context,
+      () => ref.read(mesProvider.notifier).actualizarIngreso(nuevo),
+    );
+  }
+
+  Future<void> _ejecutar(
+    BuildContext context,
+    Future<void> Function() accion,
+  ) async {
+    try {
+      await accion();
+    } on ErrorApi catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
   }
 
   void _moverMes(WidgetRef ref, int desplazamiento) {
@@ -105,9 +193,10 @@ class PantallaInicio extends ConsumerWidget {
 }
 
 class _Contenido extends ConsumerWidget {
-  const _Contenido({required this.datos});
+  const _Contenido({required this.datos, required this.alEditarIngreso});
 
   final DatosMes datos;
+  final VoidCallback alEditarIngreso;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -124,12 +213,49 @@ class _Contenido extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
-              TarjetaSaldo(resumen: datos.resumen),
+              if (RepositorioMeses.ultimaLecturaDesdeCache) ...[
+                const _AvisoSinConexion(),
+                const SizedBox(height: 12),
+              ],
+              TarjetaSaldo(
+                resumen: datos.resumen,
+                // Un mes cerrado no admite cambios.
+                alEditarIngreso: datos.resumen.cerrado ? null : alEditarIngreso,
+              ),
               const SizedBox(height: 20),
               ListaGastos(datos: datos),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Se muestra cuando lo que hay en pantalla proviene del caché por falta de conexión.
+class _AvisoSinConexion extends StatelessWidget {
+  const _AvisoSinConexion();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Tema.pendiente.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.cloud_off_outlined, size: 18, color: Tema.pendiente),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Sin conexión. Ves los últimos datos guardados; los cambios no se guardarán '
+              'hasta recuperarla.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        ],
       ),
     );
   }

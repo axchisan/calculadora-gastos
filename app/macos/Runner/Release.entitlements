@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- Sin este permiso el sandbox de macOS bloquea las conexiones salientes y la
+	     aplicación no puede hablar con la API. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 </dict>

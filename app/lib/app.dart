@@ -11,6 +11,7 @@ import 'ui/deudas/pantalla_deudas.dart';
 import 'ui/graficas/pantalla_graficas.dart';
 import 'ui/inicio/pantalla_inicio.dart';
 import 'ui/navegacion.dart';
+import 'ui/plantillas/pantalla_plantillas.dart';
 import 'ui/transporte/pantalla_transporte.dart';
 
 /// Rutas de la aplicación.
@@ -23,6 +24,7 @@ class Rutas {
   static const String ahorro = '/ahorro';
   static const String graficas = '/graficas';
   static const String cuenta = '/cuenta';
+  static const String plantillas = '/plantillas';
   static const String acceso = '/acceso';
   static const String cargando = '/cargando';
 }
@@ -56,6 +58,10 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
       // La cuenta queda fuera del armazón de navegación: se entra desde el menú y se vuelve,
       // no es una sección más entre las que se alterna.
       GoRoute(path: Rutas.cuenta, builder: (_, _) => const PantallaCuenta()),
+      GoRoute(
+        path: Rutas.plantillas,
+        builder: (_, _) => const PantallaPlantillas(),
+      ),
 
       ShellRoute(
         builder: (_, _, hijo) => Navegacion(hijo: hijo),

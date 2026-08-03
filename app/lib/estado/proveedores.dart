@@ -1,7 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../datos/almacen_sesion.dart';
+import '../datos/cache_local.dart';
 import '../datos/cliente_api.dart';
+
+/// Caché local de las últimas respuestas.
+///
+/// Se sobrescribe en `main` con la instancia ya abierta, porque abrirla es asíncrono y los
+/// proveedores síncronos no pueden esperar.
+final cacheProvider = Provider<CacheLocal>(
+  (ref) => throw StateError('El caché debe inicializarse en main'),
+);
 
 /// Almacén seguro de la sesión.
 final almacenSesionProvider = Provider<AlmacenSesion>((ref) => AlmacenSesion());

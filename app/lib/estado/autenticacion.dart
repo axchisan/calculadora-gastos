@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../datos/almacen_sesion.dart';
+import '../datos/cache_local.dart';
 import '../datos/cliente_api.dart';
 import 'proveedores.dart';
 
@@ -27,11 +28,13 @@ class SesionAbierta extends EstadoSesion {
 
 /// Gestiona el ciclo de vida de la sesión.
 class ControladorSesion extends StateNotifier<EstadoSesion> {
-  ControladorSesion(this._cliente) : super(const SesionComprobando()) {
+  ControladorSesion(this._cliente, this._cache)
+    : super(const SesionComprobando()) {
     _restaurar();
   }
 
   final ClienteApi _cliente;
+  final CacheLocal _cache;
 
   /// Recupera la sesión guardada al abrir la aplicación.
   ///
@@ -84,6 +87,8 @@ class ControladorSesion extends StateNotifier<EstadoSesion> {
       // Sin efecto sobre el cierre local.
     } finally {
       await _cliente.cerrarSesion();
+      // El caché guarda cifras de la cuenta: no debe sobrevivir al cierre de sesión.
+      await _cache.limpiar();
       state = const SesionCerrada();
     }
   }
@@ -96,7 +101,10 @@ class ControladorSesion extends StateNotifier<EstadoSesion> {
 }
 
 final sesionProvider = StateNotifierProvider<ControladorSesion, EstadoSesion>(
-  (ref) => ControladorSesion(ref.watch(clienteApiProvider)),
+  (ref) => ControladorSesion(
+    ref.watch(clienteApiProvider),
+    ref.watch(cacheProvider),
+  ),
 );
 
 /// Atajo para saber si hay sesión abierta.
