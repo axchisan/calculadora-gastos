@@ -25,11 +25,6 @@ class PantallaInicio extends ConsumerWidget {
         title: Text(Formato.mesYAnio(periodo)),
         actions: [
           IconButton(
-            icon: const Icon(Icons.calendar_month_outlined),
-            tooltip: 'Calendario de transporte',
-            onPressed: () => context.push(Rutas.transporte),
-          ),
-          IconButton(
             icon: const Icon(Icons.chevron_left),
             tooltip: 'Mes anterior',
             onPressed: () => _moverMes(ref, -1),
