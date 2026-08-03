@@ -32,7 +32,8 @@ pantalla.
 - [x] Resumen mensual: disponible hoy, saldo proyectado, patrimonio neto
 - [x] Creación de un mes a partir de las plantillas de gastos fijos
 - [x] Endpoints REST y documentación OpenAPI
-- [x] 139 pruebas cubriendo los motores y la API completa
+- [x] Cuotas de deuda proyectadas dentro del cupo comprometido del mes
+- [x] 184 pruebas cubriendo los motores y la API completa
 
 **El backend está terminado.** Ver [API.md](API.md).
 
@@ -80,11 +81,18 @@ pantalla.
 
 Ver [DESPLIEGUE.md](DESPLIEGUE.md).
 
-## Fase 7 — Pulido
+## Fase 7 — Publicación
 
 - [x] Compilación del APK de Android
 - [x] Compilación de la aplicación de macOS
-- [ ] Firma del APK con clave propia (solo si se publica en Play Store)
+- [x] Icono propio en las tres plataformas, generado por código
+- [x] Nombre, identificadores y versión de cada plataforma
+- [x] Tamaño y mínimo de la ventana en macOS
+- [x] Permiso de internet en el manifiesto de publicación de Android
+- [x] Firma de publicación leída de `key.properties` si existe
+- [x] APK por arquitectura: 20 MB en vez de 57
+- [x] Pantalla de carga en la web
+- [ ] Generar la clave propia y guardar copia (necesario para Play Store)
 - [ ] Recordatorios de vencimiento de pagos
 - [ ] Exportación a CSV/PDF
 
