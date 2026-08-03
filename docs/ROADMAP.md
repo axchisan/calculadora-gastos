@@ -51,17 +51,18 @@ pantalla.
 
 - [x] Calendario interactivo de transporte
 - [x] Ajustes de cuenta: cambio de nombre, correo y contraseña
-- [ ] Gestión de deudas externas y abonos
-- [ ] Metas de ahorro y distribución del excedente
+- [x] Gestión de deudas externas y abonos
+- [x] Metas de ahorro y distribución del excedente
+- [x] Navegación entre secciones adaptada a móvil y escritorio
 - [ ] Plantillas de gastos fijos editables
 - [ ] Cierre de mes y creación del siguiente
 
 ## Fase 5 — Gráficas
 
-- [ ] Distribución del gasto por categoría
-- [ ] Evolución de ingresos, gastos y saldo mes a mes
-- [ ] Avance de deudas y proyección de liquidación
-- [ ] Progreso de las metas de ahorro
+- [x] Distribución del gasto por categoría
+- [x] Evolución de ingresos y gastos mes a mes
+- [x] Avance de las deudas
+- [ ] Progreso de las metas de ahorro en gráfica
 - [ ] Presupuestado vs. real en transporte
 
 ## Fase 6 — Infraestructura y despliegue
