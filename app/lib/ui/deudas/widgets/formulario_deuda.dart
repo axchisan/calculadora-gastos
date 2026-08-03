@@ -170,8 +170,12 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                   decimal: false,
                 ),
                 decoration: const InputDecoration(
-                  labelText: 'Cuota mensual (opcional)',
+                  labelText: 'Cuota mensual',
                   prefixText: r'$ ',
+                  // Sin cuota no hay forma de estimar qué parte del sueldo ocupará la deuda.
+                  helperText:
+                      'Sin esto, la deuda no aparece en el modo estimación',
+                  helperMaxLines: 2,
                 ),
               ),
               const SizedBox(height: 24),

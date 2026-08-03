@@ -36,7 +36,7 @@ class TarjetaSaldo extends StatelessWidget {
     final textos = Theme.of(context).textTheme;
 
     final cifraPrincipal = _esEstimacion
-        ? resumen.saldoProyectado
+        ? resumen.saldoTrasCuotas
         : resumen.disponibleHoy;
     final etiquetaPrincipal = _esEstimacion
         ? 'Te quedaría libre'
@@ -88,6 +88,14 @@ class TarjetaSaldo extends StatelessWidget {
               _BarraCompromiso(resumen: resumen)
             else
               _BarraPagos(resumen: resumen),
+
+            // La barra solo cuenta gastos, así que un abono a una deuda o un aporte al ahorro
+            // reducían el disponible sin dejar rastro de a dónde habían ido.
+            if (_esEstimacion)
+              _DetalleCompromisos(resumen: resumen)
+            else
+              _DetalleSalidas(resumen: resumen),
+
             const SizedBox(height: 20),
 
             Row(
@@ -111,7 +119,7 @@ class TarjetaSaldo extends StatelessWidget {
                   child: _Cifra(
                     etiqueta: _esEstimacion ? 'Comprometido' : 'Gastos',
                     valor: _esEstimacion
-                        ? resumen.comprometido
+                        ? resumen.comprometidoConCuotas
                         : resumen.gastoTotal,
                     icono: Icons.arrow_upward,
                     color: Tema.pendiente,
@@ -120,9 +128,15 @@ class TarjetaSaldo extends StatelessWidget {
                 Expanded(
                   child: _Cifra(
                     etiqueta: _esEstimacion ? 'Sin asignar' : 'Al cerrar',
-                    valor: resumen.saldoProyectado,
+                    valor: _esEstimacion
+                        ? resumen.saldoTrasCuotas
+                        : resumen.saldoProyectado,
                     icono: Icons.flag_outlined,
-                    color: Tema.paraSaldo(resumen.saldoProyectado),
+                    color: Tema.paraSaldo(
+                      _esEstimacion
+                          ? resumen.saldoTrasCuotas
+                          : resumen.saldoProyectado,
+                    ),
                     resaltado: true,
                   ),
                 ),
@@ -315,6 +329,170 @@ class _BarraCompromiso extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Desglose del dinero que ya salió este mes.
+class _DetalleSalidas extends StatelessWidget {
+  const _DetalleSalidas({required this.resumen});
+
+  final ResumenMensual resumen;
+
+  @override
+  Widget build(BuildContext context) {
+    final hayOtrasSalidas = resumen.abonosDeuda > 0 || resumen.aporteAhorro > 0;
+    if (!hayOtrasSalidas) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        children: [
+          if (resumen.abonosDeuda > 0)
+            _Linea(
+              icono: Icons.credit_card,
+              etiqueta: 'Abonado a deudas',
+              valor: resumen.abonosDeuda,
+              color: Tema.negativo,
+            ),
+          if (resumen.aporteAhorro > 0)
+            _Linea(
+              icono: Icons.savings_outlined,
+              etiqueta: 'Guardado en metas',
+              valor: resumen.aporteAhorro,
+              color: Tema.positivo,
+            ),
+          const Divider(height: 16),
+          _Linea(
+            icono: Icons.output,
+            etiqueta: 'Ha salido en total',
+            valor: resumen.salidaReal,
+            color: Theme.of(context).colorScheme.onSurface,
+            resaltado: true,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Desglose de lo que ya tiene destino, cuotas de deuda incluidas.
+class _DetalleCompromisos extends StatelessWidget {
+  const _DetalleCompromisos({required this.resumen});
+
+  final ResumenMensual resumen;
+
+  @override
+  Widget build(BuildContext context) {
+    final esquema = Theme.of(context).colorScheme;
+    final hayCuotas = resumen.cuotasDeudaPendientes > 0;
+    final faltanCuotas = resumen.deudasSinCuota > 0;
+
+    if (!hayCuotas && !faltanCuotas && resumen.aporteAhorro == 0) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _Linea(
+            icono: Icons.receipt_long_outlined,
+            etiqueta: 'Gastos del mes',
+            valor: resumen.gastoTotal,
+            color: Tema.pendiente,
+          ),
+          if (resumen.abonosDeuda > 0)
+            _Linea(
+              icono: Icons.credit_card,
+              etiqueta: 'Ya abonado a deudas',
+              valor: resumen.abonosDeuda,
+              color: Tema.negativo,
+            ),
+          if (hayCuotas)
+            _Linea(
+              icono: Icons.event_repeat,
+              etiqueta: 'Cuotas de deuda por pagar',
+              valor: resumen.cuotasDeudaPendientes,
+              color: Tema.negativo,
+            ),
+          if (resumen.aporteAhorro > 0)
+            _Linea(
+              icono: Icons.savings_outlined,
+              etiqueta: 'Ahorro',
+              valor: resumen.aporteAhorro,
+              color: Tema.positivo,
+            ),
+
+          if (faltanCuotas) ...[
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline, size: 15, color: Tema.pendiente),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    resumen.deudasSinCuota == 1
+                        ? 'Tienes 1 deuda sin cuota mensual, así que no cuenta aquí. '
+                              'Ponle una para verla en la estimación.'
+                        : 'Tienes ${resumen.deudasSinCuota} deudas sin cuota mensual, así que '
+                              'no cuentan aquí. Ponles una para verlas en la estimación.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: esquema.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Linea extends StatelessWidget {
+  const _Linea({
+    required this.icono,
+    required this.etiqueta,
+    required this.valor,
+    required this.color,
+    this.resaltado = false,
+  });
+
+  final IconData icono;
+  final String etiqueta;
+  final double valor;
+  final Color color;
+  final bool resaltado;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: [
+          Icon(icono, size: 14, color: color),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              etiqueta,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                fontWeight: resaltado ? FontWeight.w600 : null,
+              ),
+            ),
+          ),
+          Text(
+            Formato.dinero(valor),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              fontWeight: resaltado ? FontWeight.w700 : FontWeight.w500,
+              color: resaltado ? null : color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
