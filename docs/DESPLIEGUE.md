@@ -135,6 +135,34 @@ Las credenciales se obtienen por **OIDC**: GitHub recibe credenciales temporales
 y no hay ninguna clave permanente en los secretos del repositorio. El rol está restringido a
 este repositorio y a las acciones justas para desplegar.
 
+### Caché de la web
+
+Flutter **no pone un hash en los nombres de los archivos que compila**: `main.dart.js`,
+`flutter.js` y `flutter_bootstrap.js` se llaman igual en cada compilación. Es la diferencia con
+casi cualquier otro empaquetador web, y hace que la estrategia habitual de caché no sirva.
+
+Con eso en mente, la publicación separa dos grupos:
+
+| Archivos | `Cache-Control` | Por qué |
+|---|---|---|
+| `index.html`, `*.js`, `manifest.json` | `no-cache,must-revalidate` | El nombre no cambia entre versiones; el navegador tiene que preguntar |
+| `assets/`, `canvaskit/` | `public,max-age=604800` | Sí llevan huella en la ruta o cambian con la versión de Flutter |
+
+Y después se invalida `/*` en CloudFront, no solo `/index.html`.
+
+> Esto empezó marcando **todo** como `immutable` durante un año e invalidando únicamente
+> `/index.html`. El resultado es que la aplicación dejó de actualizarse durante varias versiones
+> y el síntoma despistaba mucho: no se arreglaba ni en incógnito ni en un dispositivo nuevo,
+> porque la copia vieja estaba en CloudFront, no en el navegador.
+
+Para comprobar qué versión está sirviéndose de verdad:
+
+```bash
+curl -sI https://gastos.axchisan.com/main.dart.js | grep -i "cache-control\|etag"
+curl -s https://gastos.axchisan.com/main.dart.js | md5
+md5 -q app/build/web/main.dart.js
+```
+
 ### Configuración en GitHub
 
 Secreto:

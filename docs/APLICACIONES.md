@@ -6,11 +6,43 @@ comparten los mismos datos.
 | Plataforma | Cómo se usa | Tamaño |
 |---|---|---|
 | **Web** | [gastos.axchisan.com](https://gastos.axchisan.com) | — |
-| **Android** | APK instalable | 54 MB |
-| **macOS** | Aplicación de escritorio | 46 MB |
+| **Android** | APK instalable | 20 MB (arm64) |
+| **macOS** | Aplicación de escritorio | 48 MB |
 
 La web se despliega sola en cada cambio; las otras dos se compilan a mano cuando se quieren
 actualizar.
+
+## Identidad de la aplicación
+
+| Dato | Valor |
+|---|---|
+| Nombre completo | Calculadora de gastos |
+| Nombre en el lanzador | Mis gastos |
+| Identificador (Android) | `com.axchisan.calculadora_gastos` |
+| Identificador (macOS) | `com.axchisan.calculadoraGastos` |
+| Versión | `pubspec.yaml`, campo `version` |
+
+El nombre del lanzador va abreviado porque tanto Android como la barra de menús de macOS
+recortan las etiquetas largas. macOS no admite guiones bajos en el identificador del paquete, de
+ahí que no coincida con el de Android.
+
+**Al publicar una versión nueva hay que subir el número tras el `+` en `version`.** Es el
+`versionCode` de Android, y el sistema rechaza instalar un APK cuyo código no sea mayor que el
+instalado.
+
+### Iconos
+
+Se generan, no se editan a mano:
+
+```bash
+cd app
+python3 tools/generar_icono.py     # dibuja assets/icono/ con Pillow
+dart run flutter_launcher_icons     # los reparte a Android, macOS y web
+```
+
+`tools/generar_icono.py` dibuja el icono por código; ajustando las constantes del principio se
+cambia el color o la composición. El icono adaptativo de Android sale con margen porque los
+lanzadores recortan la imagen con la forma que elija el usuario.
 
 ## Requisitos del entorno
 
@@ -37,8 +69,8 @@ cd app
 # Web
 flutter build web --release --dart-define=API_URL=https://api.axchisan.com
 
-# Android
-flutter build apk --release --dart-define=API_URL=https://api.axchisan.com
+# Android: un APK por arquitectura, en vez de uno con las tres dentro
+flutter build apk --release --split-per-abi --dart-define=API_URL=https://api.axchisan.com
 
 # macOS
 flutter build macos --release --dart-define=API_URL=https://api.axchisan.com
@@ -51,8 +83,12 @@ flutter build macos --release --dart-define=API_URL=https://api.axchisan.com
 Resultados:
 
 - `build/web/`
-- `build/app/outputs/flutter-apk/app-release.apk`
-- `build/macos/Build/Products/Release/calculadora_gastos.app`
+- `build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` — el de cualquier teléfono actual
+- `build/macos/Build/Products/Release/Mis gastos.app`
+
+Sin `--split-per-abi` sale un solo `app-release.apk` de 57 MB con el código nativo de las tres
+arquitecturas dentro; separados, el de arm64 son 20 MB. Para instalar a mano siempre conviene
+separarlos: solo se copia al teléfono el que va a usar.
 
 ## Instalar en Android
 
@@ -65,28 +101,39 @@ El APK no viene de Play Store, así que el teléfono pedirá permiso para instal
 
 ### Sobre la firma
 
-El APK está firmado con la **clave de depuración** que genera Flutter, no con una propia. Para
-uso personal es suficiente: se instala y funciona igual.
-
-Lo que implica:
+Si no hay `app/android/key.properties`, el APK se firma con la **clave de depuración** que
+genera Flutter. Para uso personal es suficiente: se instala y funciona igual. Lo que implica:
 
 - **No sirve para publicar en Play Store**, que exige una clave propia.
-- Al cambiar de máquina de compilación, la clave de depuración cambia y Android trata la
-  aplicación como distinta: hay que desinstalar la anterior para poder instalar la nueva.
+- La clave de depuración es distinta en cada máquina, así que al cambiar de ordenador Android
+  trata la aplicación como si fuera otra: hay que desinstalar la anterior para instalar la
+  nueva, y se pierde la sesión guardada.
 
-Si algún día se quisiera publicar o mantener actualizaciones estables entre máquinas, habría
-que generar una clave propia y guardarla fuera del repositorio:
+Para tener una clave propia y que las actualizaciones se instalen encima sin desinstalar nada:
 
 ```bash
 keytool -genkey -v -keystore ~/gastos-release.jks \
   -keyalg RSA -keysize 2048 -validity 10000 -alias gastos
 ```
 
-Y referenciarla desde `android/key.properties`, que ya está excluido en `.gitignore`.
+Y crear `app/android/key.properties`, que ya está excluido en `.gitignore`:
+
+```properties
+storeFile=/Users/mac/gastos-release.jks
+storePassword=...
+keyAlias=gastos
+keyPassword=...
+```
+
+`build.gradle.kts` lo detecta solo: si el archivo existe firma con esa clave, y si no, con la de
+depuración. Así el repositorio se puede clonar y compilar sin configurar nada.
+
+> **Guardar copia del `.jks` y de sus contraseñas.** Si se pierde la clave no hay forma de
+> publicar una actualización que Android acepte instalar sobre la versión anterior.
 
 ## Instalar en macOS
 
-Arrastrar `calculadora_gastos.app` a la carpeta de Aplicaciones.
+Arrastrar `Mis gastos.app` a la carpeta de Aplicaciones.
 
 La aplicación **no está firmada con un certificado de desarrollador de Apple**, así que la
 primera vez macOS la bloqueará. Para abrirla: clic derecho sobre ella → **Abrir** → **Abrir** en
@@ -112,6 +159,18 @@ flutter test integration_test -d macos
 Los *entitlements* declaran `com.apple.security.network.client`. Sin ese permiso, el sandbox de
 macOS bloquea las conexiones salientes: la aplicación abriría con normalidad y se quedaría
 esperando indefinidamente al hablar con la API, sin ningún mensaje que explicara por qué.
+
+El equivalente en Android es `android.permission.INTERNET`. Solo estaba declarado en los
+manifiestos de depuración y de perfil, que es donde lo pone `flutter create`, así que hasta
+ahora un APK de publicación se instalaba y no podía hablar con la API. Ahora está en el
+manifiesto principal.
+
+### Tamaño de la ventana
+
+`MainFlutterWindow.swift` fija 460 × 900 puntos al abrir por primera vez y un mínimo de
+380 × 560. La proporción es vertical porque la interfaz es una sucesión de tarjetas y listas.
+A partir del segundo arranque manda el tamaño que macOS haya guardado, para no deshacer lo que
+se haya ajustado a mano.
 
 ## Dónde se guarda la sesión
 

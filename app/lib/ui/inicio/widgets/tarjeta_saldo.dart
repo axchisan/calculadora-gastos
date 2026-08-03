@@ -340,19 +340,35 @@ class _DetalleSalidas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hayOtrasSalidas = resumen.abonosDeuda > 0 || resumen.aporteAhorro > 0;
-    if (!hayOtrasSalidas) return const SizedBox.shrink();
+    final hayDeudasOAhorro =
+        resumen.abonosDeuda > 0 ||
+        resumen.aporteAhorro > 0 ||
+        resumen.cuotasDeudaPendientes > 0;
+    if (!hayDeudasOAhorro) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
       child: Column(
         children: [
+          _Linea(
+            icono: Icons.receipt_long_outlined,
+            etiqueta: 'Gastos por pagar',
+            valor: resumen.gastoPendiente,
+            color: Tema.pendiente,
+          ),
+          if (resumen.cuotasDeudaPendientes > 0)
+            _Linea(
+              icono: Icons.event_repeat,
+              etiqueta: 'Cuotas de deuda por pagar',
+              valor: resumen.cuotasDeudaPendientes,
+              color: Tema.negativo,
+            ),
           if (resumen.abonosDeuda > 0)
             _Linea(
               icono: Icons.credit_card,
-              etiqueta: 'Abonado a deudas',
+              etiqueta: 'Ya abonado a deudas',
               valor: resumen.abonosDeuda,
-              color: Tema.negativo,
+              color: Tema.positivo,
             ),
           if (resumen.aporteAhorro > 0)
             _Linea(
@@ -363,9 +379,9 @@ class _DetalleSalidas extends StatelessWidget {
             ),
           const Divider(height: 16),
           _Linea(
-            icono: Icons.output,
-            etiqueta: 'Ha salido en total',
-            valor: resumen.salidaReal,
+            icono: Icons.pending_actions,
+            etiqueta: 'Te falta pagar',
+            valor: resumen.pendienteTotal,
             color: Theme.of(context).colorScheme.onSurface,
             resaltado: true,
           ),

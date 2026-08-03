@@ -1,8 +1,19 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Sin este permiso la compilación de publicación no puede hablar con la API. Los
+         manifiestos de depuración y de perfil lo declaran por su cuenta, así que el fallo no
+         aparece hasta que se instala un APK de publicación. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- usesCleartextTraffic: todo va por HTTPS contra api.axchisan.com.
+         allowBackup: la app maneja datos económicos y las copias automáticas de Android los
+         subirían a Google Drive; el servidor ya es la única fuente de verdad. -->
     <application
-        android:label="calculadora_gastos"
+        android:label="@string/nombre_app"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:usesCleartextTraffic="false"
+        android:allowBackup="false"
+        android:fullBackupContent="false">
         <activity
             android:name=".MainActivity"
             android:exported="true"

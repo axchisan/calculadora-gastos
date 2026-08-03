@@ -1,6 +1,9 @@
 name: calculadora_gastos
-description: "Calculadora de gastos mensuales"
+description: "Calculadora de gastos mensuales: sueldo, gastos fijos, transporte, deudas y ahorro."
 publish_to: 'none'
+
+# El número tras el '+' es el código de versión de Android, que debe subir en cada publicación
+# aunque el nombre de versión no cambie.
 version: 1.0.0+1
 
 environment:
@@ -41,5 +44,37 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # Genera los iconos de cada plataforma a partir de assets/icono/. Solo se usa al preparar una
+  # publicación, con: dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.4
+
 flutter:
   uses-material-design: true
+
+# Configuración del generador de iconos. Las imágenes de partida las produce
+# tools/generar_icono.py; no se editan a mano.
+flutter_launcher_icons:
+  image_path: "assets/icono/icono.png"
+
+  android: true
+  # Los lanzadores modernos recortan el icono con la forma que elija el usuario, así que el
+  # primer plano se entrega con margen y el fondo como color plano.
+  adaptive_icon_background: "#00695C"
+  adaptive_icon_foreground: "assets/icono/icono_adaptativo.png"
+  # Monocromo para los iconos con tema de Android 13 en adelante.
+  adaptive_icon_monochrome: "assets/icono/icono_adaptativo.png"
+  # El margen ya lo aplica tools/generar_icono.py, que puede medir el dibujo y ajustarlo al
+  # círculo de recorte. El margen fijo del 16% que añade el generador lo dejaba demasiado
+  # pequeño, así que aquí se anula.
+  adaptive_icon_foreground_inset: 0
+  min_sdk_android: 23
+
+  macos:
+    generate: true
+    image_path: "assets/icono/icono.png"
+
+  web:
+    generate: true
+    image_path: "assets/icono/icono.png"
+    background_color: "#00695C"
+    theme_color: "#00695C"

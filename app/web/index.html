@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="es-CO">
 <head>
   <!--
     If you are serving your web app in a path other than the root, change the
@@ -18,12 +18,15 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Calculadora de gastos mensuales">
+  <meta name="description"
+        content="Presupuesto mensual: sueldo, gastos fijos, transporte, deudas y ahorro.">
+  <!-- Tiñe la barra del navegador en Android del verde de la aplicación. -->
+  <meta name="theme-color" content="#00695C">
 
-  <!-- iOS meta tags & icons -->
+  <!-- Etiquetas e iconos para iOS, que ignora buena parte del manifiesto -->
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Calculadora de gastos mensuales">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Mis gastos">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
@@ -31,8 +34,49 @@
 
   <title>Calculadora de gastos</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /* Pantalla de carga. El motor de Flutter tarda un par de segundos en arrancar y sin esto
+       se ve un rectángulo blanco, que parece que la página se hubiera roto. */
+    body { margin: 0; background-color: #00695C; }
+
+    #cargando {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #00695C;
+      /* Por encima del lienzo de Flutter hasta que se pinta el primer fotograma. */
+      z-index: 10;
+    }
+
+    #cargando div {
+      width: 42px;
+      height: 42px;
+      border: 4px solid rgba(255, 255, 255, 0.25);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: girar 0.9s linear infinite;
+    }
+
+    @keyframes girar { to { transform: rotate(360deg); } }
+
+    /* Quien haya pedido menos animación ve el indicador quieto en vez de girando. */
+    @media (prefers-reduced-motion: reduce) {
+      #cargando div { animation: none; }
+    }
+  </style>
 </head>
 <body>
+  <div id="cargando"><div></div></div>
+  <script>
+    // Flutter emite este evento en cuanto pinta el primer fotograma.
+    window.addEventListener('flutter-first-frame', function () {
+      var pantalla = document.getElementById('cargando');
+      if (pantalla) pantalla.remove();
+    });
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader

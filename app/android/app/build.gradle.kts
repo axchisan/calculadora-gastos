@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
 }
+
+// Datos del almacén de claves con el que se firman las compilaciones de publicación. El archivo
+// no está en el repositorio porque contiene contraseñas; ver docs/APLICACIONES.md para crearlo.
+// Si no existe, la compilación sigue funcionando con la clave de depuración, de modo que
+// `flutter build apk --release` no falla en una copia recién clonada del repositorio.
+val propiedadesFirma = Properties()
+val archivoFirma = rootProject.file("key.properties")
+if (archivoFirma.exists()) {
+    archivoFirma.inputStream().use { propiedadesFirma.load(it) }
+}
+val hayFirmaPropia = propiedadesFirma.containsKey("storeFile")
 
 android {
     namespace = "com.axchisan.calculadora_gastos"
@@ -15,21 +28,36 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.axchisan.calculadora_gastos"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // El almacén seguro guarda los tokens en el Keystore con respaldo de hardware, que está
+        // disponible desde Android 6.
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        // La interfaz solo está en español; incluir el resto de idiomas de las bibliotecas de
+        // Android engorda el paquete sin aportar nada.
+        resourceConfigurations += listOf("es")
+    }
+
+    signingConfigs {
+        if (hayFirmaPropia) {
+            create("publicacion") {
+                keyAlias = propiedadesFirma.getProperty("keyAlias")
+                keyPassword = propiedadesFirma.getProperty("keyPassword")
+                storeFile = file(propiedadesFirma.getProperty("storeFile"))
+                storePassword = propiedadesFirma.getProperty("storePassword")
+            }
+        }
     }
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hayFirmaPropia) {
+                signingConfigs.getByName("publicacion")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

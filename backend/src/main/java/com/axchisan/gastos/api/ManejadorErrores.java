@@ -8,9 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -93,6 +95,26 @@ public class ManejadorErrores {
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, Object>> argumentoInvalido(IllegalArgumentException e) {
         return respuesta(HttpStatus.BAD_REQUEST, "peticion_invalida", e.getMessage());
+    }
+
+    /**
+     * Un valor de la URL que no encaja con su tipo, como un identificador mal formado.
+     *
+     * <p>Sin esto acababa en la red de seguridad y se devolvía un 500, que sugiere un fallo del
+     * servidor cuando lo que ocurre es que la petición no es válida.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> tipoIncorrecto(
+            MethodArgumentTypeMismatchException e) {
+        return respuesta(HttpStatus.BAD_REQUEST, "peticion_invalida",
+                "El valor de '" + e.getName() + "' no tiene el formato esperado");
+    }
+
+    /** Cuerpo ausente o con JSON mal formado. */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<Map<String, Object>> cuerpoIlegible(HttpMessageNotReadableException e) {
+        return respuesta(HttpStatus.BAD_REQUEST, "peticion_invalida",
+                "El cuerpo de la petición no se pudo interpretar");
     }
 
     /**

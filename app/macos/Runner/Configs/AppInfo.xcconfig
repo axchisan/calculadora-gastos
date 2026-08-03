@@ -1,14 +1,13 @@
-// Application-level settings for the Runner target.
-//
-// This may be replaced with something auto-generated from metadata (e.g., pubspec.yaml) in the
-// future. If not, the values below would default to using the project name when this becomes a
-// 'flutter create' template.
+// Datos de la aplicación para el destino Runner.
 
-// The application's name. By default this is also the title of the Flutter window.
-PRODUCT_NAME = calculadora_gastos
+// Nombre de la aplicación. Es también el nombre del paquete .app y el que aparece en la barra
+// de menús, donde macOS recorta los nombres largos; por eso se usa la forma corta. El nombre
+// completo va en CFBundleDisplayName, dentro de Info.plist.
+PRODUCT_NAME = Mis gastos
 
-// The application's bundle identifier
+// Identificador del paquete. En Android se usa com.axchisan.calculadora_gastos, pero macOS no
+// admite guiones bajos en el identificador.
 PRODUCT_BUNDLE_IDENTIFIER = com.axchisan.calculadoraGastos
 
-// The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.axchisan. All rights reserved.
+// Aviso de derechos que se muestra en la información de la aplicación.
+PRODUCT_COPYRIGHT = Copyright © 2026 Duvan Chisan. Todos los derechos reservados.

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- El nombre que se ve bajo el icono del lanzador. Va abreviado a propósito: los
+         lanzadores de Android recortan las etiquetas alrededor de los doce caracteres, así que
+         "Calculadora de gastos" aparecería cortado. -->
+    <string name="nombre_app">Mis gastos</string>
+</resources>
