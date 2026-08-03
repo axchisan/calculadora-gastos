@@ -34,6 +34,11 @@ spring:
     clean-disabled: false
 
 app:
+  registro:
+    # Las pruebas necesitan crear varias cuentas, sobre todo las que verifican que un usuario no
+    # accede a los datos de otro. El cierre del registro se comprueba aparte, en
+    # RegistroCerradoTest, que arranca el contexto con este valor en falso.
+    abierto: true
   jwt:
     secret: secreto-de-pruebas-con-al-menos-256-bits-de-longitud-suficiente
     access-token-minutes: 15

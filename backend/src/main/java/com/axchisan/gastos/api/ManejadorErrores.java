@@ -38,6 +38,12 @@ public class ManejadorErrores {
         return respuesta(HttpStatus.CONFLICT, "email_ya_registrado", e.getMessage());
     }
 
+    @ExceptionHandler(ExcepcionesAutenticacion.RegistroCerrado.class)
+    public ResponseEntity<Map<String, Object>> registroCerrado(
+            ExcepcionesAutenticacion.RegistroCerrado e) {
+        return respuesta(HttpStatus.FORBIDDEN, "registro_cerrado", e.getMessage());
+    }
+
     @ExceptionHandler(ExcepcionesAutenticacion.TokenInvalido.class)
     public ResponseEntity<Map<String, Object>> tokenInvalido(
             ExcepcionesAutenticacion.TokenInvalido e) {

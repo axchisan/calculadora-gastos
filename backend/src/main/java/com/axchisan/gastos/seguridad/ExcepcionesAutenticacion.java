@@ -25,6 +25,18 @@ public final class ExcepcionesAutenticacion {
         }
     }
 
+    /**
+     * No se admiten cuentas nuevas.
+     *
+     * <p>La aplicación es de uso personal: la primera cuenta se crea sola al arrancar con la
+     * base vacía y, a partir de ahí, el registro queda cerrado.
+     */
+    public static class RegistroCerrado extends RuntimeException {
+        public RegistroCerrado() {
+            super("El registro de nuevas cuentas está cerrado");
+        }
+    }
+
     /** El token de refresco no existe, caducó o fue revocado. */
     public static class TokenInvalido extends RuntimeException {
         public TokenInvalido(String mensaje) {
