@@ -108,7 +108,9 @@ resource "aws_iam_role_policy" "despliegue" {
           "lambda:UpdateAlias",
           "lambda:GetFunction",
           "lambda:GetFunctionConfiguration",
-          "lambda:GetAlias"
+          "lambda:GetAlias",
+          # El último paso del despliegue consulta la URL para comprobar que la API responde.
+          "lambda:GetFunctionUrlConfig"
         ]
         Resource = [
           aws_lambda_function.api.arn,
