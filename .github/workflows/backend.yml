@@ -11,12 +11,6 @@ on:
       - 'backend/**'
   workflow_dispatch:
 
-# Requerido para obtener el token de OIDC con el que se asume el rol de AWS. Sin claves de
-# acceso permanentes guardadas en el repositorio.
-permissions:
-  id-token: write
-  contents: read
-
 env:
   FUNCION: calculadora-gastos-api
   BUCKET: calculadora-gastos-artefactos-612216903994
@@ -44,7 +38,7 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
         with:
@@ -70,8 +64,15 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
+    # El token de OIDC solo se emite si el job lo pide explícitamente. Declararlo a nivel de
+    # workflow no basta: sin este bloque, la asunción del rol falla con
+    # "Not authorized to perform sts:AssumeRoleWithWebIdentity".
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-java@v4
         with:
@@ -84,7 +85,7 @@ jobs:
         run: ./gradlew paqueteLambda --no-daemon
 
       - name: Obtener credenciales temporales
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.REGION }}

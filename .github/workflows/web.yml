@@ -11,10 +11,6 @@ on:
       - 'app/**'
   workflow_dispatch:
 
-permissions:
-  id-token: write
-  contents: read
-
 env:
   REGION: us-east-1
 
@@ -24,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -53,8 +49,15 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
 
+    # El token de OIDC solo se emite si el job lo pide explícitamente. Declararlo a nivel de
+    # workflow no basta: sin este bloque, la asunción del rol falla con
+    # "Not authorized to perform sts:AssumeRoleWithWebIdentity".
+    permissions:
+      id-token: write
+      contents: read
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -68,7 +71,7 @@ jobs:
             --dart-define=API_URL=${{ vars.API_URL }}
 
       - name: Obtener credenciales temporales
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v5
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
