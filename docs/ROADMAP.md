@@ -43,9 +43,9 @@ pantalla.
 - [x] Cliente HTTP con renovación automática de token
 - [x] Pantalla del mes: sueldo, gastos, marcar como pagado y abonos parciales
 - [x] Formato de moneda y fechas en español de Colombia
-- [ ] Edición del sueldo y de los gastos desde la pantalla
+- [x] Edición del sueldo y de los gastos desde la pantalla
+- [x] Modo sin conexión con caché del mes en curso
 - [ ] Duplicación del motor de cálculo en Dart, con los mismos casos de prueba
-- [ ] Modo sin conexión con caché del mes en curso
 
 ## Fase 4 — Cliente: módulos
 
@@ -54,8 +54,8 @@ pantalla.
 - [x] Gestión de deudas externas y abonos
 - [x] Metas de ahorro y distribución del excedente
 - [x] Navegación entre secciones adaptada a móvil y escritorio
-- [ ] Plantillas de gastos fijos editables
-- [ ] Cierre de mes y creación del siguiente
+- [x] Plantillas de gastos fijos editables
+- [x] Cierre y reapertura del mes
 
 ## Fase 5 — Gráficas
 
@@ -82,11 +82,13 @@ Ver [DESPLIEGUE.md](DESPLIEGUE.md).
 
 ## Fase 7 — Pulido
 
-- [ ] Modo sin conexión con sincronización
-- [ ] Compilación y firma del APK de Android
-- [ ] Compilación de la aplicación de macOS (requiere Xcode completo)
+- [x] Compilación del APK de Android
+- [x] Compilación de la aplicación de macOS
+- [ ] Firma del APK con clave propia (solo si se publica en Play Store)
 - [ ] Recordatorios de vencimiento de pagos
 - [ ] Exportación a CSV/PDF
+
+Ver [APLICACIONES.md](APLICACIONES.md).
 
 ## Dependencias del entorno
 
@@ -96,6 +98,8 @@ Ver [DESPLIEGUE.md](DESPLIEGUE.md).
 | Flutter | ✅ instalado (3.44.8, Dart 3.12.2) |
 | AWS CLI | ✅ configurado (cuenta 612216903994) |
 | GitHub CLI | ✅ autenticado (axchisan) |
-| Terraform | ⬜ pendiente |
-| Android SDK | ⬜ pendiente (para compilar el APK) |
-| Xcode completo | ⬜ pendiente (solo para la versión de macOS) |
+| Terraform | ✅ instalado (1.15.8) |
+| Android SDK | ✅ instalado (36.0.0) |
+| Xcode | ✅ instalado (26.6) |
+| CocoaPods | ✅ instalado |
+| PostgreSQL | ✅ instalado (17.10) |
