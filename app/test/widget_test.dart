@@ -83,6 +83,9 @@ void main() {
       'patrimonioNeto': 0,
       'comprometido': 1132000,
       'porcentajeComprometido': 35.66,
+      'cuotasDeudaPendientes': 0,
+      'comprometidoConCuotas': 1132000,
+      'deudasSinCuota': 0,
       'porCategoria': [
         {'categoria': 'VIVIENDA', 'total': 600000, 'porcentaje': 53.0},
       ],
@@ -119,9 +122,44 @@ void main() {
       expect(
         ResumenMensual.deJson({
           ...json,
-          'comprometido': 4000000,
+          'comprometidoConCuotas': 4000000,
         }).estaSobrecomprometido,
         isTrue,
+      );
+    });
+
+    test('las cuotas de deuda ocupan cupo aunque no se hayan pagado', () {
+      // Una deuda con cuota pactada seguirá pidiendo dinero este mes.
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'cuotasDeudaPendientes': 200000,
+        'comprometidoConCuotas': 1332000,
+      });
+
+      expect(resumen.cuotasDeudaPendientes, 200000);
+      // 3.174.000 menos 1.332.000
+      expect(resumen.saldoTrasCuotas, 1842000);
+      // El saldo proyectado, que no cuenta las cuotas, queda por encima.
+      expect(resumen.saldoTrasCuotas, lessThan(resumen.saldoProyectado));
+    });
+
+    test('suma todo el dinero que ya salió del mes', () {
+      // La barra de pagos solo cuenta gastos; un abono a una deuda también sale del bolsillo.
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoPagado': 600000,
+        'abonosDeuda': 2000,
+        'aporteAhorro': 50000,
+      });
+
+      expect(resumen.salidaReal, 652000);
+    });
+
+    test('cuenta las deudas que no pueden proyectarse', () {
+      expect(ResumenMensual.deJson(json).deudasSinCuota, 0);
+      expect(
+        ResumenMensual.deJson({...json, 'deudasSinCuota': 4}).deudasSinCuota,
+        4,
       );
     });
 
@@ -130,7 +168,7 @@ void main() {
       expect(
         ResumenMensual.deJson({
           ...json,
-          'comprometido': 9000000,
+          'comprometidoConCuotas': 9000000,
         }).proporcionComprometida,
         1.0,
       );
@@ -140,7 +178,7 @@ void main() {
         ResumenMensual.deJson({
           ...json,
           'ingresoProyectado': 0,
-          'comprometido': 100000,
+          'comprometidoConCuotas': 100000,
         }).proporcionComprometida,
         0,
       );

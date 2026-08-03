@@ -109,9 +109,17 @@ public class ServicioResumen {
         // a «¿cuánto del sueldo está comprometido?», útil para planificar un mes que aún no ha
         // empezado, donde no hay ningún pago hecho y las cifras de lo pagado son todas cero.
         BigDecimal comprometido = gastoTotal.add(abonosDeuda).add(aporteAhorro);
+
+        // Las deudas con cuota pactada seguirán pidiendo dinero este mes aunque todavía no se
+        // haya abonado nada. Contarlas es lo que permite ver el cupo real del sueldo antes de
+        // que el mes ocurra; sin esto, una deuda de un millón no pesaría absolutamente nada en
+        // la estimación.
+        BigDecimal cuotasPendientes = calcularCuotasPendientes(usuarioId, mesId);
+        BigDecimal comprometidoConCuotas = comprometido.add(cuotasPendientes);
+
         BigDecimal porcentajeComprometido = ingresoProyectado.signum() == 0
                 ? BigDecimal.ZERO
-                : comprometido.multiply(BigDecimal.valueOf(100))
+                : comprometidoConCuotas.multiply(BigDecimal.valueOf(100))
                         .divide(ingresoProyectado, 2, RoundingMode.HALF_UP);
 
         return new ResumenMensual(
@@ -135,7 +143,31 @@ public class ServicioResumen {
                 ahorroTotal.subtract(deudaTotal),
                 comprometido,
                 porcentajeComprometido,
+                cuotasPendientes,
+                comprometidoConCuotas,
+                deudas.contarSinCuota(usuarioId),
                 distribucionPorCategoria(mesId, gastoTotal));
+    }
+
+    /**
+     * Cuánto falta abonar este mes según las cuotas pactadas.
+     *
+     * <p>Por cada deuda se cuenta lo que resta de su cuota tras los abonos ya hechos este mes, y
+     * nunca más que el saldo pendiente: una deuda a la que solo le quedan cincuenta mil no puede
+     * reclamar una cuota de doscientos mil.
+     */
+    private BigDecimal calcularCuotasPendientes(UUID usuarioId, UUID mesId) {
+        BigDecimal total = BigDecimal.ZERO;
+
+        for (Object[] fila : deudas.cuotasPrevistas(usuarioId, mesId)) {
+            BigDecimal cuota = (BigDecimal) fila[0];
+            BigDecimal saldo = (BigDecimal) fila[1];
+            BigDecimal abonadoEsteMes = (BigDecimal) fila[2];
+
+            BigDecimal pendiente = cuota.subtract(abonadoEsteMes).max(BigDecimal.ZERO).min(saldo);
+            total = total.add(pendiente);
+        }
+        return total;
     }
 
     private List<ResumenMensual.TotalCategoria> distribucionPorCategoria(UUID mesId,

@@ -36,6 +36,9 @@ import java.util.UUID;
  * @param comprometido                todo lo que tiene destino este mes: gastos, abonos a
  *                                    deudas y aportes al ahorro, se hayan pagado o no
  * @param porcentajeComprometido      qué parte del ingreso previsto ya tiene destino
+ * @param cuotasDeudaPendientes       lo que falta abonar este mes según las cuotas pactadas
+ * @param comprometidoConCuotas       lo comprometido más las cuotas de deuda aún por pagar
+ * @param deudasSinCuota              deudas activas sin cuota mensual, que no pueden proyectarse
  * @param porCategoria                reparto del gasto por categoría
  */
 public record ResumenMensual(
@@ -59,6 +62,9 @@ public record ResumenMensual(
         BigDecimal patrimonioNeto,
         BigDecimal comprometido,
         BigDecimal porcentajeComprometido,
+        BigDecimal cuotasDeudaPendientes,
+        BigDecimal comprometidoConCuotas,
+        long deudasSinCuota,
         List<TotalCategoria> porCategoria) {
 
     /** Gasto acumulado de una categoría dentro del mes. */
@@ -71,8 +77,13 @@ public record ResumenMensual(
         return saldoProyectado.signum() >= 0;
     }
 
-    /** Indica si los compromisos superan lo que se espera ingresar. */
+    /** Indica si los compromisos, cuotas de deuda incluidas, superan lo que se espera ingresar. */
     public boolean estaSobrecomprometido() {
-        return comprometido.compareTo(ingresoProyectado) > 0;
+        return comprometidoConCuotas.compareTo(ingresoProyectado) > 0;
+    }
+
+    /** Lo que quedaría libre tras atender también las cuotas de deuda del mes. */
+    public BigDecimal saldoTrasCuotas() {
+        return ingresoProyectado.subtract(comprometidoConCuotas);
     }
 }

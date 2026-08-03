@@ -246,6 +246,9 @@ class ResumenMensual {
     required this.patrimonioNeto,
     required this.comprometido,
     required this.porcentajeComprometido,
+    required this.cuotasDeudaPendientes,
+    required this.comprometidoConCuotas,
+    required this.deudasSinCuota,
     required this.porCategoria,
   });
 
@@ -281,20 +284,38 @@ class ResumenMensual {
   /// donde lo pagado es cero y no dice nada.
   final double comprometido;
 
-  /// Qué parte del ingreso previsto ya tiene destino.
+  /// Qué parte del ingreso previsto ya tiene destino, cuotas de deuda incluidas.
   final double porcentajeComprometido;
+
+  /// Lo que falta abonar este mes según las cuotas pactadas de las deudas.
+  final double cuotasDeudaPendientes;
+
+  /// Lo comprometido más las cuotas de deuda aún por pagar. Es la cifra del modo estimación.
+  final double comprometidoConCuotas;
+
+  /// Deudas activas sin cuota mensual, que no pueden proyectarse.
+  final int deudasSinCuota;
 
   final List<TotalCategoria> porCategoria;
 
   bool get cierraEnPositivo => saldoProyectado >= 0;
 
-  /// Indica si los compromisos superan lo que se espera ingresar.
-  bool get estaSobrecomprometido => comprometido > ingresoProyectado;
+  /// Indica si los compromisos, cuotas de deuda incluidas, superan lo que se espera ingresar.
+  bool get estaSobrecomprometido => comprometidoConCuotas > ingresoProyectado;
+
+  /// Lo que quedaría libre tras atender también las cuotas de deuda del mes.
+  double get saldoTrasCuotas => ingresoProyectado - comprometidoConCuotas;
 
   /// Proporción del ingreso con destino, entre 0 y 1, para las barras de progreso.
   double get proporcionComprometida => ingresoProyectado == 0
       ? 0
-      : (comprometido / ingresoProyectado).clamp(0.0, 1.0);
+      : (comprometidoConCuotas / ingresoProyectado).clamp(0.0, 1.0);
+
+  /// Dinero que ya salió este mes, sea en gastos, abonos a deudas o ahorro.
+  ///
+  /// La barra de pagos solo cuenta gastos, así que un abono a una deuda reducía el disponible
+  /// sin dejar rastro visible de a dónde había ido.
+  double get salidaReal => gastoPagado + abonosDeuda + aporteAhorro;
 
   static ResumenMensual deJson(Map<String, dynamic> j) {
     // El periodo llega como "2026-08"; se completa con el día uno para poder formatearlo.
@@ -320,6 +341,9 @@ class ResumenMensual {
       patrimonioNeto: (j['patrimonioNeto'] as num).toDouble(),
       comprometido: (j['comprometido'] as num).toDouble(),
       porcentajeComprometido: (j['porcentajeComprometido'] as num).toDouble(),
+      cuotasDeudaPendientes: (j['cuotasDeudaPendientes'] as num).toDouble(),
+      comprometidoConCuotas: (j['comprometidoConCuotas'] as num).toDouble(),
+      deudasSinCuota: (j['deudasSinCuota'] as num).toInt(),
       porCategoria: (j['porCategoria'] as List<dynamic>)
           .map((e) => TotalCategoria.deJson(e as Map<String, dynamic>))
           .toList(),
