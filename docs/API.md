@@ -19,6 +19,15 @@ deja de servir.
 > **El cliente debe guardar siempre el último refresh token recibido.** Si reenvía uno ya
 > consumido, el servidor lo interpreta como un token robado y revoca la sesión completa.
 
+### `GET /api/auth/registro-abierto` · público
+
+```json
+{ "abierto": false }
+```
+
+Indica si se admiten cuentas nuevas. La aplicación lo consulta antes de mostrar la pantalla de
+acceso para ocultar la opción de crear cuenta en lugar de ofrecerla y que acabe en un error.
+
 ### `POST /api/auth/registro` · público
 
 ```json
@@ -46,6 +55,12 @@ deja de servir.
 |---|---|---|
 | `datos_invalidos` | 400 | Correo mal formado o contraseña de menos de 8 caracteres |
 | `email_ya_registrado` | 409 | Ya existe una cuenta con ese correo |
+| `registro_cerrado` | 403 | Ya existe una cuenta y no se admiten más |
+
+> **El registro se cierra solo.** Al ser una aplicación de uso personal, queda abierto mientras
+> la base no tenga ninguna cuenta —para poder crear la primera— y se cierra en cuanto hay una.
+> No hace falta acordarse de desactivarlo. La propiedad `app.registro.abierto` permite
+> reabrirlo si alguna vez hiciera falta.
 
 El correo se normaliza a minúsculas: `Duvan@Axchisan.com` y `duvan@axchisan.com` son la misma
 cuenta.
@@ -100,6 +115,35 @@ access token ya haya caducado.
   "zonaHoraria": "America/Bogota"
 }
 ```
+
+### `PATCH /api/auth/password`
+
+```json
+{ "passwordActual": "…", "passwordNueva": "mínimo 8 caracteres" }
+```
+
+Devuelve una sesión nueva. **Revoca todas las demás**: si la contraseña se cambió por sospecha
+de robo, dejar vivas las otras sesiones no serviría de nada.
+
+Exige la contraseña actual para que a quien encuentre una sesión abierta en un dispositivo
+desatendido no le baste con cambiarla para quedarse con la cuenta.
+
+### `PATCH /api/auth/email`
+
+```json
+{ "password": "…", "emailNuevo": "nuevo@axchisan.com" }
+```
+
+También pide la contraseña, porque el correo es la otra mitad de las credenciales. Revoca el
+resto de sesiones igual que el cambio de contraseña.
+
+### `PATCH /api/auth/nombre`
+
+```json
+{ "nombre": "Duvan Andrés" }
+```
+
+No exige contraseña: el nombre no da acceso a nada.
 
 ### `GET /api/salud` · público
 

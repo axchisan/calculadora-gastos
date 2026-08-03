@@ -13,7 +13,7 @@ pantalla.
 - [x] Esqueleto del backend (Spring Boot 3, Java 21, Gradle)
 - [x] Esqueleto del cliente (Flutter, tres objetivos de compilación)
 - [x] Repositorio en GitHub
-- [ ] Integración continua
+- [x] Integración continua
 
 ## Fase 1 — Backend: base
 
@@ -49,7 +49,8 @@ pantalla.
 
 ## Fase 4 — Cliente: módulos
 
-- [ ] Calendario interactivo de transporte
+- [x] Calendario interactivo de transporte
+- [x] Ajustes de cuenta: cambio de nombre, correo y contraseña
 - [ ] Gestión de deudas externas y abonos
 - [ ] Metas de ahorro y distribución del excedente
 - [ ] Plantillas de gastos fijos editables
