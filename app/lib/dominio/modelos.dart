@@ -244,6 +244,8 @@ class ResumenMensual {
     required this.deudaTotal,
     required this.ahorroTotal,
     required this.patrimonioNeto,
+    required this.comprometido,
+    required this.porcentajeComprometido,
     required this.porCategoria,
   });
 
@@ -273,13 +275,26 @@ class ResumenMensual {
   final double deudaTotal;
   final double ahorroTotal;
   final double patrimonioNeto;
+
+  /// Todo lo que ya tiene destino este mes: gastos, abonos a deudas y aportes al ahorro, se
+  /// hayan pagado o no. Es la cifra con la que se planifica un mes que aún no ha empezado,
+  /// donde lo pagado es cero y no dice nada.
+  final double comprometido;
+
+  /// Qué parte del ingreso previsto ya tiene destino.
+  final double porcentajeComprometido;
+
   final List<TotalCategoria> porCategoria;
 
   bool get cierraEnPositivo => saldoProyectado >= 0;
 
-  /// Proporción del ingreso ya comprometida en gastos.
-  double get proporcionComprometida =>
-      ingresoProyectado == 0 ? 0 : (gastoTotal / ingresoProyectado).clamp(0, 1);
+  /// Indica si los compromisos superan lo que se espera ingresar.
+  bool get estaSobrecomprometido => comprometido > ingresoProyectado;
+
+  /// Proporción del ingreso con destino, entre 0 y 1, para las barras de progreso.
+  double get proporcionComprometida => ingresoProyectado == 0
+      ? 0
+      : (comprometido / ingresoProyectado).clamp(0.0, 1.0);
 
   static ResumenMensual deJson(Map<String, dynamic> j) {
     // El periodo llega como "2026-08"; se completa con el día uno para poder formatearlo.
@@ -303,6 +318,8 @@ class ResumenMensual {
       deudaTotal: (j['deudaTotal'] as num).toDouble(),
       ahorroTotal: (j['ahorroTotal'] as num).toDouble(),
       patrimonioNeto: (j['patrimonioNeto'] as num).toDouble(),
+      comprometido: (j['comprometido'] as num).toDouble(),
+      porcentajeComprometido: (j['porcentajeComprometido'] as num).toDouble(),
       porCategoria: (j['porCategoria'] as List<dynamic>)
           .map((e) => TotalCategoria.deJson(e as Map<String, dynamic>))
           .toList(),

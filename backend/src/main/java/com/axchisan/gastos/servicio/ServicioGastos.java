@@ -89,6 +89,22 @@ public class ServicioGastos {
         return gastos.save(gasto);
     }
 
+    /**
+     * Corrige cuánto se lleva pagado, sustituyendo el valor en lugar de sumarlo.
+     *
+     * <p>Es la vía para deshacer un pago apuntado por error o ajustar la cifra cuando no se
+     * pagó el total. Se admite también en los gastos que mantiene el sistema, como el de
+     * transporte: lo que el calendario calcula es el importe, no si ya se pagó.
+     */
+    @Transactional
+    public Gasto corregirPago(UUID usuarioId, UUID gastoId, BigDecimal montoPagado,
+                              LocalDate fecha) {
+        Gasto gasto = buscar(usuarioId, gastoId);
+        ServicioMeses.verificarAbierto(gasto.getMes());
+        gasto.corregirPago(montoPagado, fecha);
+        return gastos.save(gasto);
+    }
+
     /** Registra un abono parcial. */
     @Transactional
     public Gasto abonar(UUID usuarioId, UUID gastoId, BigDecimal importe, LocalDate fecha) {

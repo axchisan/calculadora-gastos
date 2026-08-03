@@ -84,6 +84,23 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
     await refrescar();
   }
 
+  Future<void> actualizar(
+    String deudaId, {
+    String? acreedor,
+    TipoDeuda? tipo,
+    double? tasaInteresMensual,
+    double? cuotaSugerida,
+  }) async {
+    await _repositorio.actualizar(
+      deudaId,
+      acreedor: acreedor,
+      tipo: tipo,
+      tasaInteresMensual: tasaInteresMensual,
+      cuotaSugerida: cuotaSugerida,
+    );
+    await refrescar();
+  }
+
   Future<void> abonar(
     String deudaId, {
     required double monto,

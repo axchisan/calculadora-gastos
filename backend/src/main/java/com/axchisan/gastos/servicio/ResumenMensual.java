@@ -33,6 +33,9 @@ import java.util.UUID;
  * @param deudaTotal                  saldo pendiente de todas las deudas activas
  * @param ahorroTotal                 saldo acumulado en todas las metas
  * @param patrimonioNeto              ahorro menos deuda
+ * @param comprometido                todo lo que tiene destino este mes: gastos, abonos a
+ *                                    deudas y aportes al ahorro, se hayan pagado o no
+ * @param porcentajeComprometido      qué parte del ingreso previsto ya tiene destino
  * @param porCategoria                reparto del gasto por categoría
  */
 public record ResumenMensual(
@@ -54,6 +57,8 @@ public record ResumenMensual(
         BigDecimal deudaTotal,
         BigDecimal ahorroTotal,
         BigDecimal patrimonioNeto,
+        BigDecimal comprometido,
+        BigDecimal porcentajeComprometido,
         List<TotalCategoria> porCategoria) {
 
     /** Gasto acumulado de una categoría dentro del mes. */
@@ -64,5 +69,10 @@ public record ResumenMensual(
     /** Indica si el mes cierra en positivo. */
     public boolean cierraEnPositivo() {
         return saldoProyectado.signum() >= 0;
+    }
+
+    /** Indica si los compromisos superan lo que se espera ingresar. */
+    public boolean estaSobrecomprometido() {
+        return comprometido.compareTo(ingresoProyectado) > 0;
     }
 }

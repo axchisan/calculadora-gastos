@@ -105,6 +105,15 @@ public class ServicioResumen {
         BigDecimal deudaTotal = deudas.saldoTotal(usuarioId);
         BigDecimal ahorroTotal = metas.saldoTotal(usuarioId);
 
+        // Todo lo que ya tiene destino este mes, se haya pagado o no. Es la cifra que responde
+        // a «¿cuánto del sueldo está comprometido?», útil para planificar un mes que aún no ha
+        // empezado, donde no hay ningún pago hecho y las cifras de lo pagado son todas cero.
+        BigDecimal comprometido = gastoTotal.add(abonosDeuda).add(aporteAhorro);
+        BigDecimal porcentajeComprometido = ingresoProyectado.signum() == 0
+                ? BigDecimal.ZERO
+                : comprometido.multiply(BigDecimal.valueOf(100))
+                        .divide(ingresoProyectado, 2, RoundingMode.HALF_UP);
+
         return new ResumenMensual(
                 mesId,
                 mes.periodo(),
@@ -124,6 +133,8 @@ public class ServicioResumen {
                 deudaTotal,
                 ahorroTotal,
                 ahorroTotal.subtract(deudaTotal),
+                comprometido,
+                porcentajeComprometido,
                 distribucionPorCategoria(mesId, gastoTotal));
     }
 

@@ -9,6 +9,7 @@ import '../../datos/cliente_api.dart';
 import '../../datos/repositorio_meses.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/mes.dart';
+import '../../estado/modo_vista.dart';
 import 'widgets/editor_ingreso.dart';
 import 'widgets/lista_gastos.dart';
 import 'widgets/tarjeta_saldo.dart';
@@ -42,8 +43,12 @@ class PantallaInicio extends ConsumerWidget {
               final cerrado = datos.valueOrNull?.resumen.cerrado ?? false;
               return [
                 const PopupMenuItem(
+                  value: 'aplicar',
+                  child: Text('Traer mis gastos fijos'),
+                ),
+                const PopupMenuItem(
                   value: 'plantillas',
-                  child: Text('Gastos fijos'),
+                  child: Text('Configurar gastos fijos'),
                 ),
                 PopupMenuItem(
                   value: cerrado ? 'reabrir' : 'cerrar',
@@ -92,6 +97,8 @@ class PantallaInicio extends ConsumerWidget {
         context.push(Rutas.cuenta);
       case 'plantillas':
         context.push(Rutas.plantillas);
+      case 'aplicar':
+        await _aplicarPlantillas(context, ref);
       case 'recargar':
         await ref.read(mesProvider.notifier).cargar();
       case 'cerrar':
@@ -101,6 +108,35 @@ class PantallaInicio extends ConsumerWidget {
           context,
           () => ref.read(mesProvider.notifier).reabrir(),
         );
+    }
+  }
+
+  /// Añade al mes los gastos fijos que falten.
+  ///
+  /// Hace falta porque las plantillas se copian al crear el mes: una configurada después no
+  /// aparece sola en los meses que ya existían.
+  Future<void> _aplicarPlantillas(BuildContext context, WidgetRef ref) async {
+    try {
+      final anadidos = await ref.read(mesProvider.notifier).aplicarPlantillas();
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            anadidos == 0
+                ? 'Este mes ya tiene todos tus gastos fijos'
+                : anadidos == 1
+                ? 'Se añadió 1 gasto fijo'
+                : 'Se añadieron $anadidos gastos fijos',
+          ),
+        ),
+      );
+    } on ErrorApi catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
     }
   }
 
@@ -219,8 +255,11 @@ class _Contenido extends ConsumerWidget {
               ],
               TarjetaSaldo(
                 resumen: datos.resumen,
+                modo: ref.watch(modoVistaProvider),
                 // Un mes cerrado no admite cambios.
                 alEditarIngreso: datos.resumen.cerrado ? null : alEditarIngreso,
+                alAlternarModo: () =>
+                    ref.read(modoVistaProvider.notifier).alternar(),
               ),
               const SizedBox(height: 20),
               ListaGastos(datos: datos),

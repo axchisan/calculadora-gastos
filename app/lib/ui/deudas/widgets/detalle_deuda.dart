@@ -8,6 +8,7 @@ import '../../../datos/repositorio_deudas.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/deudas.dart';
 import '../../../estado/mes.dart';
+import 'formulario_deuda.dart';
 
 /// Detalle de una deuda con su historial de abonos.
 class DetalleDeuda extends ConsumerStatefulWidget {
@@ -114,12 +115,26 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
           ],
 
           const SizedBox(height: 20),
-          if (deuda.activa)
-            FilledButton.icon(
-              onPressed: () => _abonar(context),
-              icon: const Icon(Icons.payments_outlined),
-              label: const Text('Registrar un abono'),
-            ),
+          Row(
+            children: [
+              if (deuda.activa)
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: () => _abonar(context),
+                    icon: const Icon(Icons.payments_outlined),
+                    label: const Text('Abonar'),
+                  ),
+                ),
+              if (deuda.activa) const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: () => _editar(context),
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Editar'),
+                ),
+              ),
+            ],
+          ),
 
           const SizedBox(height: 24),
           Text('Historial', style: textos.titleSmall),
@@ -251,6 +266,29 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
             widget.deuda.id,
             monto: resultado.$1,
             mesId: resultado.$2 ? mesId : null,
+          );
+      if (context.mounted) Navigator.pop(context);
+    });
+  }
+
+  Future<void> _editar(BuildContext context) async {
+    final datos = await showModalBottomSheet<DatosNuevaDeuda>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => FormularioDeuda(deuda: widget.deuda),
+    );
+
+    if (datos == null || !context.mounted) return;
+
+    await _ejecutar(context, () async {
+      await ref
+          .read(deudasProvider.notifier)
+          .actualizar(
+            widget.deuda.id,
+            acreedor: datos.acreedor,
+            tipo: datos.tipo,
+            tasaInteresMensual: datos.tasaInteres,
+            cuotaSugerida: datos.cuota,
           );
       if (context.mounted) Navigator.pop(context);
     });

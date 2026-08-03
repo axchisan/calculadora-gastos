@@ -88,6 +88,12 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
     await refrescar();
   }
 
+  /// Corrige cuánto se lleva pagado. Con cero, el gasto vuelve a estar pendiente.
+  Future<void> corregirPago(String gastoId, double montoPagado) async {
+    await _repositorio.corregirPago(gastoId, montoPagado);
+    await refrescar();
+  }
+
   Future<void> abonar(String gastoId, double importe) async {
     await _repositorio.abonar(gastoId, importe);
     await refrescar();
@@ -116,6 +122,15 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
       diaVencimiento: diaVencimiento,
     );
     await refrescar();
+  }
+
+  /// Añade al mes los gastos fijos que le falten. Devuelve cuántos se añadieron.
+  Future<int> aplicarPlantillas() async {
+    final id = _mesId;
+    if (id == null) return 0;
+    final anadidos = await _repositorio.aplicarPlantillas(id);
+    await refrescar();
+    return anadidos.length;
   }
 
   /// Cierra el mes: queda como registro histórico y deja de admitir cambios.

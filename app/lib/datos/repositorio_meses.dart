@@ -67,6 +67,17 @@ class RepositorioMeses {
     return Mes.deJson(datos);
   }
 
+  /// Añade al mes los gastos fijos que le falten.
+  ///
+  /// Las plantillas se copian al crear el mes, así que una creada después no aparece en los
+  /// meses ya existentes. Repetirlo no duplica nada ni pisa importes ajustados a mano.
+  Future<List<Gasto>> aplicarPlantillas(String mesId) async {
+    final datos = await _api.publicar<List<dynamic>>(
+      '/api/meses/$mesId/aplicar-plantillas',
+    );
+    return datos.map((e) => Gasto.deJson(e as Map<String, dynamic>)).toList();
+  }
+
   Future<Mes> cerrar(String mesId) async {
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/meses/$mesId/cerrar',
@@ -150,6 +161,22 @@ class RepositorioMeses {
     return Gasto.deJson(datos);
   }
 
+  /// Corrige cuánto se lleva pagado, sustituyendo el valor en lugar de sumarlo.
+  ///
+  /// Con cero, el gasto vuelve a estar pendiente. Sirve para deshacer un pago apuntado por
+  /// error o para ajustar la cifra cuando resultó que no se pagó el total.
+  Future<Gasto> corregirPago(
+    String gastoId,
+    double montoPagado, {
+    DateTime? fecha,
+  }) async {
+    final datos = await _api.publicar<Map<String, dynamic>>(
+      '/api/gastos/$gastoId/corregir-pago',
+      cuerpo: {'montoPagado': montoPagado, 'fecha': ?_soloFecha(fecha)},
+    );
+    return Gasto.deJson(datos);
+  }
+
   Future<Gasto> abonar(
     String gastoId,
     double importe, {
@@ -191,7 +218,10 @@ class RepositorioMeses {
   }
 
   /// La API espera fechas de negocio sin hora ni zona: `2026-08-17`.
-  static String _soloFecha(DateTime fecha) =>
+  static String? _soloFecha(DateTime? fecha) =>
+      fecha == null ? null : _formatear(fecha);
+
+  static String _formatear(DateTime fecha) =>
       '${fecha.year.toString().padLeft(4, '0')}-'
       '${fecha.month.toString().padLeft(2, '0')}-'
       '${fecha.day.toString().padLeft(2, '0')}';

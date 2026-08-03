@@ -1,5 +1,6 @@
 import 'package:calculadora_gastos/core/formato.dart';
 import 'package:calculadora_gastos/dominio/modelos.dart';
+import 'package:calculadora_gastos/estado/modo_vista.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -80,6 +81,8 @@ void main() {
       'deudaTotal': 0,
       'ahorroTotal': 0,
       'patrimonioNeto': 0,
+      'comprometido': 1132000,
+      'porcentajeComprometido': 35.66,
       'porCategoria': [
         {'categoria': 'VIVIENDA', 'total': 600000, 'porcentaje': 53.0},
       ],
@@ -100,6 +103,46 @@ void main() {
       expect(
         resumen.disponibleHoy - resumen.saldoProyectado,
         resumen.gastoPendiente,
+      );
+    });
+
+    test('separa lo comprometido de lo ya pagado', () {
+      final resumen = ResumenMensual.deJson(json);
+      // En un mes por empezar, lo pagado es cero y no dice nada; lo comprometido sí.
+      expect(resumen.comprometido, 1132000);
+      expect(resumen.porcentajeComprometido, 35.66);
+      expect(resumen.comprometido, greaterThan(resumen.gastoPagado));
+    });
+
+    test('avisa cuando se ha comprometido más de lo que se ingresa', () {
+      expect(ResumenMensual.deJson(json).estaSobrecomprometido, isFalse);
+      expect(
+        ResumenMensual.deJson({
+          ...json,
+          'comprometido': 4000000,
+        }).estaSobrecomprometido,
+        isTrue,
+      );
+    });
+
+    test('la proporción comprometida nunca se sale de la barra', () {
+      // Con más compromisos que ingreso, la barra se queda llena en vez de desbordarse.
+      expect(
+        ResumenMensual.deJson({
+          ...json,
+          'comprometido': 9000000,
+        }).proporcionComprometida,
+        1.0,
+      );
+
+      // Y sin ingreso registrado no se divide por cero.
+      expect(
+        ResumenMensual.deJson({
+          ...json,
+          'ingresoProyectado': 0,
+          'comprometido': 100000,
+        }).proporcionComprometida,
+        0,
       );
     });
 
@@ -152,6 +195,18 @@ void main() {
       );
       expect(gasto.origen, OrigenGasto.transporte);
       expect(gasto.editable, isFalse);
+    });
+  });
+
+  group('Modo de vista', () {
+    test('alterna entre lo pagado y lo comprometido', () {
+      expect(ModoVista.real.contrario, ModoVista.estimacion);
+      expect(ModoVista.estimacion.contrario, ModoVista.real);
+    });
+
+    test('cada modo explica qué mide', () {
+      expect(ModoVista.real.descripcion, contains('pagado'));
+      expect(ModoVista.estimacion.descripcion, contains('comprometido'));
     });
   });
 }

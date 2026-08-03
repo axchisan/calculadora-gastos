@@ -20,7 +20,10 @@ class DatosNuevaDeuda {
 }
 
 class FormularioDeuda extends StatefulWidget {
-  const FormularioDeuda({super.key});
+  const FormularioDeuda({this.deuda, super.key});
+
+  /// Deuda a editar, o nulo para crear una nueva.
+  final Deuda? deuda;
 
   @override
   State<FormularioDeuda> createState() => _FormularioDeudaState();
@@ -28,12 +31,33 @@ class FormularioDeuda extends StatefulWidget {
 
 class _FormularioDeudaState extends State<FormularioDeuda> {
   final _formulario = GlobalKey<FormState>();
-  final _acreedor = TextEditingController();
-  final _monto = TextEditingController();
-  final _tasa = TextEditingController();
-  final _cuota = TextEditingController();
+  late final TextEditingController _acreedor;
+  late final TextEditingController _monto;
+  late final TextEditingController _tasa;
+  late final TextEditingController _cuota;
 
-  TipoDeuda _tipo = TipoDeuda.tarjetaCredito;
+  late TipoDeuda _tipo;
+
+  bool get _esEdicion => widget.deuda != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final d = widget.deuda;
+    _acreedor = TextEditingController(text: d?.acreedor ?? '');
+    _monto = TextEditingController(
+      text: d == null ? '' : d.montoOriginal.round().toString(),
+    );
+    _tasa = TextEditingController(
+      text: d?.tasaInteresMensual?.toString() ?? '',
+    );
+    _cuota = TextEditingController(
+      text: d?.cuotaSugerida == null
+          ? ''
+          : d!.cuotaSugerida!.round().toString(),
+    );
+    _tipo = d?.tipo ?? TipoDeuda.tarjetaCredito;
+  }
 
   @override
   void dispose() {
@@ -61,14 +85,14 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                'Nueva deuda',
+                _esEdicion ? 'Editar deuda' : 'Nueva deuda',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 20),
 
               TextFormField(
                 controller: _acreedor,
-                autofocus: true,
+                autofocus: !_esEdicion,
                 textCapitalization: TextCapitalization.words,
                 decoration: const InputDecoration(
                   labelText: '¿A quién le debes?',
@@ -94,14 +118,20 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
 
               TextFormField(
                 controller: _monto,
+                enabled: !_esEdicion,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: false,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Cuánto debes',
                   prefixText: r'$ ',
+                  helperText: _esEdicion
+                      // Cambiarlo descuadraría el porcentaje pagado y los abonos ya hechos.
+                      ? 'El importe original no se puede cambiar'
+                      : null,
                 ),
                 validator: (v) {
+                  if (_esEdicion) return null;
                   final valor = double.tryParse((v ?? '').replaceAll('.', ''));
                   if (valor == null || valor <= 0) {
                     return 'Escribe un monto mayor que cero';
@@ -144,7 +174,9 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                     DatosNuevaDeuda(
                       acreedor: _acreedor.text.trim(),
                       tipo: _tipo,
-                      monto: double.parse(_monto.text.replaceAll('.', '')),
+                      monto: _esEdicion
+                          ? widget.deuda!.montoOriginal
+                          : double.parse(_monto.text.replaceAll('.', '')),
                       tasaInteres: double.tryParse(
                         _tasa.text.replaceAll(',', '.'),
                       ),
@@ -152,7 +184,7 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                     ),
                   );
                 },
-                child: const Text('Añadir'),
+                child: Text(_esEdicion ? 'Guardar' : 'Añadir'),
               ),
             ],
           ),

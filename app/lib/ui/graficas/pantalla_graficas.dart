@@ -9,6 +9,7 @@ import '../../dominio/modelos.dart';
 import '../../estado/deudas.dart';
 import '../../estado/graficas.dart';
 import '../../estado/mes.dart';
+import '../../estado/modo_vista.dart';
 
 /// Gráficas del estado financiero.
 class PantallaGraficas extends ConsumerWidget {
@@ -18,12 +19,30 @@ class PantallaGraficas extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final mes = ref.watch(mesProvider);
     final evolucion = ref.watch(evolucionProvider);
+    final modo = ref.watch(modoVistaProvider);
     final anchoMaximo = Pantalla.esEscritorio(context)
         ? 760.0
         : double.infinity;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Gráficas')),
+      appBar: AppBar(
+        title: const Text('Gráficas'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: TextButton.icon(
+              onPressed: () => ref.read(modoVistaProvider.notifier).alternar(),
+              icon: Icon(
+                modo == ModoVista.estimacion
+                    ? Icons.query_stats
+                    : Icons.receipt_long_outlined,
+                size: 18,
+              ),
+              label: Text(modo.etiqueta),
+            ),
+          ),
+        ],
+      ),
       body: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
@@ -48,7 +67,7 @@ class PantallaGraficas extends ConsumerWidget {
                       ? e.mensaje
                       : 'No se pudo cargar el histórico',
                 ),
-                data: (serie) => _Evolucion(serie: serie),
+                data: (serie) => _Evolucion(serie: serie, modo: modo),
               ),
               const SizedBox(height: 20),
               _AvanceDeudas(),
@@ -176,9 +195,16 @@ class _DistribucionGasto extends StatelessWidget {
 
 /// Ingresos y gastos mes a mes.
 class _Evolucion extends StatelessWidget {
-  const _Evolucion({required this.serie});
+  const _Evolucion({required this.serie, required this.modo});
 
   final List<ResumenMensual> serie;
+  final ModoVista modo;
+
+  /// En estimación se traza lo comprometido —que incluye abonos a deudas y aportes al ahorro—
+  /// y en real solo los gastos. Comparar meses pasados con uno por empezar solo tiene sentido
+  /// con la primera: en el mes que viene todavía no se ha pagado nada.
+  double _salida(ResumenMensual r) =>
+      modo == ModoVista.estimacion ? r.comprometido : r.gastoTotal;
 
   @override
   Widget build(BuildContext context) {
@@ -195,9 +221,9 @@ class _Evolucion extends StatelessWidget {
     final esquema = Theme.of(context).colorScheme;
     final maximo = serie
         .map(
-          (r) => r.ingresoProyectado > r.gastoTotal
+          (r) => r.ingresoProyectado > _salida(r)
               ? r.ingresoProyectado
-              : r.gastoTotal,
+              : _salida(r),
         )
         .reduce((a, b) => a > b ? a : b);
 
@@ -279,10 +305,7 @@ class _Evolucion extends StatelessWidget {
                       serie.map((r) => r.ingresoProyectado).toList(),
                       Tema.positivo,
                     ),
-                    _linea(
-                      serie.map((r) => r.gastoTotal).toList(),
-                      Tema.pendiente,
-                    ),
+                    _linea(serie.map(_salida).toList(), Tema.pendiente),
                   ],
                 ),
               ),
@@ -294,7 +317,12 @@ class _Evolucion extends StatelessWidget {
               children: [
                 _Punto(color: Tema.positivo, texto: 'Ingresos'),
                 const SizedBox(width: 20),
-                _Punto(color: Tema.pendiente, texto: 'Gastos'),
+                _Punto(
+                  color: Tema.pendiente,
+                  texto: modo == ModoVista.estimacion
+                      ? 'Comprometido'
+                      : 'Gastos',
+                ),
               ],
             ),
           ],

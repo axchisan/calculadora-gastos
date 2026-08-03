@@ -229,8 +229,21 @@ class _FilaGasto extends ConsumerWidget {
               ListTile(
                 leading: const Icon(Icons.payments_outlined),
                 title: const Text('Abonar una parte'),
+                subtitle: const Text('Suma a lo que ya has pagado'),
                 onTap: () => Navigator.pop(context, 'abonar'),
               ),
+            // Corregir sustituye la cifra en vez de sumarla: es la vía para deshacer un pago
+            // apuntado por error o ajustarlo cuando no se pagó el total.
+            ListTile(
+              leading: const Icon(Icons.edit_note),
+              title: const Text('Corregir lo pagado'),
+              subtitle: Text(
+                gasto.montoPagado > 0
+                    ? 'Ahora figura ${Formato.dinero(gasto.montoPagado)}'
+                    : 'Ahora figura como no pagado',
+              ),
+              onTap: () => Navigator.pop(context, 'corregir'),
+            ),
             if (gasto.editable)
               ListTile(
                 leading: const Icon(Icons.delete_outline, color: Tema.negativo),
@@ -260,6 +273,21 @@ class _FilaGasto extends ConsumerWidget {
       return;
     }
 
+    if (accion == 'corregir') {
+      final monto = await _pedirCorreccion(context);
+      if (monto == null || !context.mounted) return;
+      try {
+        await ref.read(mesProvider.notifier).corregirPago(gasto.id, monto);
+      } on ErrorApi catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+        }
+      }
+      return;
+    }
+
     if (accion == 'abonar') {
       final importe = await _pedirImporte(context);
       if (importe == null || !context.mounted) return;
@@ -273,6 +301,72 @@ class _FilaGasto extends ConsumerWidget {
         }
       }
     }
+  }
+
+  /// Pide la cifra real pagada, con accesos rápidos a los dos casos habituales: no se pagó
+  /// nada o se pagó el total.
+  Future<double?> _pedirCorreccion(BuildContext context) async {
+    final controlador = TextEditingController(
+      text: gasto.montoPagado == 0 ? '' : gasto.montoPagado.round().toString(),
+    );
+
+    return showDialog<double>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('Corregir lo pagado'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${gasto.nombre} vale ${Formato.dinero(gasto.monto)}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: controlador,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: false,
+              ),
+              decoration: const InputDecoration(
+                prefixText: r'$ ',
+                labelText: 'Cuánto has pagado en realidad',
+              ),
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              children: [
+                ActionChip(
+                  label: const Text('No he pagado nada'),
+                  onPressed: () => Navigator.pop(contexto, 0.0),
+                ),
+                ActionChip(
+                  label: const Text('Pagué todo'),
+                  onPressed: () => Navigator.pop(contexto, gasto.monto),
+                ),
+              ],
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () {
+              final valor = double.tryParse(
+                controlador.text.replaceAll('.', ''),
+              );
+              Navigator.pop(contexto, valor);
+            },
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<double?> _pedirImporte(BuildContext context) async {

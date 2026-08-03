@@ -143,6 +143,29 @@ public class Gasto {
     }
 
     /**
+     * Fija cuánto se lleva abonado, sin sumarlo a lo anterior.
+     *
+     * <p>A diferencia de {@link #abonar}, que acumula, aquí se corrige el dato: sirve para
+     * arreglar un pago registrado por error o para ajustar la cifra cuando resultó que no se
+     * pagó el total. Con cero, el gasto vuelve a estar pendiente.
+     *
+     * @throws IllegalArgumentException si el importe es negativo o supera el valor del gasto
+     */
+    public void corregirPago(BigDecimal montoPagado, LocalDate fecha) {
+        if (montoPagado == null || montoPagado.signum() < 0) {
+            throw new IllegalArgumentException("El monto pagado no puede ser negativo");
+        }
+        if (montoPagado.compareTo(monto) > 0) {
+            throw new IllegalArgumentException(
+                    "El monto pagado no puede superar el del gasto, que es " + monto);
+        }
+        this.montoPagado = montoPagado;
+        this.fechaPago = montoPagado.signum() == 0 ? null
+                : fecha == null ? LocalDate.now() : fecha;
+        recalcularEstado();
+    }
+
+    /**
      * Cambia el importe del gasto.
      *
      * <p>Si el nuevo importe queda por debajo de lo ya abonado, el gasto pasa a estar pagado por
