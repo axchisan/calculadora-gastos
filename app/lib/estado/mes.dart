@@ -6,7 +6,8 @@ import '../dominio/modelos.dart';
 import 'proveedores.dart';
 
 final repositorioMesesProvider = Provider<RepositorioMeses>(
-  (ref) => RepositorioMeses(ref.watch(clienteApiProvider)),
+  (ref) =>
+      RepositorioMeses(ref.watch(clienteApiProvider), ref.watch(cacheProvider)),
 );
 
 /// Periodo que se está viendo. Arranca en el mes en curso.
@@ -114,6 +115,21 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
       monto: monto,
       diaVencimiento: diaVencimiento,
     );
+    await refrescar();
+  }
+
+  /// Cierra el mes: queda como registro histórico y deja de admitir cambios.
+  Future<void> cerrar() async {
+    final id = _mesId;
+    if (id == null) return;
+    await _repositorio.cerrar(id);
+    await refrescar();
+  }
+
+  Future<void> reabrir() async {
+    final id = _mesId;
+    if (id == null) return;
+    await _repositorio.reabrir(id);
     await refrescar();
   }
 

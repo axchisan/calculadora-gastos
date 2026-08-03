@@ -39,6 +39,12 @@ app/ios/Flutter/ephemeral/
 **/Flutter/Generated.xcconfig
 **/Flutter/flutter_export_environment.sh
 
+# Artefactos compilados de las apps nativas
+app/build/app/outputs/
+*.apk
+*.aab
+app/build/macos/
+
 # ---------- Terraform ----------
 .terraform/
 .terraform.lock.hcl

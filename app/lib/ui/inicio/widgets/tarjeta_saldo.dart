@@ -11,9 +11,12 @@ import '../../../dominio/modelos.dart';
 /// pendiente. Ver solo la primera hace creer que sobra dinero que en realidad ya está
 /// comprometido.
 class TarjetaSaldo extends StatelessWidget {
-  const TarjetaSaldo({required this.resumen, super.key});
+  const TarjetaSaldo({required this.resumen, this.alEditarIngreso, super.key});
 
   final ResumenMensual resumen;
+
+  /// Permite ajustar el sueldo tocando la cifra de ingreso. Nulo si el mes está cerrado.
+  final VoidCallback? alEditarIngreso;
 
   @override
   Widget build(BuildContext context) {
@@ -60,11 +63,16 @@ class TarjetaSaldo extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _Cifra(
-                    etiqueta: 'Ingreso',
-                    valor: resumen.ingresoTotal,
-                    icono: Icons.arrow_downward,
-                    color: Tema.positivo,
+                  child: InkWell(
+                    onTap: alEditarIngreso,
+                    borderRadius: BorderRadius.circular(8),
+                    child: _Cifra(
+                      etiqueta: 'Ingreso',
+                      valor: resumen.ingresoTotal,
+                      icono: Icons.arrow_downward,
+                      color: Tema.positivo,
+                      editable: alEditarIngreso != null,
+                    ),
                   ),
                 ),
                 Expanded(
@@ -205,6 +213,7 @@ class _Cifra extends StatelessWidget {
     required this.icono,
     required this.color,
     this.resaltado = false,
+    this.editable = false,
   });
 
   final String etiqueta;
@@ -212,6 +221,7 @@ class _Cifra extends StatelessWidget {
   final IconData icono;
   final Color color;
   final bool resaltado;
+  final bool editable;
 
   @override
   Widget build(BuildContext context) {
@@ -233,6 +243,14 @@ class _Cifra extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            if (editable) ...[
+              const SizedBox(width: 3),
+              Icon(
+                Icons.edit,
+                size: 10,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ],
           ],
         ),
         const SizedBox(height: 2),

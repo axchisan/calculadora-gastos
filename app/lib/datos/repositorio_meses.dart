@@ -1,11 +1,20 @@
 import '../dominio/modelos.dart';
+import 'cache_local.dart';
 import 'cliente_api.dart';
 
 /// Acceso a los meses, sus gastos y el resumen.
+///
+/// Las lecturas del mes se guardan en el caché local. Si la petición falla por falta de red se
+/// devuelve lo último conocido en lugar de un error: mirar cifras de ayer es más útil que una
+/// pantalla de fallo, siempre que quede claro que no están al día.
 class RepositorioMeses {
-  const RepositorioMeses(this._api);
+  const RepositorioMeses(this._api, this._cache);
 
   final ClienteApi _api;
+  final CacheLocal? _cache;
+
+  /// Indica si los últimos datos servidos vinieron del caché por no haber conexión.
+  static bool ultimaLecturaDesdeCache = false;
 
   Future<List<Mes>> listar() async {
     final datos = await _api.obtener<List<dynamic>>('/api/meses');
@@ -31,10 +40,12 @@ class RepositorioMeses {
   }
 
   Future<ResumenMensual> resumen(String mesId) async {
-    final datos = await _api.obtener<Map<String, dynamic>>(
-      '/api/meses/$mesId/resumen',
+    return _conCache(
+      clave: 'resumen.$mesId',
+      pedir: () =>
+          _api.obtener<Map<String, dynamic>>('/api/meses/$mesId/resumen'),
+      construir: (json) => ResumenMensual.deJson(json as Map<String, dynamic>),
     );
-    return ResumenMensual.deJson(datos);
   }
 
   /// Serie histórica para las gráficas de evolución.
@@ -73,8 +84,13 @@ class RepositorioMeses {
   // --- gastos ---
 
   Future<List<Gasto>> gastos(String mesId) async {
-    final datos = await _api.obtener<List<dynamic>>('/api/meses/$mesId/gastos');
-    return datos.map((e) => Gasto.deJson(e as Map<String, dynamic>)).toList();
+    return _conCache(
+      clave: 'gastos.$mesId',
+      pedir: () => _api.obtener<List<dynamic>>('/api/meses/$mesId/gastos'),
+      construir: (json) => (json as List<dynamic>)
+          .map((e) => Gasto.deJson(e as Map<String, dynamic>))
+          .toList(),
+    );
   }
 
   Future<Gasto> crearGasto(
@@ -151,6 +167,28 @@ class RepositorioMeses {
 
   Future<void> eliminarGasto(String gastoId) =>
       _api.eliminar('/api/gastos/$gastoId');
+
+  /// Pide al servidor y guarda el resultado; si no hay conexión, recurre a lo guardado.
+  Future<T> _conCache<T>({
+    required String clave,
+    required Future<dynamic> Function() pedir,
+    required T Function(dynamic json) construir,
+  }) async {
+    try {
+      final json = await pedir();
+      await _cache?.guardar(clave, json);
+      ultimaLecturaDesdeCache = false;
+      return construir(json);
+    } on ErrorApi catch (e) {
+      // Solo se recurre al caché ante un fallo de red. Un 404 o un 403 son respuestas
+      // legítimas del servidor y taparlas con datos viejos ocultaría el problema real.
+      final guardado = e.esDeConexion ? _cache?.leer(clave) : null;
+      if (guardado == null) rethrow;
+
+      ultimaLecturaDesdeCache = true;
+      return construir(guardado.datos);
+    }
+  }
 
   /// La API espera fechas de negocio sin hora ni zona: `2026-08-17`.
   static String _soloFecha(DateTime fecha) =>
