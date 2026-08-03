@@ -58,13 +58,21 @@ public final class DtosDeuda {
             LocalDate fechaLimite) {
     }
 
+    /**
+     * Cambios sobre una deuda.
+     *
+     * <p>Corregir {@code montoOriginal} conserva lo ya abonado y recalcula el saldo, de modo que
+     * arreglar un importe mal apuntado no borra el historial de pagos.
+     */
     public record ActualizarDeudaRequest(
             String acreedor,
             TipoDeuda tipo,
             String descripcion,
             @PositiveOrZero BigDecimal tasaInteresMensual,
             @PositiveOrZero BigDecimal cuotaSugerida,
-            LocalDate fechaLimite) {
+            LocalDate fechaLimite,
+            @Positive(message = "El monto debe ser mayor que cero")
+            BigDecimal montoOriginal) {
     }
 
     /** Abono a una deuda. El mes es opcional: sirve para imputarlo al presupuesto. */

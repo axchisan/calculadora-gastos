@@ -90,6 +90,7 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
     TipoDeuda? tipo,
     double? tasaInteresMensual,
     double? cuotaSugerida,
+    double? montoOriginal,
   }) async {
     await _repositorio.actualizar(
       deudaId,
@@ -97,6 +98,7 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
       tipo: tipo,
       tasaInteresMensual: tasaInteresMensual,
       cuotaSugerida: cuotaSugerida,
+      montoOriginal: montoOriginal,
     );
     await refrescar();
   }

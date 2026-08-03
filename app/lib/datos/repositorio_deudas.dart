@@ -80,6 +80,7 @@ class RepositorioDeudas {
     double? tasaInteresMensual,
     double? cuotaSugerida,
     DateTime? fechaLimite,
+    double? montoOriginal,
   }) async {
     final datos = await _api.modificar<Map<String, dynamic>>(
       '/api/deudas/$deudaId',
@@ -90,6 +91,7 @@ class RepositorioDeudas {
         'tasaInteresMensual': ?tasaInteresMensual,
         'cuotaSugerida': ?cuotaSugerida,
         'fechaLimite': ?_fecha(fechaLimite),
+        'montoOriginal': ?montoOriginal,
       },
     );
     return Deuda.deJson(datos);

@@ -118,6 +118,37 @@ public class Deuda {
         }
     }
 
+    /** Lo que se lleva abonado, deducido del importe original y el saldo. */
+    public BigDecimal totalAbonado() {
+        return montoOriginal.subtract(saldo);
+    }
+
+    /**
+     * Corrige el importe original de la deuda.
+     *
+     * <p>El saldo se recalcula conservando lo ya abonado: si se debían dos millones, se
+     * abonaron quinientos mil y resulta que en realidad eran un millón y medio, quedan un
+     * millón. Lo que cambia es la deuda, no los pagos hechos.
+     *
+     * @throws IllegalArgumentException si el importe nuevo es menor que lo ya abonado, porque
+     *                                  implicaría haber pagado más de lo que se debía
+     */
+    public void corregirMontoOriginal(BigDecimal nuevoMonto) {
+        if (nuevoMonto == null || nuevoMonto.signum() <= 0) {
+            throw new IllegalArgumentException("El monto debe ser mayor que cero");
+        }
+
+        BigDecimal abonado = totalAbonado();
+        if (nuevoMonto.compareTo(abonado) < 0) {
+            throw new IllegalArgumentException(
+                    "El monto no puede ser menor que lo ya abonado, que es " + abonado);
+        }
+
+        this.montoOriginal = nuevoMonto;
+        this.saldo = nuevoMonto.subtract(abonado);
+        this.activa = this.saldo.signum() > 0;
+    }
+
     /** Revierte un abono, por ejemplo al eliminarlo. */
     public void revertirAbono(BigDecimal importe) {
         this.saldo = this.saldo.add(importe);

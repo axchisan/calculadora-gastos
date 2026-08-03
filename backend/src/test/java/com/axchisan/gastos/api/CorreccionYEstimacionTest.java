@@ -302,6 +302,59 @@ class CorreccionYEstimacionTest {
                     .andExpect(jsonPath("$.saldo").value(1500000));
         }
 
+        /**
+         * Corregir un importe mal apuntado no debe borrar los pagos hechos: lo que cambia es la
+         * deuda, no el historial.
+         */
+        @Test
+        void corregir_el_importe_conserva_lo_ya_abonado() throws Exception {
+            String deudaId = crearDeuda();
+
+            mvc.perform(auth(post("/api/deudas/" + deudaId + "/abonos"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(cuerpoAbono(500000, null)));
+
+            // Eran un millón y medio, no dos millones.
+            mvc.perform(auth(patch("/api/deudas/" + deudaId))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoMontoOriginal(1500000)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.montoOriginal").value(1500000))
+                    // 1.500.000 menos los 500.000 ya abonados
+                    .andExpect(jsonPath("$.saldo").value(1000000))
+                    .andExpect(jsonPath("$.porcentajePagado").value(33.33));
+        }
+
+        @Test
+        void corregir_al_valor_ya_abonado_salda_la_deuda() throws Exception {
+            String deudaId = crearDeuda();
+
+            mvc.perform(auth(post("/api/deudas/" + deudaId + "/abonos"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(cuerpoAbono(500000, null)));
+
+            mvc.perform(auth(patch("/api/deudas/" + deudaId))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoMontoOriginal(500000)))
+                    .andExpect(jsonPath("$.saldo").value(0))
+                    .andExpect(jsonPath("$.activa").value(false));
+        }
+
+        @Test
+        void rechaza_un_importe_menor_que_lo_ya_abonado() throws Exception {
+            String deudaId = crearDeuda();
+
+            mvc.perform(auth(post("/api/deudas/" + deudaId + "/abonos"))
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(cuerpoAbono(500000, null)));
+
+            // Implicaría haber pagado más de lo que se debía.
+            mvc.perform(auth(patch("/api/deudas/" + deudaId))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoMontoOriginal(300000)))
+                    .andExpect(status().isBadRequest());
+        }
+
         @Test
         void recalcula_el_interes_con_la_tasa_nueva() throws Exception {
             String deudaId = crearDeuda();
@@ -434,6 +487,10 @@ class CorreccionYEstimacionTest {
     private static String cuerpoAbono(int monto, UUID mesId) {
         String mes = mesId == null ? "" : ",\"mesId\":\"" + mesId + "\"";
         return "{\"monto\":" + monto + mes + "}";
+    }
+
+    private static String cuerpoMontoOriginal(int monto) {
+        return "{\"montoOriginal\":" + monto + "}";
     }
 
     private static String cuerpoMonto(int monto) {

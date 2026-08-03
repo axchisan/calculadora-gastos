@@ -6,6 +6,7 @@ import '../../../core/tema.dart';
 import '../../../datos/cliente_api.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/mes.dart';
+import 'editor_gasto.dart';
 
 /// Gastos del mes, separados entre lo que falta por pagar y lo ya saldado.
 class ListaGastos extends ConsumerWidget {
@@ -225,6 +226,13 @@ class _FilaGasto extends ConsumerWidget {
               subtitle: Text(Formato.dinero(gasto.monto)),
             ),
             const Divider(height: 1),
+            if (gasto.editable)
+              ListTile(
+                leading: const Icon(Icons.tune),
+                title: const Text('Editar el gasto'),
+                subtitle: const Text('Concepto, monto y categoría de este mes'),
+                onTap: () => Navigator.pop(context, 'editar'),
+              ),
             if (gasto.estado != EstadoGasto.pagado)
               ListTile(
                 leading: const Icon(Icons.payments_outlined),
@@ -263,6 +271,29 @@ class _FilaGasto extends ConsumerWidget {
     if (accion == 'eliminar') {
       try {
         await ref.read(mesProvider.notifier).eliminarGasto(gasto.id);
+      } on ErrorApi catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+        }
+      }
+      return;
+    }
+
+    if (accion == 'editar') {
+      final datos = await EditorGasto.abrir(context, gasto);
+      if (datos == null || !context.mounted) return;
+      try {
+        await ref
+            .read(mesProvider.notifier)
+            .actualizarGasto(
+              gasto.id,
+              nombre: datos.nombre,
+              categoria: datos.categoria,
+              monto: datos.monto,
+              diaVencimiento: datos.diaVencimiento,
+            );
       } on ErrorApi catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(

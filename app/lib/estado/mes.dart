@@ -88,6 +88,24 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
     await refrescar();
   }
 
+  /// Cambia los datos de un gasto de este mes, incluido su importe.
+  Future<void> actualizarGasto(
+    String gastoId, {
+    String? nombre,
+    CategoriaGasto? categoria,
+    double? monto,
+    int? diaVencimiento,
+  }) async {
+    await _repositorio.actualizarGasto(
+      gastoId,
+      nombre: nombre,
+      categoria: categoria,
+      monto: monto,
+      diaVencimiento: diaVencimiento,
+    );
+    await refrescar();
+  }
+
   /// Corrige cuánto se lleva pagado. Con cero, el gasto vuelve a estar pendiente.
   Future<void> corregirPago(String gastoId, double montoPagado) async {
     await _repositorio.corregirPago(gastoId, montoPagado);
