@@ -70,6 +70,12 @@ class _PantallaAccesoState extends ConsumerState<PantallaAcceso> {
       if (e.campos.isNotEmpty) {
         _formulario.currentState!.validate();
       }
+    } catch (e) {
+      // Cualquier otro fallo —el almacén seguro del sistema, un problema de plataforma— debe
+      // verse. Capturar solo ErrorApi dejaba el botón sin respuesta y sin ningún mensaje, que
+      // es la peor forma de fallar: parece que la aplicación ignora el toque.
+      if (!mounted) return;
+      setState(() => _errorGeneral = 'No se pudo completar el acceso: $e');
     } finally {
       if (mounted) setState(() => _enviando = false);
     }

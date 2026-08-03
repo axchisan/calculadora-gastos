@@ -35,6 +35,10 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  # Ejecuta pruebas sobre la aplicación real de cada plataforma. Es la única forma de
+  # comprobar el almacén seguro, que depende del Keychain y del Keystore del sistema.
+  integration_test:
+    sdk: flutter
   flutter_lints: ^6.0.0
 
 flutter:
