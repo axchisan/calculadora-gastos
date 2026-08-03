@@ -234,7 +234,10 @@ class _BotonModo extends StatelessWidget {
   }
 }
 
-/// Cuánto del mes se lleva pagado.
+/// Cuánto del mes se lleva cubierto.
+///
+/// Cuenta todo lo que hay que pagar, no solo los gastos: una cuota de deuda sale del bolsillo
+/// igual que el arriendo, y dejarla fuera daba un «falta» que se quedaba corto.
 class _BarraPagos extends StatelessWidget {
   const _BarraPagos({required this.resumen});
 
@@ -243,26 +246,22 @@ class _BarraPagos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final esquema = Theme.of(context).colorScheme;
-    final total = resumen.gastoTotal;
-    final proporcion = total == 0
-        ? 0.0
-        : (resumen.gastoPagado / total).clamp(0.0, 1.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _Barra(proporcion: proporcion, color: Tema.positivo),
+        _Barra(proporcion: resumen.proporcionCubierta, color: Tema.positivo),
         const SizedBox(height: 8),
         Row(
           children: [
             _Punto(
               color: Tema.positivo,
-              texto: 'Pagado ${Formato.dinero(resumen.gastoPagado)}',
+              texto: 'Pagado ${Formato.dinero(resumen.salidaReal)}',
             ),
             const Spacer(),
             _Punto(
               color: esquema.surfaceContainerHighest,
-              texto: 'Falta ${Formato.dinero(resumen.gastoPendiente)}',
+              texto: 'Falta ${Formato.dinero(resumen.pendienteTotal)}',
             ),
           ],
         ),

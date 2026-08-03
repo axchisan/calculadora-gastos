@@ -313,9 +313,23 @@ class ResumenMensual {
 
   /// Dinero que ya salió este mes, sea en gastos, abonos a deudas o ahorro.
   ///
-  /// La barra de pagos solo cuenta gastos, así que un abono a una deuda reducía el disponible
-  /// sin dejar rastro visible de a dónde había ido.
+  /// Contar solo los gastos dejaba fuera los abonos a deudas, que salen del bolsillo igual.
   double get salidaReal => gastoPagado + abonosDeuda + aporteAhorro;
+
+  /// Lo que falta por cubrir: gastos sin pagar más las cuotas de deuda pendientes.
+  ///
+  /// Una deuda es algo más que hay que pagar este mes, así que cuenta aquí igual que un gasto
+  /// sin saldar. Nunca baja de cero: abonar por encima de la cuota no genera un pendiente
+  /// negativo.
+  double get pendienteTotal {
+    final falta = comprometidoConCuotas - salidaReal;
+    return falta < 0 ? 0 : falta;
+  }
+
+  /// Proporción de todo lo que hay que pagar este mes que ya está cubierta.
+  double get proporcionCubierta => comprometidoConCuotas == 0
+      ? 0
+      : (salidaReal / comprometidoConCuotas).clamp(0.0, 1.0);
 
   static ResumenMensual deJson(Map<String, dynamic> j) {
     // El periodo llega como "2026-08"; se completa con el día uno para poder formatearlo.
