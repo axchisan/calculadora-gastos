@@ -289,6 +289,7 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
             tipo: datos.tipo,
             tasaInteresMensual: datos.tasaInteres,
             cuotaSugerida: datos.cuota,
+            montoOriginal: datos.monto,
           );
       if (context.mounted) Navigator.pop(context);
     });

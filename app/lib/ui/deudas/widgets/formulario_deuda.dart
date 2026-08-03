@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/formato.dart';
 import '../../../dominio/modelos.dart';
 
 /// Datos recogidos para crear una deuda.
@@ -39,6 +40,11 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
   late TipoDeuda _tipo;
 
   bool get _esEdicion => widget.deuda != null;
+
+  /// Lo ya abonado, que el importe corregido no puede dejar por debajo.
+  double get _abonado => widget.deuda == null
+      ? 0
+      : widget.deuda!.montoOriginal - widget.deuda!.saldo;
 
   @override
   void initState() {
@@ -118,23 +124,27 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
 
               TextFormField(
                 controller: _monto,
-                enabled: !_esEdicion,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: false,
                 ),
                 decoration: InputDecoration(
-                  labelText: 'Cuánto debes',
+                  labelText: 'Cuánto debes en total',
                   prefixText: r'$ ',
-                  helperText: _esEdicion
-                      // Cambiarlo descuadraría el porcentaje pagado y los abonos ya hechos.
-                      ? 'El importe original no se puede cambiar'
+                  // Al corregirlo, el saldo se recalcula conservando lo ya abonado: cambia la
+                  // deuda, no los pagos hechos.
+                  helperText: _esEdicion && _abonado > 0
+                      ? 'Llevas abonados ${Formato.dinero(_abonado)}; el saldo se ajusta solo'
                       : null,
+                  helperMaxLines: 2,
                 ),
                 validator: (v) {
-                  if (_esEdicion) return null;
                   final valor = double.tryParse((v ?? '').replaceAll('.', ''));
                   if (valor == null || valor <= 0) {
                     return 'Escribe un monto mayor que cero';
+                  }
+                  if (_esEdicion && valor < _abonado) {
+                    return 'No puede ser menor que lo ya abonado '
+                        '(${Formato.dinero(_abonado)})';
                   }
                   return null;
                 },
@@ -174,9 +184,7 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                     DatosNuevaDeuda(
                       acreedor: _acreedor.text.trim(),
                       tipo: _tipo,
-                      monto: _esEdicion
-                          ? widget.deuda!.montoOriginal
-                          : double.parse(_monto.text.replaceAll('.', '')),
+                      monto: double.parse(_monto.text.replaceAll('.', '')),
                       tasaInteres: double.tryParse(
                         _tasa.text.replaceAll(',', '.'),
                       ),

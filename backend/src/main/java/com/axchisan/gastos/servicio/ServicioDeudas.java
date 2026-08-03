@@ -68,8 +68,15 @@ public class ServicioDeudas {
     @Transactional
     public Deuda actualizar(UUID usuarioId, UUID deudaId, String acreedor, TipoDeuda tipo,
                             String descripcion, BigDecimal tasaInteresMensual,
-                            BigDecimal cuotaSugerida, LocalDate fechaLimite) {
+                            BigDecimal cuotaSugerida, LocalDate fechaLimite,
+                            BigDecimal montoOriginal) {
         Deuda deuda = buscar(usuarioId, deudaId);
+
+        // Corregir el importe conserva lo ya abonado y recalcula el saldo: lo que cambia es la
+        // deuda, no los pagos hechos.
+        if (montoOriginal != null) {
+            deuda.corregirMontoOriginal(montoOriginal);
+        }
 
         if (acreedor != null) {
             deuda.setAcreedor(acreedor);

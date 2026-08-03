@@ -65,7 +65,7 @@ public class DeudasController {
                                @Valid @RequestBody ActualizarDeudaRequest peticion) {
         return DeudaDto.de(deudas.actualizar(UsuarioActual.id(), deudaId, peticion.acreedor(),
                 peticion.tipo(), peticion.descripcion(), peticion.tasaInteresMensual(),
-                peticion.cuotaSugerida(), peticion.fechaLimite()));
+                peticion.cuotaSugerida(), peticion.fechaLimite(), peticion.montoOriginal()));
     }
 
     @GetMapping("/{deudaId}/abonos")
