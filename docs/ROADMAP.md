@@ -38,11 +38,14 @@ pantalla.
 
 ## Fase 3 — Cliente: base
 
-- [ ] Navegación, tema visual y diseño adaptable a móvil/escritorio
-- [ ] Pantallas de autenticación y almacenamiento seguro de tokens
-- [ ] Cliente HTTP con renovación automática de token
-- [ ] Pantalla del mes: sueldo, gastos, marcar como pagado
+- [x] Navegación, tema visual y diseño adaptable a móvil/escritorio
+- [x] Pantallas de autenticación y almacenamiento seguro de tokens
+- [x] Cliente HTTP con renovación automática de token
+- [x] Pantalla del mes: sueldo, gastos, marcar como pagado y abonos parciales
+- [x] Formato de moneda y fechas en español de Colombia
+- [ ] Edición del sueldo y de los gastos desde la pantalla
 - [ ] Duplicación del motor de cálculo en Dart, con los mismos casos de prueba
+- [ ] Modo sin conexión con caché del mes en curso
 
 ## Fase 4 — Cliente: módulos
 
@@ -68,7 +71,9 @@ pantalla.
 - [x] Rol OIDC para despliegues desde GitHub Actions
 - [x] Flujos de integración continua para backend y web
 - [x] Publicación de versión de Lambda con SnapStart en cada despliegue
-- [ ] Registros DNS en Hostinger y validación de certificados
+- [x] Registros DNS en Hostinger y validación de certificados
+- [x] **En producción**: [gastos.axchisan.com](https://gastos.axchisan.com) y
+      [api.axchisan.com](https://api.axchisan.com)
 - [ ] Volcado semanal de la base de datos a S3
 
 Ver [DESPLIEGUE.md](DESPLIEGUE.md).
