@@ -155,6 +155,60 @@ void main() {
       expect(resumen.salidaReal, 652000);
     });
 
+    test('lo que falta cuenta también las cuotas de deuda', () {
+      // Una cuota de deuda hay que pagarla igual que el arriendo.
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoTotal': 1232000,
+        'gastoPagado': 0,
+        'cuotasDeudaPendientes': 1711000,
+        'comprometidoConCuotas': 2943000,
+      });
+
+      expect(resumen.salidaReal, 0);
+      expect(resumen.pendienteTotal, 2943000);
+      expect(resumen.proporcionCubierta, 0);
+    });
+
+    test('abonar una deuda cuenta como pagado', () {
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoPagado': 600000,
+        'abonosDeuda': 400000,
+        'cuotasDeudaPendientes': 100000,
+        'comprometidoConCuotas': 1632000,
+      });
+
+      // 600.000 de gastos más 400.000 abonados a deudas
+      expect(resumen.salidaReal, 1000000);
+      expect(resumen.pendienteTotal, 632000);
+      expect(resumen.proporcionCubierta, closeTo(0.6127, 0.001));
+    });
+
+    test('pagar de más no deja un pendiente negativo', () {
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoPagado': 1132000,
+        'abonosDeuda': 900000,
+        'comprometidoConCuotas': 1500000,
+      });
+
+      expect(resumen.pendienteTotal, 0);
+      expect(resumen.proporcionCubierta, 1.0);
+    });
+
+    test('sin nada comprometido la barra no se divide por cero', () {
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoTotal': 0,
+        'gastoPagado': 0,
+        'comprometidoConCuotas': 0,
+      });
+
+      expect(resumen.proporcionCubierta, 0);
+      expect(resumen.pendienteTotal, 0);
+    });
+
     test('cuenta las deudas que no pueden proyectarse', () {
       expect(ResumenMensual.deJson(json).deudasSinCuota, 0);
       expect(

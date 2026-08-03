@@ -57,7 +57,7 @@ class PantallaGraficas extends ConsumerWidget {
                       ? e.mensaje
                       : 'No se pudo cargar el mes',
                 ),
-                data: (d) => _DistribucionGasto(resumen: d.resumen),
+                data: (d) => _DistribucionGasto(resumen: d.resumen, modo: modo),
               ),
               const SizedBox(height: 20),
               evolucion.when(
@@ -80,10 +80,57 @@ class PantallaGraficas extends ConsumerWidget {
 }
 
 /// En qué se va el dinero este mes.
+/// Segmento del reparto: una categoría de gasto, las deudas o el ahorro.
+class _Segmento {
+  const _Segmento({
+    required this.etiqueta,
+    required this.total,
+    required this.color,
+  });
+
+  final String etiqueta;
+  final double total;
+  final Color color;
+}
+
 class _DistribucionGasto extends StatelessWidget {
-  const _DistribucionGasto({required this.resumen});
+  const _DistribucionGasto({required this.resumen, required this.modo});
 
   final ResumenMensual resumen;
+  final ModoVista modo;
+
+  /// Reparto del mes con las deudas y el ahorro incluidos.
+  ///
+  /// Un abono a una deuda sale del bolsillo igual que el arriendo, así que dejarlo fuera daba
+  /// una foto incompleta de a dónde va el dinero. En modo real se muestra lo ya abonado; en
+  /// estimación, la cuota completa del mes.
+  List<_Segmento> _segmentos() {
+    final esEstimacion = modo == ModoVista.estimacion;
+
+    final deudas = esEstimacion
+        ? resumen.abonosDeuda + resumen.cuotasDeudaPendientes
+        : resumen.abonosDeuda;
+
+    return [
+      for (final t in resumen.porCategoria)
+        _Segmento(
+          etiqueta: t.categoria.etiqueta,
+          total: t.total,
+          color: _colores[t.categoria] ?? _colores[CategoriaGasto.otro]!,
+        ),
+      if (deudas > 0)
+        _Segmento(etiqueta: 'Deudas', total: deudas, color: _colorDeuda),
+      if (resumen.aporteAhorro > 0)
+        _Segmento(
+          etiqueta: 'Ahorro',
+          total: resumen.aporteAhorro,
+          color: _colorAhorro,
+        ),
+    ]..sort((a, b) => b.total.compareTo(a.total));
+  }
+
+  static const Color _colorDeuda = Color(0xFFC62828);
+  static const Color _colorAhorro = Color(0xFF2E7D32);
 
   /// Paleta estable por categoría: que el color de «Vivienda» no cambie entre meses es lo que
   /// permite comparar dos gráficas de un vistazo.
@@ -104,7 +151,8 @@ class _DistribucionGasto extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (resumen.porCategoria.isEmpty) {
+    final segmentos = _segmentos();
+    if (segmentos.isEmpty) {
       return const _TarjetaVacia(
         icono: Icons.pie_chart_outline,
         titulo: 'Sin gastos este mes',
@@ -112,17 +160,30 @@ class _DistribucionGasto extends StatelessWidget {
       );
     }
 
+    final total = segmentos.fold<double>(0, (suma, s) => suma + s.total);
+
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'En qué se va el mes',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+            Row(
+              children: [
+                Text(
+                  'En qué se va el mes',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  Formato.dinero(total),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 
@@ -133,14 +194,14 @@ class _DistribucionGasto extends StatelessWidget {
                   sectionsSpace: 2,
                   centerSpaceRadius: 52,
                   sections: [
-                    for (final t in resumen.porCategoria)
+                    for (final s in segmentos)
                       PieChartSectionData(
-                        value: t.total,
-                        color: _colores[t.categoria],
+                        value: s.total,
+                        color: s.color,
                         radius: 42,
                         // Por debajo del 8% la etiqueta no cabe sin solaparse.
-                        title: t.porcentaje >= 8
-                            ? '${t.porcentaje.toStringAsFixed(0)}%'
+                        title: total > 0 && s.total / total >= 0.08
+                            ? '${(s.total / total * 100).toStringAsFixed(0)}%'
                             : '',
                         titleStyle: const TextStyle(
                           fontSize: 11,
@@ -154,7 +215,7 @@ class _DistribucionGasto extends StatelessWidget {
             ),
 
             const SizedBox(height: 16),
-            for (final t in resumen.porCategoria)
+            for (final s in segmentos)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
@@ -163,20 +224,22 @@ class _DistribucionGasto extends StatelessWidget {
                       width: 10,
                       height: 10,
                       decoration: BoxDecoration(
-                        color: _colores[t.categoria],
+                        color: s.color,
                         borderRadius: BorderRadius.circular(3),
                       ),
                     ),
                     const SizedBox(width: 10),
-                    Expanded(child: Text(t.categoria.etiqueta)),
+                    Expanded(child: Text(s.etiqueta)),
                     Text(
-                      Formato.dinero(t.total),
+                      Formato.dinero(s.total),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     SizedBox(
                       width: 52,
                       child: Text(
-                        '${t.porcentaje.toStringAsFixed(1)}%',
+                        total == 0
+                            ? '—'
+                            : '${(s.total / total * 100).toStringAsFixed(1)}%',
                         textAlign: TextAlign.end,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -200,11 +263,11 @@ class _Evolucion extends StatelessWidget {
   final List<ResumenMensual> serie;
   final ModoVista modo;
 
-  /// En estimación se traza lo comprometido —que incluye abonos a deudas y aportes al ahorro—
-  /// y en real solo los gastos. Comparar meses pasados con uno por empezar solo tiene sentido
-  /// con la primera: en el mes que viene todavía no se ha pagado nada.
+  /// En estimación se traza todo lo que tiene destino, cuotas de deuda incluidas; en real,
+  /// lo que efectivamente salió del bolsillo. Las deudas cuentan en ambos: un abono sale igual
+  /// que el arriendo, y dejarlas fuera daba una línea de gasto que se quedaba corta.
   double _salida(ResumenMensual r) =>
-      modo == ModoVista.estimacion ? r.comprometido : r.gastoTotal;
+      modo == ModoVista.estimacion ? r.comprometidoConCuotas : r.salidaReal;
 
   @override
   Widget build(BuildContext context) {
@@ -321,7 +384,7 @@ class _Evolucion extends StatelessWidget {
                   color: Tema.pendiente,
                   texto: modo == ModoVista.estimacion
                       ? 'Comprometido'
-                      : 'Gastos',
+                      : 'Pagado',
                 ),
               ],
             ),
