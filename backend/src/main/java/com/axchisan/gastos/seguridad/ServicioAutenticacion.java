@@ -6,6 +6,7 @@ import com.axchisan.gastos.repositorio.RefreshTokenRepository;
 import com.axchisan.gastos.repositorio.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,20 +25,44 @@ public class ServicioAutenticacion {
     private final ServicioTokens tokens;
     private final PasswordEncoder codificador;
     private final LimitadorIntentos limitador;
+    private final boolean registroAbierto;
 
+    /**
+     * @param registroAbierto fuerza la apertura del registro. Por defecto está cerrado, y solo
+     *                        se admite la primera cuenta cuando la base aún no tiene ninguna.
+     */
     public ServicioAutenticacion(UsuarioRepository usuarios, RefreshTokenRepository refrescos,
                                  ServicioTokens tokens, PasswordEncoder codificador,
-                                 LimitadorIntentos limitador) {
+                                 LimitadorIntentos limitador,
+                                 @Value("${app.registro.abierto:false}") boolean registroAbierto) {
         this.usuarios = usuarios;
         this.refrescos = refrescos;
         this.tokens = tokens;
         this.codificador = codificador;
         this.limitador = limitador;
+        this.registroAbierto = registroAbierto;
+    }
+
+    /**
+     * Indica si se admiten cuentas nuevas.
+     *
+     * <p>Al ser una aplicación personal, el registro se cierra solo: queda abierto mientras no
+     * exista ninguna cuenta —para poder crear la primera— y se cierra en cuanto hay una. No
+     * hace falta acordarse de desactivarlo después.
+     */
+    @Transactional(readOnly = true)
+    public boolean admiteRegistro() {
+        return registroAbierto || usuarios.count() == 0;
     }
 
     /** Crea una cuenta y devuelve la sesión ya iniciada. */
     @Transactional
     public Sesion registrar(String email, String password, String nombre) {
+        if (!admiteRegistro()) {
+            log.warn("Intento de registro con el registro cerrado");
+            throw new ExcepcionesAutenticacion.RegistroCerrado();
+        }
+
         String normalizado = Usuario.normalizarEmail(email);
         if (usuarios.existeConEmail(normalizado)) {
             throw new ExcepcionesAutenticacion.EmailYaRegistrado();
@@ -116,6 +141,82 @@ public class ServicioAutenticacion {
     @Transactional
     public void cerrarTodasLasSesiones(UUID usuarioId) {
         refrescos.revocarTodosDelUsuario(usuarioId, OffsetDateTime.now());
+    }
+
+    // --- gestión de las credenciales ---
+
+    /**
+     * Cambia la contraseña.
+     *
+     * <p>Exige la contraseña actual: sin ese requisito, a quien encontrara la sesión abierta en
+     * un dispositivo desatendido le bastaría con cambiarla para quedarse con la cuenta.
+     *
+     * <p>Al terminar se revocan todas las sesiones y se emite una nueva, de modo que cualquier
+     * otro dispositivo con la sesión abierta queda fuera. Es lo que se espera al cambiar una
+     * contraseña: si se cambió por sospecha de robo, dejar las demás sesiones vivas no serviría
+     * de nada.
+     */
+    @Transactional
+    public Sesion cambiarPassword(UUID usuarioId, String passwordActual, String passwordNueva) {
+        Usuario usuario = buscar(usuarioId);
+
+        if (!codificador.matches(passwordActual, usuario.getPasswordHash())) {
+            throw new ExcepcionesAutenticacion.CredencialesInvalidas();
+        }
+        if (passwordActual.equals(passwordNueva)) {
+            throw new IllegalArgumentException("La contraseña nueva debe ser distinta de la actual");
+        }
+
+        usuario.setPasswordHash(codificador.encode(passwordNueva));
+        usuarios.save(usuario);
+        refrescos.revocarTodosDelUsuario(usuarioId, OffsetDateTime.now());
+        log.info("Contraseña cambiada para el usuario {}; se revocaron todas las sesiones",
+                usuarioId);
+
+        return abrirSesion(usuario, UUID.randomUUID());
+    }
+
+    /**
+     * Cambia el correo de acceso.
+     *
+     * <p>También pide la contraseña, porque el correo es la otra mitad de las credenciales.
+     */
+    @Transactional
+    public Sesion cambiarEmail(UUID usuarioId, String password, String emailNuevo) {
+        Usuario usuario = buscar(usuarioId);
+
+        if (!codificador.matches(password, usuario.getPasswordHash())) {
+            throw new ExcepcionesAutenticacion.CredencialesInvalidas();
+        }
+
+        String normalizado = Usuario.normalizarEmail(emailNuevo);
+        if (normalizado.equals(usuario.getEmail())) {
+            throw new IllegalArgumentException("El correo nuevo debe ser distinto del actual");
+        }
+        if (usuarios.existeConEmail(normalizado)) {
+            throw new ExcepcionesAutenticacion.EmailYaRegistrado();
+        }
+
+        usuario.setEmail(normalizado);
+        usuarios.save(usuario);
+        refrescos.revocarTodosDelUsuario(usuarioId, OffsetDateTime.now());
+        log.info("Correo cambiado para el usuario {}", usuarioId);
+
+        return abrirSesion(usuario, UUID.randomUUID());
+    }
+
+    /** Cambia el nombre visible. No afecta al acceso, así que no exige contraseña. */
+    @Transactional
+    public Usuario cambiarNombre(UUID usuarioId, String nombre) {
+        Usuario usuario = buscar(usuarioId);
+        usuario.setNombre(nombre.trim());
+        return usuarios.save(usuario);
+    }
+
+    private Usuario buscar(UUID usuarioId) {
+        return usuarios.findById(usuarioId)
+                .orElseThrow(() -> new IllegalStateException(
+                        "El token corresponde a un usuario que ya no existe"));
     }
 
     private Sesion abrirSesion(Usuario usuario, UUID familia) {

@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -307,6 +308,147 @@ class AutenticacionIntegracionTest {
             mvc.perform(post("/api/auth/refresh")
                             .contentType(MediaType.APPLICATION_JSON)
                             .content(cuerpoRefresco(refresco)))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Nested
+    @DisplayName("Cambio de credenciales")
+    class CambioDeCredenciales {
+
+        private static final String NUEVA = "otraClaveSegura456";
+
+        @Test
+        void cambiaLaContrasenaYDevuelveUnaSesionNueva() throws Exception {
+            JsonNode sesion = registrar("duvan@axchisan.com");
+
+            mvc.perform(patch("/api/auth/password")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"passwordActual":"%s","passwordNueva":"%s"}"""
+                                    .formatted(PASSWORD, NUEVA)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.accessToken").isNotEmpty());
+
+            // La contraseña anterior deja de servir y la nueva funciona.
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoLogin("duvan@axchisan.com", PASSWORD)))
+                    .andExpect(status().isUnauthorized());
+
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoLogin("duvan@axchisan.com", NUEVA)))
+                    .andExpect(status().isOk());
+        }
+
+        /**
+         * Cambiar la contraseña debe expulsar al resto de dispositivos: si se cambió por sospecha
+         * de robo, dejar las demás sesiones vivas no serviría de nada.
+         */
+        @Test
+        void cambiarLaContrasenaRevocaLasSesionesAnteriores() throws Exception {
+            JsonNode sesion = registrar("duvan@axchisan.com");
+            String refrescoAnterior = sesion.get("refreshToken").asText();
+
+            mvc.perform(patch("/api/auth/password")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"passwordActual":"%s","passwordNueva":"%s"}"""
+                                    .formatted(PASSWORD, NUEVA)))
+                    .andExpect(status().isOk());
+
+            mvc.perform(post("/api/auth/refresh")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoRefresco(refrescoAnterior)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        void exigeLaContrasenaActualParaCambiarla() throws Exception {
+            JsonNode sesion = registrar("duvan@axchisan.com");
+
+            mvc.perform(patch("/api/auth/password")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"passwordActual":"laQueNoEs","passwordNueva":"%s"}"""
+                                    .formatted(NUEVA)))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.error").value("credenciales_invalidas"));
+        }
+
+        @Test
+        void rechazaRepetirLaMismaContrasena() throws Exception {
+            JsonNode sesion = registrar("duvan@axchisan.com");
+
+            mvc.perform(patch("/api/auth/password")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"passwordActual":"%s","passwordNueva":"%s"}"""
+                                    .formatted(PASSWORD, PASSWORD)))
+                    .andExpect(status().isBadRequest());
+        }
+
+        @Test
+        void cambiaElCorreoDeAcceso() throws Exception {
+            JsonNode sesion = registrar("duvan@axchisan.com");
+
+            mvc.perform(patch("/api/auth/email")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"password":"%s","emailNuevo":"nuevo@axchisan.com"}"""
+                                    .formatted(PASSWORD)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.usuario.email").value("nuevo@axchisan.com"));
+
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoLogin("nuevo@axchisan.com", PASSWORD)))
+                    .andExpect(status().isOk());
+
+            mvc.perform(post("/api/auth/login")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(cuerpoLogin("duvan@axchisan.com", PASSWORD)))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        void exigeLaContrasenaParaCambiarElCorreo() throws Exception {
+            JsonNode sesion = registrar("duvan@axchisan.com");
+
+            mvc.perform(patch("/api/auth/email")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"password":"laQueNoEs","emailNuevo":"nuevo@axchisan.com"}"""))
+                    .andExpect(status().isUnauthorized());
+        }
+
+        @Test
+        void cambiaElNombreSinPedirContrasena() throws Exception {
+            // El nombre no da acceso a nada, así que no forma parte de las credenciales.
+            JsonNode sesion = registrar("duvan@axchisan.com");
+
+            mvc.perform(patch("/api/auth/nombre")
+                            .header("Authorization", "Bearer " + sesion.get("accessToken").asText())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"nombre":"Duvan Andrés"}"""))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.nombre").value("Duvan Andrés"));
+        }
+
+        @Test
+        void sinSesionNoSePuedenCambiarLasCredenciales() throws Exception {
+            mvc.perform(patch("/api/auth/password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("""
+                                    {"passwordActual":"x","passwordNueva":"%s"}""".formatted(NUEVA)))
                     .andExpect(status().isUnauthorized());
         }
     }

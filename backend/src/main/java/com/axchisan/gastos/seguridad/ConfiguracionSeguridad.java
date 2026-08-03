@@ -34,6 +34,7 @@ public class ConfiguracionSeguridad {
      */
     private static final String[] RUTAS_PUBLICAS = {
             "/api/auth/registro", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
+            "/api/auth/registro-abierto",
             "/api/salud", "/docs/**", "/v3/api-docs/**", "/swagger-ui/**"
     };
 

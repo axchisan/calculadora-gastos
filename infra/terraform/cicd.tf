@@ -12,6 +12,27 @@ variable "repositorio_github" {
   default     = "axchisan/calculadora-gastos"
 }
 
+variable "id_propietario_github" {
+  description = <<-EOT
+    Identificador numérico del propietario de la cuenta en GitHub.
+
+    GitHub incorpora los identificadores numéricos de la cuenta y del repositorio al claim
+    `sub` del token de OIDC, con el formato `repo:usuario@ID/repositorio@ID:ref:...`. Son
+    inmutables: siguen siendo los mismos aunque se renombre la cuenta o el repositorio, lo que
+    impide que alguien reclame un nombre liberado y herede los permisos.
+
+    Se obtiene con: gh api user -q .id
+  EOT
+  type        = string
+  default     = "162448602"
+}
+
+variable "id_repositorio_github" {
+  description = "Identificador numérico del repositorio. Se obtiene con: gh api repos/OWNER/REPO -q .id"
+  type        = string
+  default     = "1320318136"
+}
+
 resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
@@ -35,8 +56,16 @@ resource "aws_iam_role" "despliegue" {
         }
         # Restringe el rol a este repositorio: sin esta condición, cualquier repositorio de
         # GitHub podría asumirlo.
+        #
+        # Se admiten los dos formatos del claim `sub` porque GitHub emite el que incluye los
+        # identificadores numéricos, y el error que devuelve AWS cuando el patrón no encaja es
+        # un escueto "Not authorized to perform sts:AssumeRoleWithWebIdentity" que no da
+        # ninguna pista: el valor real solo se ve en CloudTrail.
         StringLike = {
-          "token.actions.githubusercontent.com:sub" = "repo:${var.repositorio_github}:*"
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:${var.repositorio_github}:*",
+            "repo:${split("/", var.repositorio_github)[0]}@${var.id_propietario_github}/${split("/", var.repositorio_github)[1]}@${var.id_repositorio_github}:*"
+          ]
         }
       }
     }]
