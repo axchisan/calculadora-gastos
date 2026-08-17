@@ -121,6 +121,51 @@ El campo `origen` distingue los gastos que genera el sistema: el resultado del c
 transporte y los abonos a deudas se reflejan como gastos del mes, pero no son editables
 directamente — se modifican desde su módulo correspondiente.
 
+### `cards` — tarjetas
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID | PK |
+| `user_id` | UUID | FK |
+| `nombre` | text | «Nu», «Bancolombia»… |
+| `tipo` | enum | `DEBITO` · `CREDITO` |
+| `dia_corte` | int | 1–28; obligatorio en las de crédito |
+| `dia_pago` | int | 1–28; obligatorio en las de crédito |
+| `activa` | bool | se archiva en vez de borrarse si ya tiene compras |
+
+Los días se limitan a 28 para que existan en todos los meses, febrero incluido. Ningún banco
+pone el corte más allá, y así no hay que decidir qué significa «el 31» en abril.
+
+### `purchases` — compras del día a día
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | UUID | PK |
+| `budget_month_id` | UUID | FK; el mes en que se **compró** |
+| `fecha` | date | tiene que caer dentro de ese mes |
+| `descripcion` | text | |
+| `categoria` | enum | |
+| `monto` | numeric(14,2) | siempre positivo |
+| `medio` | enum | `EFECTIVO` · `DEBITO` · `CREDITO` |
+| `card_id` | UUID | FK nullable; obligatorio si el medio es crédito |
+| `pago_anio` / `pago_mes` | int | el mes del que sale el dinero |
+| `pagado` | bool | con efectivo o débito nace en `true` |
+| `origen` | enum | `MANUAL` · `NOTIFICACION` |
+
+Se separa de `expenses` porque su ciclo de vida es distinto. Un gasto es un compromiso que se
+contrae y luego se paga, y por eso tiene estado y admite abonos parciales. Una compra ya
+ocurrió: no hay nada pendiente que decidir sobre ella.
+
+Lo que sí varía es de dónde salió el dinero, y ahí está lo interesante: con crédito el dinero no
+sale del mes en que se compró, sino del mes en que vence el corte. De ahí que `budget_month_id`
+y `pago_anio`/`pago_mes` puedan no coincidir.
+
+El mes de pago se guarda en lugar de recalcularse: permite sumarlo en una consulta y congela el
+resultado, de modo que cambiar el día de corte de la tarjeta no reescriba el pasado.
+
+`origen = NOTIFICACION` está reservado para las compras que capture la aplicación de Android de
+las notificaciones de pago del teléfono.
+
 ### `debts` — deudas externas
 
 | Campo | Tipo | Notas |
@@ -233,8 +278,19 @@ gastoPendiente    = gastoTotal - gastoPagado
 abonosDeuda       = Σ debt_payments.monto del mes
 aporteAhorro      = Σ savings_movements (APORTE - RETIRO) del mes
 
-disponibleHoy     = ingresoTotal - gastoPagado - abonosDeuda - aporteAhorro
+comprasInmediatas = Σ purchases.monto del mes  (medio ≠ CREDITO)
+comprasACredito   = Σ purchases.monto del mes  (medio = CREDITO)
+
+cortesPagados     = Σ purchases.monto  (CREDITO, pago_* = este mes, pagado)
+cortesPendientes  = Σ purchases.monto  (CREDITO, pago_* = este mes, sin pagar)
+
+salidaReal        = gastoPagado + abonosDeuda + aporteAhorro
+                                + comprasInmediatas + cortesPagados
+
+disponibleHoy     = ingresoTotal - salidaReal
 saldoProyectado   = ingresoProyectado - gastoTotal - abonosDeuda - aporteAhorro
+                                      - comprasInmediatas - cortesPagados
+                                      - cortesPendientes
 
 deudaTotal        = Σ debts.saldo (activa = true)
 patrimonioNeto    = Σ savings_goals.saldo_acumulado - deudaTotal
@@ -243,6 +299,14 @@ patrimonioNeto    = Σ savings_goals.saldo_acumulado - deudaTotal
 La distinción entre **disponible hoy** (lo que queda contando solo lo ya pagado) y **saldo
 proyectado** (lo que quedará al terminar el mes) es la métrica más útil del día a día: la
 primera dice cuánto hay en el bolsillo, la segunda si el mes cierra en positivo.
+
+`comprasACredito` no aparece en ninguna de las dos, y es deliberado. Se compró este mes, pero el
+dinero sale cuando venza el corte de la tarjeta. Sumarlo al mes de la compra falsearía el saldo;
+no mostrarlo dejaría fuera dinero que ya está gastado. Por eso se devuelve aparte, para avisar.
+
+Un corte reúne compras de meses distintos: lo que vence en octubre son las del 16 de agosto en
+adelante y hasta el 15 de septiembre. Por eso `cortesPendientes` y `cortesPagados` se cruzan por
+usuario y periodo de pago, no por el mes de la compra.
 
 ## Datos iniciales de referencia
 
