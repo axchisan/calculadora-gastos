@@ -209,6 +209,11 @@ festivos ya descontados.
   "deudaTotal": 0,
   "ahorroTotal": 0,
   "patrimonioNeto": 0,
+  "comprasDelMes": 189640,
+  "comprasInmediatas": 89640,
+  "comprasACredito": 100000,
+  "cortesTarjetaPendientes": 0,
+  "cortesTarjetaPagados": 0,
   "porCategoria": [
     { "categoria": "VIVIENDA", "total": 600000, "porcentaje": 53.00 },
     { "categoria": "TRANSPORTE", "total": 142000, "porcentaje": 12.54 }
@@ -218,12 +223,19 @@ festivos ya descontados.
 
 La distinción entre **`disponibleHoy`** y **`saldoProyectado`** es la métrica central:
 
-- `disponibleHoy` = ingresos cobrados − gastos **ya pagados** − abonos − ahorro. Responde a
-  «¿cuánto tengo ahora mismo?».
-- `saldoProyectado` = ingresos previstos − gastos **totales** − abonos − ahorro. Responde a
+- `disponibleHoy` = ingresos cobrados − todo lo que ya salió del bolsillo. Responde a «¿cuánto
+  tengo ahora mismo?».
+- `saldoProyectado` = ingresos previstos − todo lo que tiene destino este mes. Responde a
   «¿cómo cierra el mes?».
 
 Ver solo el primero da la ilusión de tener dinero que en realidad ya está comprometido.
+
+Lo que sale del bolsillo son cinco cosas, no dos: gastos pagados, abonos a deudas, aportes al
+ahorro, compras del día a día pagadas en el acto y cortes de tarjeta ya saldados.
+
+**`comprasACredito` es la excepción y no entra en ninguna de esas cifras.** Se compró este mes
+pero el dinero sale cuando venza el corte, uno o dos meses después. Aparece en el resumen para
+poder avisar, no para sumarlo.
 
 ### Ingresos adicionales
 
@@ -276,11 +288,83 @@ actualice la pantalla con una sola petición.
 Cambiar la tarifa **no** descarta los ajustes del calendario. Para reclasificar los días hay que
 pasar `"regenerarClasificacion": true` o llamar a `/regenerar`.
 
+## Compras del día a día
+
+Los gastos sueltos: el agua, el chocorramo, la comisión del cajero. Van aparte de `/api/gastos`
+porque su ciclo de vida es distinto: una compra ya ocurrió y ya se pagó. No tiene estado
+pendiente ni abonos parciales. Lo único que varía es **de dónde salió el dinero**.
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` · `POST` | `/api/meses/{id}/compras` | Compras del mes con sus totales, y registro |
+| `PATCH` · `DELETE` | `/api/compras/{id}` | Modifica o elimina |
+
+```json
+{
+  "descripcion": "Perfume",
+  "monto": 100000,
+  "categoria": "CUIDADO_PERSONAL",
+  "fecha": "2026-08-14",
+  "medio": "CREDITO",
+  "tarjetaId": "01a0..."
+}
+```
+
+`medio` es `EFECTIVO`, `DEBITO` o `CREDITO`. Con crédito la tarjeta es obligatoria: sin ella no
+habría forma de saber cuándo vence.
+
+La fecha tiene que caer dentro del mes en que se registra. Sin esa comprobación sería fácil
+apuntar en agosto algo comprado en septiembre, y el mes de pago saldría mal en silencio.
+
+La respuesta añade dos campos calculados: `periodoPago` (`aaaa-mm`, el mes del que sale el
+dinero) y `vencimiento` (la fecha exacta).
+
+## Tarjetas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` · `POST` | `/api/tarjetas` | Lista o registra |
+| `PATCH` · `DELETE` | `/api/tarjetas/{id}` | Modifica, o archiva si ya tiene compras |
+
+Una tarjeta de crédito necesita `diaCorte` y `diaPago`, ambos entre 1 y 28 para que el día
+exista en todos los meses. El tipo no se puede cambiar después: las compras ya registradas
+calcularon su mes de pago con ese ciclo.
+
+### El ciclo de facturación
+
+Con corte el 15 y pago el 4:
+
+| Compra | Corte | Se paga |
+|---|---|---|
+| 14 de agosto | 15 de agosto | 4 de septiembre |
+| 15 de agosto | 15 de agosto | 4 de septiembre |
+| 16 de agosto | 15 de septiembre | 4 de **octubre** |
+
+Dos días de diferencia desplazan el pago un mes entero. Es exactamente el cálculo que sale mal
+cuando se hace de memoria, y la razón de que lo haga el servidor en vez de pedir el mes.
+
+El mes de pago se **guarda** con la compra en lugar de recalcularse al vuelo. Así se puede
+sumar en una consulta, y sobre todo congela el resultado: si algún día cambia el día de corte,
+las compras ya hechas conservan el mes en el que realmente se pagaron.
+
+### Cortes
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/cortes/{aaaa-mm}` | Lo que vence ese mes, por tarjeta |
+| `PUT` | `/api/cortes/{aaaa-mm}/tarjetas/{id}` | Marca el corte entero como pagado |
+
+Un corte reúne compras de meses distintos: lo que vence en octubre son las del 16 de agosto en
+adelante y hasta el 15 de septiembre. Por eso no se puede sacar mirando un solo mes.
+
+Se salda entero, no compra por compra: el banco tampoco cobra por partes.
+
 ## Deudas
 
 | Método | Ruta | Descripción |
 |---|---|---|
 | `GET` | `/api/deudas?soloActivas=false` | Lista las deudas |
+| `GET` | `/api/deudas?periodo=2026-08` | Solo las que tenían que ver con ese mes |
 | `POST` | `/api/deudas` | Registra una deuda |
 | `GET` · `PATCH` · `DELETE` | `/api/deudas/{id}` | Consulta, modifica o elimina |
 | `GET` · `POST` | `/api/deudas/{id}/abonos` | Historial y registro de abonos |
@@ -291,6 +375,26 @@ Al abonar, el saldo baja; al llegar a cero la deuda se marca inactiva y deja de 
 
 Los abonos **no** generan un gasto en el mes: se contabilizan aparte en `abonosDeuda` del
 resumen. Crear además un gasto los contaría dos veces.
+
+### Deudas de un mes
+
+Una deuda no pertenece a un mes: se contrae un día y se arrastra hasta saldarla. Pero listarlas
+todas siempre hacía que las de agosto, ya pagadas, siguieran apareciendo en septiembre como si
+aún se debieran, mezcladas con las de verdad.
+
+Con `?periodo=aaaa-mm` se devuelven solo las que tenían algo que ver con ese mes. Una deuda
+cuenta si ya existía al terminarlo y, además, se cumple una de dos:
+
+- seguía debiéndose a esas alturas, o
+- se abonó algo durante ese mes.
+
+Lo segundo es lo que conserva en agosto las deudas que se saldaron en agosto: el mes en que se
+pagaron es justamente donde tiene sentido verlas.
+
+Con el filtro activo, `saldo`, `porcentajePagado` y `activa` se reconstruyen **al cierre de ese
+mes**, no a día de hoy. Al consultar agosto interesa lo que se debía en agosto; mostrar el
+saldo actual haría que una deuda saldada apareciera en cero en el mes en que aún se debía
+entera.
 
 ## Ahorro
 

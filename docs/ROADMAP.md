@@ -57,6 +57,11 @@ pantalla.
 - [x] Navegación entre secciones adaptada a móvil y escritorio
 - [x] Plantillas de gastos fijos editables
 - [x] Cierre y reapertura del mes
+- [x] Gastos del día a día, separados de los compromisos mensuales
+- [x] Tarjetas con ciclo de facturación: lo que se compra a crédito se paga en su mes
+- [x] Deudas filtradas por el mes al que corresponden
+- [ ] Captura automática de los pagos con el teléfono — ver
+      [CAPTURA-DE-PAGOS.md](CAPTURA-DE-PAGOS.md)
 
 ## Fase 5 — Gráficas
 
