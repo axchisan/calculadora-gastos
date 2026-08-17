@@ -188,6 +188,20 @@ class ControladorTarjetas {
     await _repositorio.eliminarTarjeta(tarjetaId);
     _invalidar();
   }
+
+  Future<void> anadirAlias(
+    String tarjetaId, {
+    String? apodo,
+    String? ultimos4,
+  }) async {
+    await _repositorio.anadirAlias(tarjetaId, apodo: apodo, ultimos4: ultimos4);
+    _invalidar();
+  }
+
+  Future<void> eliminarAlias(String aliasId) async {
+    await _repositorio.eliminarAlias(aliasId);
+    _invalidar();
+  }
 }
 
 final controladorTarjetasProvider = Provider<ControladorTarjetas>((ref) {

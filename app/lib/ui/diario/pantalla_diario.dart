@@ -7,6 +7,7 @@ import '../../datos/cliente_api.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/compras.dart';
 import '../../estado/mes.dart';
+import 'widgets/bandeja_capturas.dart';
 import 'widgets/formulario_compra.dart';
 import 'widgets/lista_cortes.dart';
 import 'widgets/tarjetas_gestion.dart';
@@ -136,6 +137,7 @@ class _Contenido extends ConsumerWidget {
               _Resumen(datos: datos, periodo: periodo),
               const SizedBox(height: 16),
 
+              const BandejaCapturas(),
               const ListaCortes(),
 
               if (datos.compras.isEmpty)

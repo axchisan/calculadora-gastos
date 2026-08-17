@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../datos/cliente_api.dart';
 import '../../../dominio/modelos.dart';
+import '../../../estado/capturas.dart';
 import '../../../estado/compras.dart';
 
 /// Alta y edición de las tarjetas con las que se paga.
@@ -75,6 +77,9 @@ class GestionTarjetas extends ConsumerWidget {
               minimumSize: const Size.fromHeight(48),
             ),
           ),
+
+          const SizedBox(height: 8),
+          const _PermisoDeCapturas(),
         ],
       ),
     );
@@ -136,13 +141,30 @@ class _FilaTarjeta extends ConsumerWidget {
         [
           tarjeta.tipo.etiqueta,
           ?tarjeta.resumenCiclo,
+          if (tarjeta.alias.isNotEmpty)
+            '${tarjeta.alias.length} '
+                '${tarjeta.alias.length == 1 ? 'apodo' : 'apodos'}',
           if (!tarjeta.activa) 'archivada',
         ].join(' · '),
       ),
-      trailing: IconButton(
-        icon: const Icon(Icons.delete_outline),
-        tooltip: 'Eliminar',
-        onPressed: () => _eliminar(context, ref),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.notifications_outlined),
+            tooltip: 'Cómo se reconoce en las notificaciones',
+            onPressed: () => showModalBottomSheet<void>(
+              context: context,
+              isScrollControlled: true,
+              builder: (_) => _AliasDeTarjeta(tarjeta: tarjeta),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete_outline),
+            tooltip: 'Eliminar',
+            onPressed: () => _eliminar(context, ref),
+          ),
+        ],
       ),
     );
   }
@@ -179,6 +201,226 @@ class _FilaTarjeta extends ConsumerWidget {
         ).showSnackBar(SnackBar(content: Text(e.mensaje)));
       }
     }
+  }
+}
+
+/// Enseña a la aplicación a reconocer una tarjeta en las notificaciones de pago.
+///
+/// Es lo que traduce el «crédito física» de Google Wallet, o el «terminada en 2355» del banco,
+/// a la tarjeta de aquí. De esa traducción depende algo que no es menor: si la compra salió del
+/// dinero de hoy o se va al corte del mes que viene.
+class _AliasDeTarjeta extends ConsumerStatefulWidget {
+  const _AliasDeTarjeta({required this.tarjeta});
+
+  final Tarjeta tarjeta;
+
+  @override
+  ConsumerState<_AliasDeTarjeta> createState() => _AliasDeTarjetaState();
+}
+
+class _AliasDeTarjetaState extends ConsumerState<_AliasDeTarjeta> {
+  final _apodo = TextEditingController();
+  final _ultimos4 = TextEditingController();
+
+  @override
+  void dispose() {
+    _apodo.dispose();
+    _ultimos4.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
+    // Se lee de la lista viva para que la pantalla se actualice al añadir o quitar un apodo.
+    final tarjeta = ref
+        .watch(tarjetasProvider)
+        .maybeWhen(
+          data: (lista) => lista.firstWhere(
+            (t) => t.id == widget.tarjeta.id,
+            orElse: () => widget.tarjeta,
+          ),
+          orElse: () => widget.tarjeta,
+        );
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: 20,
+        right: 20,
+        top: 20,
+        bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(tarjeta.nombre, style: tema.textTheme.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Cómo aparece esta tarjeta en las notificaciones de pago del teléfono.',
+              style: tema.textTheme.bodySmall?.copyWith(
+                color: tema.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            for (final alias in tarjeta.alias)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: Icon(
+                  alias.ultimos4 != null
+                      ? Icons.pin_outlined
+                      : Icons.badge_outlined,
+                  size: 20,
+                ),
+                title: Text(alias.apodo ?? '•••• ${alias.ultimos4}'),
+                subtitle: alias.apodo != null && alias.ultimos4 != null
+                    ? Text('•••• ${alias.ultimos4}')
+                    : null,
+                trailing: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => _eliminar(alias.id),
+                ),
+              ),
+
+            if (tarjeta.alias.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(
+                  'Todavía no se reconoce sola.',
+                  style: tema.textTheme.bodyMedium?.copyWith(
+                    color: tema.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+
+            const Divider(height: 28),
+            TextField(
+              controller: _apodo,
+              decoration: const InputDecoration(
+                labelText: 'Apodo en Google Wallet',
+                hintText: 'crédito física',
+                helperText: 'El nombre que le pusiste dentro de la billetera',
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _ultimos4,
+              keyboardType: TextInputType.number,
+              maxLength: 4,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              decoration: const InputDecoration(
+                labelText: 'Últimos cuatro dígitos',
+                hintText: '2355',
+                helperText: 'Los que publica el banco; es el dato más fiable',
+                counterText: '',
+              ),
+            ),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: _anadir,
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(48),
+              ),
+              child: const Text('Añadir'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _anadir() async {
+    final apodo = _apodo.text.trim();
+    final digitos = _ultimos4.text.trim();
+
+    if (apodo.isEmpty && digitos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Escribe el apodo o los cuatro dígitos')),
+      );
+      return;
+    }
+
+    try {
+      await ref
+          .read(controladorTarjetasProvider)
+          .anadirAlias(
+            widget.tarjeta.id,
+            apodo: apodo.isEmpty ? null : apodo,
+            ultimos4: digitos.isEmpty ? null : digitos,
+          );
+      _apodo.clear();
+      _ultimos4.clear();
+    } on ErrorApi catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+
+  Future<void> _eliminar(String aliasId) async {
+    try {
+      await ref.read(controladorTarjetasProvider).eliminarAlias(aliasId);
+    } on ErrorApi catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+}
+
+/// Estado del permiso para leer las notificaciones de pago.
+class _PermisoDeCapturas extends ConsumerWidget {
+  const _PermisoDeCapturas();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!ref.watch(capturaDisponibleProvider)) return const SizedBox.shrink();
+
+    final tema = Theme.of(context);
+    final concedido = ref
+        .watch(permisoCapturaProvider)
+        .maybeWhen(data: (v) => v, orElse: () => false);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(
+          concedido
+              ? Icons.notifications_active
+              : Icons.notifications_off_outlined,
+          color: concedido
+              ? tema.colorScheme.primary
+              : tema.colorScheme.outline,
+        ),
+        title: Text(
+          concedido
+              ? 'Detectando pagos automáticamente'
+              : 'Detectar pagos automáticamente',
+        ),
+        subtitle: Text(
+          concedido
+              ? 'Los pagos con el teléfono aparecen en Gastos diarios para confirmarlos.'
+              : 'Hace falta darle acceso a las notificaciones en los ajustes de Android.',
+        ),
+        trailing: concedido ? null : const Icon(Icons.open_in_new, size: 18),
+        onTap: concedido
+            ? null
+            : () async {
+                await ref.read(capturasAndroidProvider).abrirAjustes();
+                // Al volver de Ajustes hay que releer el permiso: puede haber cambiado.
+                ref.invalidate(permisoCapturaProvider);
+              },
+      ),
+    );
   }
 }
 

@@ -34,6 +34,7 @@ class FormularioCompra extends ConsumerStatefulWidget {
   const FormularioCompra({
     required this.periodo,
     this.compra,
+    this.inicial,
     this.sugerencias = const [],
     super.key,
   });
@@ -43,6 +44,12 @@ class FormularioCompra extends ConsumerStatefulWidget {
 
   /// Si se pasa, el formulario edita esa compra en lugar de crear una nueva.
   final Compra? compra;
+
+  /// Valores de partida para una compra nueva.
+  ///
+  /// Lo usa la bandeja de pagos capturados: el importe, el comercio y la tarjeta ya vienen de
+  /// la notificación, así que al usuario solo le queda elegir la categoría.
+  final DatosCompra? inicial;
 
   /// Descripciones ya usadas este mes, para repetir una compra habitual de un toque.
   final List<String> sugerencias;
@@ -67,15 +74,23 @@ class _FormularioCompraState extends ConsumerState<FormularioCompra> {
   void initState() {
     super.initState();
     final compra = widget.compra;
+    final inicial = widget.inicial;
 
     _monto = TextEditingController(
-      text: compra == null ? '' : compra.monto.round().toString(),
+      text: compra != null
+          ? compra.monto.round().toString()
+          : inicial != null
+          ? inicial.monto.round().toString()
+          : '',
     );
-    _descripcion = TextEditingController(text: compra?.descripcion ?? '');
-    _categoria = compra?.categoria ?? CategoriaGasto.antojos;
-    _medio = compra?.medio ?? MedioPago.efectivo;
-    _tarjetaId = compra?.tarjetaId;
-    _fecha = compra?.fecha ?? _hoyDentroDelMes();
+    _descripcion = TextEditingController(
+      text: compra?.descripcion ?? inicial?.descripcion ?? '',
+    );
+    _categoria =
+        compra?.categoria ?? inicial?.categoria ?? CategoriaGasto.antojos;
+    _medio = compra?.medio ?? inicial?.medio ?? MedioPago.efectivo;
+    _tarjetaId = compra?.tarjetaId ?? inicial?.tarjetaId;
+    _fecha = compra?.fecha ?? inicial?.fecha ?? _hoyDentroDelMes();
   }
 
   @override

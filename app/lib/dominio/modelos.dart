@@ -638,6 +638,46 @@ class MetaAhorro {
   );
 }
 
+/// Cómo se reconoce una tarjeta en las notificaciones de pago del teléfono.
+class AliasTarjeta {
+  const AliasTarjeta({required this.id, this.apodo, this.ultimos4});
+
+  final String id;
+
+  /// El nombre que la tarjeta tiene dentro de Google Wallet: «crédito física».
+  final String? apodo;
+
+  /// Los cuatro últimos dígitos, que publica el banco.
+  final String? ultimos4;
+
+  /// El apodo en minúsculas y sin tildes, para poder compararlo.
+  ///
+  /// Hace falta porque los apodos se escriben a mano y no siempre igual: en la misma billetera
+  /// conviven «crédito física», con tilde, y «credito digital», sin ella.
+  String? get apodoNormalizado => normalizar(apodo);
+
+  static String? normalizar(String? texto) {
+    if (texto == null) return null;
+
+    const conTilde = 'áàäâãéèëêíìïîóòöôõúùüûñç';
+    const sinTilde = 'aaaaaeeeeiiiiooooouuuunc';
+
+    final minuscula = texto.toLowerCase().trim();
+    final buffer = StringBuffer();
+    for (final letra in minuscula.split('')) {
+      final posicion = conTilde.indexOf(letra);
+      buffer.write(posicion == -1 ? letra : sinTilde[posicion]);
+    }
+    return buffer.toString();
+  }
+
+  static AliasTarjeta deJson(Map<String, dynamic> j) => AliasTarjeta(
+    id: j['id'] as String,
+    apodo: j['apodo'] as String?,
+    ultimos4: j['ultimos4'] as String?,
+  );
+}
+
 /// Una tarjeta con la que se paga.
 class Tarjeta {
   const Tarjeta({
@@ -648,6 +688,7 @@ class Tarjeta {
     this.diaCorte,
     this.diaPago,
     this.color,
+    this.alias = const [],
   });
 
   final String id;
@@ -663,7 +704,24 @@ class Tarjeta {
 
   final String? color;
 
+  /// Con qué apodos y dígitos se reconoce en las notificaciones de pago.
+  final List<AliasTarjeta> alias;
+
   bool get esDeCredito => tipo == TipoTarjeta.credito;
+
+  /// Indica si esta tarjeta es la de una notificación de pago.
+  ///
+  /// Los cuatro dígitos mandan sobre el apodo: no dependen de cómo se haya escrito nada.
+  bool reconoce({String? apodo, String? ultimos4}) {
+    if (ultimos4 != null) {
+      if (alias.any((a) => a.ultimos4 == ultimos4)) return true;
+    }
+    if (apodo != null) {
+      final buscado = AliasTarjeta.normalizar(apodo);
+      if (alias.any((a) => a.apodoNormalizado == buscado)) return true;
+    }
+    return false;
+  }
 
   /// Descripción corta del ciclo, del estilo «corte 15 · pago 4».
   String? get resumenCiclo => diaCorte == null || diaPago == null
@@ -695,6 +753,11 @@ class Tarjeta {
     diaCorte: (j['diaCorte'] as num?)?.toInt(),
     diaPago: (j['diaPago'] as num?)?.toInt(),
     color: j['color'] as String?,
+    alias:
+        (j['alias'] as List<dynamic>?)
+            ?.map((e) => AliasTarjeta.deJson(e as Map<String, dynamic>))
+            .toList() ??
+        const [],
   );
 }
 
