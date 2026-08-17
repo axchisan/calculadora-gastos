@@ -33,7 +33,7 @@ pantalla.
 - [x] Creación de un mes a partir de las plantillas de gastos fijos
 - [x] Endpoints REST y documentación OpenAPI
 - [x] Cuotas de deuda proyectadas dentro del cupo comprometido del mes
-- [x] 184 pruebas cubriendo los motores y la API completa
+- [x] 223 pruebas cubriendo los motores y la API completa
 
 **El backend está terminado.** Ver [API.md](API.md).
 
@@ -60,8 +60,9 @@ pantalla.
 - [x] Gastos del día a día, separados de los compromisos mensuales
 - [x] Tarjetas con ciclo de facturación: lo que se compra a crédito se paga en su mes
 - [x] Deudas filtradas por el mes al que corresponden
-- [ ] Captura automática de los pagos con el teléfono — ver
+- [x] Captura automática de los pagos con el teléfono — ver
       [CAPTURA-DE-PAGOS.md](CAPTURA-DE-PAGOS.md)
+- [ ] Leer también los SMS del banco, para las compras con la tarjeta física
 
 ## Fase 5 — Gráficas
 

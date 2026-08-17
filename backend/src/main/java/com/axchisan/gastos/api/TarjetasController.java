@@ -1,8 +1,11 @@
 package com.axchisan.gastos.api;
 
 import com.axchisan.gastos.api.dto.DtosCompra.ActualizarTarjetaRequest;
+import com.axchisan.gastos.api.dto.DtosCompra.AliasDto;
+import com.axchisan.gastos.api.dto.DtosCompra.AnadirAliasRequest;
 import com.axchisan.gastos.api.dto.DtosCompra.CrearTarjetaRequest;
 import com.axchisan.gastos.api.dto.DtosCompra.TarjetaDto;
+import com.axchisan.gastos.dominio.AliasTarjeta;
 import com.axchisan.gastos.seguridad.UsuarioActual;
 import com.axchisan.gastos.servicio.ServicioTarjetas;
 import io.swagger.v3.oas.annotations.Operation;
@@ -20,7 +23,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/tarjetas")
@@ -34,9 +39,34 @@ public class TarjetasController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista las tarjetas")
+    @Operation(summary = "Lista las tarjetas con sus alias de reconocimiento")
     public List<TarjetaDto> listar() {
-        return tarjetas.listar(UsuarioActual.id()).stream().map(TarjetaDto::de).toList();
+        UUID usuarioId = UsuarioActual.id();
+
+        // Los alias se traen de una vez y se reparten en memoria: son un puñado de filas y
+        // pedirlos tarjeta por tarjeta multiplicaría las consultas sin ganar nada.
+        Map<UUID, List<AliasTarjeta>> porTarjeta = tarjetas.todosLosAlias(usuarioId).stream()
+                .collect(Collectors.groupingBy(a -> a.getTarjeta().getId()));
+
+        return tarjetas.listar(usuarioId).stream()
+                .map(t -> TarjetaDto.de(t, porTarjeta.getOrDefault(t.getId(), List.of())))
+                .toList();
+    }
+
+    @PostMapping("/{tarjetaId}/alias")
+    @Operation(summary = "Enseña a reconocer la tarjeta en las notificaciones de pago")
+    public ResponseEntity<AliasDto> anadirAlias(@PathVariable UUID tarjetaId,
+                                                @Valid @RequestBody AnadirAliasRequest peticion) {
+        var alias = tarjetas.anadirAlias(UsuarioActual.id(), tarjetaId, peticion.apodo(),
+                peticion.ultimos4());
+        return ResponseEntity.status(HttpStatus.CREATED).body(AliasDto.de(alias));
+    }
+
+    @DeleteMapping("/alias/{aliasId}")
+    @Operation(summary = "Deja de reconocer la tarjeta por ese apodo o esos dígitos")
+    public ResponseEntity<Void> eliminarAlias(@PathVariable UUID aliasId) {
+        tarjetas.eliminarAlias(UsuarioActual.id(), aliasId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping

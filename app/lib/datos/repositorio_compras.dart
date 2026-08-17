@@ -124,6 +124,19 @@ class RepositorioCompras {
   Future<void> eliminarTarjeta(String tarjetaId) =>
       _api.eliminar('/api/tarjetas/$tarjetaId');
 
+  /// Enseña a reconocer la tarjeta en las notificaciones de pago del teléfono.
+  Future<void> anadirAlias(
+    String tarjetaId, {
+    String? apodo,
+    String? ultimos4,
+  }) => _api.publicar<Map<String, dynamic>>(
+    '/api/tarjetas/$tarjetaId/alias',
+    cuerpo: {'apodo': ?apodo, 'ultimos4': ?ultimos4},
+  );
+
+  Future<void> eliminarAlias(String aliasId) =>
+      _api.eliminar('/api/tarjetas/alias/$aliasId');
+
   // --- cortes ---
 
   Future<List<CorteTarjeta>> cortes(DateTime periodo) async {

@@ -1,5 +1,6 @@
 package com.axchisan.gastos.api.dto;
 
+import com.axchisan.gastos.dominio.AliasTarjeta;
 import com.axchisan.gastos.dominio.CategoriaGasto;
 import com.axchisan.gastos.dominio.Compra;
 import com.axchisan.gastos.dominio.MedioPago;
@@ -11,6 +12,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
@@ -28,13 +30,39 @@ public final class DtosCompra {
     // --- tarjetas ---
 
     public record TarjetaDto(UUID id, String nombre, TipoTarjeta tipo, Short diaCorte,
-                             Short diaPago, String color, boolean activa) {
+                             Short diaPago, String color, boolean activa,
+                             List<AliasDto> alias) {
 
         public static TarjetaDto de(Tarjeta tarjeta) {
+            return de(tarjeta, List.of());
+        }
+
+        public static TarjetaDto de(Tarjeta tarjeta, List<AliasTarjeta> alias) {
             return new TarjetaDto(tarjeta.getId(), tarjeta.getNombre(), tarjeta.getTipo(),
                     tarjeta.getDiaCorte(), tarjeta.getDiaPago(), tarjeta.getColor(),
-                    tarjeta.isActiva());
+                    tarjeta.isActiva(), alias.stream().map(AliasDto::de).toList());
         }
+    }
+
+    /**
+     * Cómo reconocer la tarjeta en una notificación de pago.
+     *
+     * @param apodo    el nombre que tiene dentro de Google Wallet
+     * @param ultimos4 los cuatro últimos dígitos, que publica el banco
+     */
+    public record AliasDto(UUID id, String apodo, String ultimos4) {
+
+        public static AliasDto de(AliasTarjeta alias) {
+            return new AliasDto(alias.getId(), alias.getAlias(), alias.getUltimos4());
+        }
+    }
+
+    public record AnadirAliasRequest(
+            @Size(max = 60, message = "El apodo no puede pasar de 60 caracteres")
+            String apodo,
+
+            @Pattern(regexp = "\\d{4}", message = "Deben ser exactamente cuatro dígitos")
+            String ultimos4) {
     }
 
     public record CrearTarjetaRequest(

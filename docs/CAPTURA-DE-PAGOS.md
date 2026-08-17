@@ -42,15 +42,56 @@ magia detrás: leen la notificación.
 | **Depende del texto** | Hay que reconocer el importe y el comercio dentro de un texto que escribe Google, y que cambia con las versiones y con el idioma. |
 | **Fuera de Play Store** | Google restringe mucho este permiso en las apps publicadas. Para una aplicación personal instalada por APK no hay problema. |
 
+### Lo que llega de verdad
+
+Estos son los textos reales de una compra del 17 de agosto de 2026. Llegan **dos**
+notificaciones por la misma compra:
+
+**Google Wallet**, que llega en todo pago con el teléfono, sea la tarjeta que sea:
+
+```
+título:  SURTIMAYORISTA CLARET
+texto:   COP54,670.00 with crédito física
+```
+
+**El banco**, que llega también al usar la tarjeta física:
+
+```
+título:  Compra aprobada por $54.670,00
+texto:   Tu compra en SURTIMAYORISTA CLARET por $54.670,00 con tu tarjeta
+         terminada en 2355 ha sido APROBADA.
+```
+
+Hay dos detalles que muerden si no se tratan:
+
+**Los importes vienen en formatos opuestos.** Google Wallet escribe `54,670.00`, a la americana,
+porque el sistema del teléfono está en inglés; el banco escribe `54.670,00`, a la colombiana. El
+punto y la coma significan lo contrario en cada uno, así que dar por buena una convención
+convertiría 54.670 pesos en 54,67.
+
+La regla que los distingue sin ambigüedad: **el último separador es el decimal solo si le siguen
+exactamente dos dígitos.** Con tres es separador de miles.
+
+**Llegan dos avisos por compra.** Se juntan por importe dentro de una ventana de cinco minutos,
+conservando lo que aporta cada uno: la billetera trae el comercio limpio en el título y el apodo
+de la tarjeta; el banco trae los cuatro dígitos.
+
 ### El punto delicado: débito o crédito
 
-Aquí está la parte que no resuelve la notificación por sí sola. Para la aplicación no es lo
-mismo pagar con débito que con crédito: lo primero sale del dinero de este mes y lo segundo se
-va al corte de la tarjeta, uno o dos meses después.
+Para la aplicación no es lo mismo pagar con débito que con crédito: lo primero sale del dinero
+de este mes y lo segundo se va al corte de la tarjeta, uno o dos meses después. Y ninguna de
+las dos notificaciones dice cuál es.
 
-La notificación de Google Wallet indica la tarjeta usada, normalmente por los últimos cuatro
-dígitos. Eso permite asociarla a una tarjeta ya registrada en la aplicación, y de ahí sale si es
-débito o crédito. Pero hay que configurarlo una vez por tarjeta.
+Lo que sí dicen es **cómo se llama la tarjeta**: la billetera por su apodo («crédito física») y
+el banco por sus cuatro dígitos («terminada en 2355»). La tabla `card_aliases` traduce eso a la
+tarjeta de la aplicación, y de ahí sale si es débito o crédito.
+
+Los cuatro dígitos mandan sobre el apodo: no dependen de cómo se haya escrito nada. Los apodos
+se comparan en minúsculas y sin tildes, porque se escriben a mano y no siempre igual — en la
+misma billetera conviven «crédito física», con tilde, y «credito digital», sin ella.
+
+Una tarjeta admite varios apodos, porque Nu entrega una virtual y una física sobre la misma
+línea de crédito: números distintos, apodos distintos y un solo corte.
 
 ## Diseño propuesto
 
@@ -82,11 +123,15 @@ reconocimiento contra lo que de verdad llega al teléfono, en lugar de adivinarl
 
 | Dónde | Qué |
 |---|---|
-| Android | `NotificationListenerService` en Kotlin, filtrando por el paquete de Google Wallet y los de los bancos |
-| Android | Canal de plataforma para pasar las capturas a Flutter |
-| Flutter | Pantalla de ajustes para conceder el permiso y asociar cada tarjeta a las suyas |
-| Flutter | Bandeja de capturas pendientes, con confirmación de un toque |
-| Backend | Ya está: `purchases.origen = NOTIFICACION` existe desde la primera versión de la tabla |
+| `EscuchaDeNotificaciones.kt` | `NotificationListenerService` que filtra por aplicación y guarda el texto tal cual |
+| `MainActivity.kt` | Canal de plataforma: permiso, lectura y descarte de capturas |
+| `captura_pago.dart` | El reconocimiento: importes, comercio, tarjeta y deduplicado |
+| `bandeja_capturas.dart` | La bandeja, dentro de Gastos diarios |
+| `card_aliases` | La traducción entre lo que dice la notificación y la tarjeta de la aplicación |
+
+**El reconocimiento vive en Dart y no en Kotlin a propósito.** Así se puede probar contra los
+textos reales sin arrancar un teléfono, que es lo que permite tener cubierto el caso de los dos
+formatos de importe y el de las tildes que van y vienen. La parte nativa se limita a capturar.
 
 ### Alternativa: los SMS del banco
 
@@ -99,10 +144,23 @@ teléfono. Y una desventaja, que el formato varía de un banco a otro.
 Puede convivir con lo anterior: las dos fuentes alimentan la misma bandeja, con un filtro para
 no registrar dos veces la misma compra.
 
-## Estado
+## Cómo se activa
 
-Pendiente de construir. El backend ya lo admite; falta la parte de Android y la bandeja.
+1. En **Gastos diarios → Tarjetas**, tocar «Detectar pagos automáticamente». Lleva a la pantalla
+   de Android donde se concede el acceso a las notificaciones.
+2. En cada tarjeta, el icono de la campana abre sus apodos. Hay que añadir el nombre que tiene
+   dentro de Google Wallet y, si se sabe, sus cuatro últimos dígitos.
 
-El primer paso no es escribir el reconocimiento a ciegas, sino **capturar unas cuantas
-notificaciones reales de pago y ver exactamente qué texto llega**. Con eso, el reconocimiento
-sale a la primera en lugar de a base de intentos.
+A partir de ahí, los pagos aparecen en la bandeja de Gastos diarios con el importe, el comercio
+y la tarjeta ya puestos. Solo queda elegir la categoría.
+
+Si una notificación menciona una tarjeta que la aplicación no conoce, lo dice en vez de
+adivinar: sin identificarla no se sabe si el pago fue con débito o con crédito.
+
+## Lo que queda fuera
+
+- **Solo Android.** En la web y en macOS el registro sigue siendo a mano.
+- **Solo lo que se pague con el teléfono o con las tarjetas cuyo banco notifique.** Una compra en
+  efectivo no genera ninguna notificación.
+- **Los SMS del banco**, que cubrirían los pagos con tarjeta física de bancos que no tienen app
+  con notificaciones. Exigen `READ_SMS`, un permiso todavía más amplio.

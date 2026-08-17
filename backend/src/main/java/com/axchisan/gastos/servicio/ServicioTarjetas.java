@@ -1,8 +1,10 @@
 package com.axchisan.gastos.servicio;
 
+import com.axchisan.gastos.dominio.AliasTarjeta;
 import com.axchisan.gastos.dominio.Tarjeta;
 import com.axchisan.gastos.dominio.TipoTarjeta;
 import com.axchisan.gastos.dominio.Usuario;
+import com.axchisan.gastos.repositorio.AliasTarjetaRepository;
 import com.axchisan.gastos.repositorio.CompraRepository;
 import com.axchisan.gastos.repositorio.TarjetaRepository;
 import com.axchisan.gastos.repositorio.UsuarioRepository;
@@ -19,12 +21,14 @@ public class ServicioTarjetas {
     private final TarjetaRepository tarjetas;
     private final CompraRepository compras;
     private final UsuarioRepository usuarios;
+    private final AliasTarjetaRepository alias;
 
     public ServicioTarjetas(TarjetaRepository tarjetas, CompraRepository compras,
-                            UsuarioRepository usuarios) {
+                            UsuarioRepository usuarios, AliasTarjetaRepository alias) {
         this.tarjetas = tarjetas;
         this.compras = compras;
         this.usuarios = usuarios;
+        this.alias = alias;
     }
 
     @Transactional(readOnly = true)
@@ -99,5 +103,48 @@ public class ServicioTarjetas {
             return;
         }
         tarjetas.delete(tarjeta);
+    }
+
+    // --- alias para reconocer la tarjeta en las notificaciones ---
+
+    @Transactional(readOnly = true)
+    public List<AliasTarjeta> aliasDe(UUID usuarioId, UUID tarjetaId) {
+        buscar(usuarioId, tarjetaId);
+        return alias.findByTarjetaId(tarjetaId);
+    }
+
+    @Transactional(readOnly = true)
+    public List<AliasTarjeta> todosLosAlias(UUID usuarioId) {
+        return alias.listarDelUsuario(usuarioId);
+    }
+
+    /**
+     * Enseña a la aplicación a reconocer una tarjeta en las notificaciones de pago.
+     *
+     * @param apodo    el nombre que la tarjeta tiene dentro de Google Wallet
+     * @param ultimos4 los cuatro últimos dígitos, que publica el banco
+     */
+    @Transactional
+    public AliasTarjeta anadirAlias(UUID usuarioId, UUID tarjetaId, String apodo,
+                                    String ultimos4) {
+        Tarjeta tarjeta = buscar(usuarioId, tarjetaId);
+        AliasTarjeta nuevo = new AliasTarjeta(tarjeta, apodo, ultimos4);
+
+        // Que dos tarjetas del mismo usuario respondan a lo mismo dejaría la compra capturada
+        // en cualquiera de las dos, y con débito y crédito de por medio eso cambia de qué mes
+        // sale el dinero.
+        if (alias.loUsaOtraTarjeta(usuarioId, tarjetaId, nuevo.getAliasNorm(),
+                nuevo.getUltimos4())) {
+            throw new IllegalArgumentException(
+                    "Otra de tus tarjetas ya se reconoce con ese apodo o con esos dígitos");
+        }
+        return alias.save(nuevo);
+    }
+
+    @Transactional
+    public void eliminarAlias(UUID usuarioId, UUID aliasId) {
+        AliasTarjeta existente = alias.buscarDelUsuario(usuarioId, aliasId)
+                .orElseThrow(() -> new RecursoNoEncontrado("el alias", aliasId));
+        alias.delete(existente);
     }
 }

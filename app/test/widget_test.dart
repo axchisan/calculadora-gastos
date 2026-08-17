@@ -434,6 +434,69 @@ void main() {
     });
   });
 
+  group('Reconocer la tarjeta de una notificación', () {
+    // Los apodos son los reales de la billetera, con su inconsistencia incluida: uno lleva
+    // tilde y el otro no, aunque los escribió la misma persona.
+    const nu = Tarjeta(
+      id: 't1',
+      nombre: 'Nu',
+      tipo: TipoTarjeta.credito,
+      activa: true,
+      diaCorte: 15,
+      diaPago: 4,
+      alias: [
+        AliasTarjeta(id: 'a1', apodo: 'crédito física', ultimos4: '2355'),
+        AliasTarjeta(id: 'a2', apodo: 'credito digital', ultimos4: '1086'),
+      ],
+    );
+
+    const bancolombia = Tarjeta(
+      id: 't2',
+      nombre: 'Bancolombia',
+      tipo: TipoTarjeta.debito,
+      activa: true,
+      alias: [
+        AliasTarjeta(id: 'a3', apodo: 'débito digital', ultimos4: '8329'),
+      ],
+    );
+
+    test('la reconoce por los cuatro últimos dígitos', () {
+      expect(nu.reconoce(ultimos4: '2355'), isTrue);
+      expect(nu.reconoce(ultimos4: '8329'), isFalse);
+      expect(bancolombia.reconoce(ultimos4: '8329'), isTrue);
+    });
+
+    test('y por el apodo que tiene en la billetera', () {
+      expect(nu.reconoce(apodo: 'crédito física'), isTrue);
+      expect(nu.reconoce(apodo: 'credito digital'), isTrue);
+      expect(bancolombia.reconoce(apodo: 'débito digital'), isTrue);
+    });
+
+    /// Es el detalle que rompería el reconocimiento la mitad de las veces: los apodos se
+    /// escriben a mano y las tildes van y vienen.
+    test('las tildes y las mayúsculas no le importan', () {
+      expect(nu.reconoce(apodo: 'credito fisica'), isTrue);
+      expect(nu.reconoce(apodo: 'CRÉDITO FÍSICA'), isTrue);
+      expect(nu.reconoce(apodo: '  crédito física  '), isTrue);
+      expect(bancolombia.reconoce(apodo: 'debito digital'), isTrue);
+    });
+
+    test('una tarjeta que no es la suya no responde', () {
+      expect(nu.reconoce(apodo: 'débito digital'), isFalse);
+      expect(bancolombia.reconoce(apodo: 'crédito física'), isFalse);
+    });
+
+    test('sin alias configurados no reconoce nada', () {
+      const sinAlias = Tarjeta(
+        id: 't3',
+        nombre: 'Otra',
+        tipo: TipoTarjeta.debito,
+        activa: true,
+      );
+      expect(sinAlias.reconoce(apodo: 'lo que sea', ultimos4: '0000'), isFalse);
+    });
+  });
+
   group('Modo de vista', () {
     test('alterna entre lo pagado y lo comprometido', () {
       expect(ModoVista.real.contrario, ModoVista.estimacion);

@@ -36,6 +36,24 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!-- Lee las notificaciones de pago del teléfono para poder registrar las compras
+             solas. El permiso lo concede el usuario a mano en Ajustes; declararlo aquí no
+             activa nada por su cuenta.
+
+             Va como exported porque quien se conecta al servicio es el propio sistema, desde
+             otro proceso. Lo que impide que se conecte cualquier otra aplicación no es ese
+             atributo sino android:permission: solo el sistema tiene BIND_NOTIFICATION_-
+             LISTENER_SERVICE. -->
+        <service
+            android:name=".EscuchaDeNotificaciones"
+            android:exported="true"
+            android:label="@string/nombre_app"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService"/>
+            </intent-filter>
+        </service>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
