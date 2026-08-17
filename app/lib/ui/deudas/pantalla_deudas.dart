@@ -6,6 +6,7 @@ import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/deudas.dart';
+import '../../estado/mes.dart';
 import 'widgets/detalle_deuda.dart';
 import 'widgets/formulario_deuda.dart';
 
@@ -16,9 +17,22 @@ class PantallaDeudas extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final datos = ref.watch(deudasProvider);
+    final verTodas = ref.watch(verTodasLasDeudasProvider);
+    final periodo = ref.watch(periodoProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Deudas')),
+      appBar: AppBar(
+        title: Text(verTodas ? 'Deudas' : Formato.mesYAnio(periodo)),
+        actions: [
+          IconButton(
+            tooltip: verTodas ? 'Ver solo las del mes' : 'Ver todas',
+            icon: Icon(verTodas ? Icons.filter_alt_off : Icons.history),
+            onPressed: () => ref
+                .read(verTodasLasDeudasProvider.notifier)
+                .update((valor) => !valor),
+          ),
+        ],
+      ),
       body: datos.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => _Error(
@@ -352,11 +366,16 @@ class _Encabezado extends StatelessWidget {
   }
 }
 
-class _SinDeudas extends StatelessWidget {
+class _SinDeudas extends ConsumerWidget {
   const _SinDeudas();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Con el filtro por mes activo, «no debes nada» sería engañoso: puede haber deudas en
+    // otros meses. Lo que no hay es nada que pague este.
+    final porMes = !ref.watch(verTodasLasDeudasProvider);
+    final periodo = ref.watch(periodoProvider);
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -370,13 +389,19 @@ class _SinDeudas extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'No debes nada',
+              porMes
+                  ? 'Nada que pagar en ${Formato.mesYAnio(periodo).toLowerCase()}'
+                  : 'No debes nada',
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
             Text(
-              'Si le debes a alguien —la tarjeta, un familiar, un amigo— añádelo aquí para '
-              'que cuente en tu presupuesto.',
+              porMes
+                  ? 'Aquí salen las deudas que seguías debiendo este mes y las que saldaste '
+                        'en él. Toca el icono del historial para verlas todas.'
+                  : 'Si le debes a alguien —la tarjeta, un familiar, un amigo— añádelo aquí '
+                        'para que cuente en tu presupuesto.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: Theme.of(context).colorScheme.onSurfaceVariant,

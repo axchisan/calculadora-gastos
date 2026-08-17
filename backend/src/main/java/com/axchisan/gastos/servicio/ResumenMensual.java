@@ -39,6 +39,11 @@ import java.util.UUID;
  * @param cuotasDeudaPendientes       lo que falta abonar este mes según las cuotas pactadas
  * @param comprometidoConCuotas       lo comprometido más las cuotas de deuda aún por pagar
  * @param deudasSinCuota              deudas activas sin cuota mensual, que no pueden proyectarse
+ * @param comprasDelMes               todo lo comprado en el día a día durante el mes
+ * @param comprasInmediatas           lo comprado que salió del bolsillo en el acto
+ * @param comprasACredito             lo cargado a tarjetas de crédito, que se pagará más adelante
+ * @param cortesTarjetaPendientes     cortes de tarjeta que vencen este mes y siguen sin pagar
+ * @param cortesTarjetaPagados        cortes que vencían este mes y ya se saldaron
  * @param porCategoria                reparto del gasto por categoría
  */
 public record ResumenMensual(
@@ -65,6 +70,11 @@ public record ResumenMensual(
         BigDecimal cuotasDeudaPendientes,
         BigDecimal comprometidoConCuotas,
         long deudasSinCuota,
+        BigDecimal comprasDelMes,
+        BigDecimal comprasInmediatas,
+        BigDecimal comprasACredito,
+        BigDecimal cortesTarjetaPendientes,
+        BigDecimal cortesTarjetaPagados,
         List<TotalCategoria> porCategoria) {
 
     /** Gasto acumulado de una categoría dentro del mes. */
@@ -85,5 +95,15 @@ public record ResumenMensual(
     /** Lo que quedaría libre tras atender también las cuotas de deuda del mes. */
     public BigDecimal saldoTrasCuotas() {
         return ingresoProyectado.subtract(comprometidoConCuotas);
+    }
+
+    /**
+     * Lo que se cargó a crédito este mes y no se paga hasta más adelante.
+     *
+     * <p>Es la cifra que conviene mirar de reojo: no aparece en ningún sitio como dinero que
+     * falte este mes, pero ya está gastado.
+     */
+    public boolean tieneCreditoPorVencer() {
+        return comprasACredito.signum() > 0;
     }
 }

@@ -8,6 +8,7 @@ import 'ui/ahorro/pantalla_ahorro.dart';
 import 'ui/autenticacion/pantalla_acceso.dart';
 import 'ui/cuenta/pantalla_cuenta.dart';
 import 'ui/deudas/pantalla_deudas.dart';
+import 'ui/diario/pantalla_diario.dart';
 import 'ui/graficas/pantalla_graficas.dart';
 import 'ui/inicio/pantalla_inicio.dart';
 import 'ui/navegacion.dart';
@@ -19,6 +20,7 @@ class Rutas {
   const Rutas._();
 
   static const String inicio = '/';
+  static const String diario = '/diario';
   static const String transporte = '/transporte';
   static const String deudas = '/deudas';
   static const String ahorro = '/ahorro';
@@ -69,6 +71,10 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: Rutas.inicio,
             builder: (_, _) => const PantallaInicio(),
+          ),
+          GoRoute(
+            path: Rutas.diario,
+            builder: (_, _) => const PantallaDiario(),
           ),
           GoRoute(
             path: Rutas.transporte,

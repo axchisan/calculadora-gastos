@@ -198,3 +198,14 @@ final mesProvider = StateNotifierProvider<ControladorMes, AsyncValue<DatosMes>>(
     );
   },
 );
+
+/// Identificador del mes en pantalla, o nulo mientras se carga o se crea.
+///
+/// Se deriva del estado y no del controlador porque leer `mesId` del notificador no vuelve a
+/// disparar nada al cambiar: el objeto es el mismo y quien dependa de él se quedaría con el
+/// valor nulo del primer instante.
+final mesIdProvider = Provider<String?>((ref) {
+  return ref
+      .watch(mesProvider)
+      .maybeWhen(data: (datos) => datos.resumen.mesId, orElse: () => null);
+});
