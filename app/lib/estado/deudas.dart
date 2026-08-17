@@ -39,29 +39,38 @@ class DatosDeudas {
         );
 }
 
+/// Si se ven todas las deudas de la historia o solo las del mes en pantalla.
+///
+/// Por defecto se filtra por mes: las deudas saldadas en agosto no significan nada en
+/// septiembre, y verlas ahí mezcladas con las de verdad confunde más que ayuda. El histórico
+/// sigue estando a un toque de distancia.
+final verTodasLasDeudasProvider = StateProvider<bool>((ref) => false);
+
 class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
-  ControladorDeudas(this._repositorio, this._alCambiar)
+  ControladorDeudas(this._repositorio, this._periodo, this._alCambiar)
     : super(const AsyncValue.loading()) {
     cargar();
   }
 
   final RepositorioDeudas _repositorio;
 
+  /// Mes por el que se filtra, o nulo para ver el histórico completo.
+  final DateTime? _periodo;
+
   /// Los abonos vinculados a un mes afectan a su disponible, así que hay que refrescarlo.
   final void Function() _alCambiar;
 
   Future<void> cargar() async {
     state = const AsyncValue.loading();
-    try {
-      state = AsyncValue.data(DatosDeudas(deudas: await _repositorio.listar()));
-    } on ErrorApi catch (e, t) {
-      state = AsyncValue.error(e, t);
-    }
+    await _recargar();
   }
 
-  Future<void> refrescar() async {
+  Future<void> refrescar() => _recargar();
+
+  Future<void> _recargar() async {
     try {
-      state = AsyncValue.data(DatosDeudas(deudas: await _repositorio.listar()));
+      final deudas = await _repositorio.listar(periodo: _periodo);
+      state = AsyncValue.data(DatosDeudas(deudas: deudas));
     } on ErrorApi catch (e, t) {
       state = AsyncValue.error(e, t);
     }
@@ -78,10 +87,26 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
       acreedor: acreedor,
       tipo: tipo,
       montoOriginal: montoOriginal,
+      fechaInicio: _fechaDeAlta(),
       tasaInteresMensual: tasaInteresMensual,
       cuotaSugerida: cuotaSugerida,
     );
     await refrescar();
+  }
+
+  /// Con qué fecha nace una deuda creada desde esta pantalla.
+  ///
+  /// Si se está mirando un mes distinto al actual, la deuda se fecha en ese mes: al registrar
+  /// en septiembre algo que se debe en septiembre, lo natural es que aparezca ahí y no en el
+  /// mes en el que uno se acordó de apuntarlo.
+  DateTime? _fechaDeAlta() {
+    final periodo = _periodo;
+    if (periodo == null) return null;
+
+    final hoy = DateTime.now();
+    final esElMesEnCurso =
+        periodo.year == hoy.year && periodo.month == hoy.month;
+    return esElMesEnCurso ? null : DateTime(periodo.year, periodo.month, 1);
   }
 
   Future<void> actualizar(
@@ -131,9 +156,12 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
 }
 
 final deudasProvider =
-    StateNotifierProvider<ControladorDeudas, AsyncValue<DatosDeudas>>(
-      (ref) => ControladorDeudas(
+    StateNotifierProvider<ControladorDeudas, AsyncValue<DatosDeudas>>((ref) {
+      final verTodas = ref.watch(verTodasLasDeudasProvider);
+
+      return ControladorDeudas(
         ref.watch(repositorioDeudasProvider),
+        verTodas ? null : ref.watch(periodoProvider),
         () => ref.read(mesProvider.notifier).refrescar(),
-      ),
-    );
+      );
+    });

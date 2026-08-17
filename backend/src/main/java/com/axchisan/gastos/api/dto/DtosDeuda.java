@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -31,6 +32,28 @@ public final class DtosDeuda {
                     deuda.getTasaInteresMensual(), deuda.interesMensualEstimado(),
                     deuda.getCuotaSugerida(), deuda.getFechaInicio(), deuda.getFechaLimite(),
                     deuda.isActiva());
+        }
+
+        /**
+         * La deuda tal y como estaba al cerrar un mes pasado.
+         *
+         * <p>Al consultar agosto interesa lo que se debía en agosto. Mostrar el saldo de hoy
+         * haría que una deuda saldada apareciera en cero en el mes en que aún se debía entera.
+         */
+        public static DeudaDto deEnPeriodo(Deuda deuda, BigDecimal saldoDelPeriodo) {
+            BigDecimal original = deuda.getMontoOriginal();
+            BigDecimal porcentaje = original.signum() == 0
+                    ? BigDecimal.valueOf(100)
+                    : original.subtract(saldoDelPeriodo)
+                            .multiply(BigDecimal.valueOf(100))
+                            .divide(original, 2, RoundingMode.HALF_UP);
+
+            return new DeudaDto(
+                    deuda.getId(), deuda.getAcreedor(), deuda.getDescripcion(), deuda.getTipo(),
+                    original, saldoDelPeriodo, porcentaje,
+                    deuda.getTasaInteresMensual(), deuda.interesMensualEstimado(),
+                    deuda.getCuotaSugerida(), deuda.getFechaInicio(), deuda.getFechaLimite(),
+                    saldoDelPeriodo.signum() > 0);
         }
     }
 

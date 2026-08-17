@@ -18,6 +18,12 @@ enum CategoriaGasto {
   herramientas('HERRAMIENTAS', 'Herramientas'),
   deuda('DEUDA', 'Deuda'),
   ahorro('AHORRO', 'Ahorro'),
+  antojos('ANTOJOS', 'Antojos'),
+  cuidadoPersonal('CUIDADO_PERSONAL', 'Cuidado personal'),
+  comisiones('COMISIONES', 'Comisiones'),
+  ocio('OCIO', 'Ocio'),
+  ropa('ROPA', 'Ropa'),
+  hogar('HOGAR', 'Hogar'),
   otro('OTRO', 'Otro');
 
   const CategoriaGasto(this.codigo, this.etiqueta);
@@ -27,6 +33,64 @@ enum CategoriaGasto {
 
   static CategoriaGasto desde(String codigo) => CategoriaGasto.values
       .firstWhere((c) => c.codigo == codigo, orElse: () => CategoriaGasto.otro);
+
+  /// Las que tienen sentido en una compra suelta del día a día.
+  ///
+  /// Se dejan fuera las que solo aparecen en compromisos mensuales: nadie compra «vivienda» ni
+  /// «suscripciones» sobre la marcha, y verlas en la lista solo estorba al elegir deprisa.
+  static const List<CategoriaGasto> deCompras = [
+    antojos,
+    alimentacion,
+    transporte,
+    salud,
+    cuidadoPersonal,
+    ocio,
+    hogar,
+    ropa,
+    comisiones,
+    herramientas,
+    otro,
+  ];
+}
+
+/// De dónde salió el dinero de una compra.
+///
+/// Determina cuándo sale: con efectivo y débito, en el acto; con crédito, cuando venza el corte
+/// de la tarjeta, que puede ser uno o dos meses después.
+enum MedioPago {
+  efectivo('EFECTIVO', 'Efectivo'),
+  debito('DEBITO', 'Débito'),
+  credito('CREDITO', 'Crédito');
+
+  const MedioPago(this.codigo, this.etiqueta);
+
+  final String codigo;
+  final String etiqueta;
+
+  static MedioPago desde(String codigo) => MedioPago.values.firstWhere(
+    (m) => m.codigo == codigo,
+    orElse: () => MedioPago.efectivo,
+  );
+
+  bool get saleAlInstante => this != MedioPago.credito;
+}
+
+enum TipoTarjeta {
+  debito('DEBITO', 'Débito'),
+  credito('CREDITO', 'Crédito');
+
+  const TipoTarjeta(this.codigo, this.etiqueta);
+
+  final String codigo;
+  final String etiqueta;
+
+  static TipoTarjeta desde(String codigo) => TipoTarjeta.values.firstWhere(
+    (t) => t.codigo == codigo,
+    orElse: () => TipoTarjeta.debito,
+  );
+
+  MedioPago get medioPago =>
+      this == TipoTarjeta.credito ? MedioPago.credito : MedioPago.debito;
 }
 
 enum EstadoGasto {
@@ -249,6 +313,11 @@ class ResumenMensual {
     required this.cuotasDeudaPendientes,
     required this.comprometidoConCuotas,
     required this.deudasSinCuota,
+    required this.comprasDelMes,
+    required this.comprasInmediatas,
+    required this.comprasACredito,
+    required this.cortesTarjetaPendientes,
+    required this.cortesTarjetaPagados,
     required this.porCategoria,
   });
 
@@ -296,6 +365,21 @@ class ResumenMensual {
   /// Deudas activas sin cuota mensual, que no pueden proyectarse.
   final int deudasSinCuota;
 
+  /// Todo lo comprado en el día a día durante el mes, se haya pagado ya o quede a deber.
+  final double comprasDelMes;
+
+  /// Lo comprado que salió del bolsillo en el acto: efectivo y débito.
+  final double comprasInmediatas;
+
+  /// Lo cargado a tarjetas de crédito este mes. No sale ahora, sale cuando venza el corte.
+  final double comprasACredito;
+
+  /// Cortes de tarjeta que vencen este mes y siguen sin pagar.
+  final double cortesTarjetaPendientes;
+
+  /// Cortes que vencían este mes y ya se saldaron.
+  final double cortesTarjetaPagados;
+
   final List<TotalCategoria> porCategoria;
 
   bool get cierraEnPositivo => saldoProyectado >= 0;
@@ -311,10 +395,22 @@ class ResumenMensual {
       ? 0
       : (comprometidoConCuotas / ingresoProyectado).clamp(0.0, 1.0);
 
-  /// Dinero que ya salió este mes, sea en gastos, abonos a deudas o ahorro.
+  /// Dinero que ya salió este mes: gastos, abonos a deudas, ahorro, compras del día a día y
+  /// cortes de tarjeta ya saldados.
   ///
-  /// Contar solo los gastos dejaba fuera los abonos a deudas, que salen del bolsillo igual.
-  double get salidaReal => gastoPagado + abonosDeuda + aporteAhorro;
+  /// Contar solo los gastos dejaba fuera los abonos a deudas, que salen del bolsillo igual, y
+  /// después las compras diarias, que salen igual de rápido aunque sean pequeñas.
+  double get salidaReal =>
+      gastoPagado +
+      abonosDeuda +
+      aporteAhorro +
+      comprasInmediatas +
+      cortesTarjetaPagados;
+
+  /// Indica si hay algo cargado a crédito este mes que se pagará más adelante.
+  ///
+  /// Es la cifra que conviene mirar de reojo: no falta este mes, pero ya está gastada.
+  bool get tieneCreditoPorVencer => comprasACredito > 0;
 
   /// Lo que falta por cubrir: gastos sin pagar más las cuotas de deuda pendientes.
   ///
@@ -358,6 +454,15 @@ class ResumenMensual {
       cuotasDeudaPendientes: (j['cuotasDeudaPendientes'] as num).toDouble(),
       comprometidoConCuotas: (j['comprometidoConCuotas'] as num).toDouble(),
       deudasSinCuota: (j['deudasSinCuota'] as num).toInt(),
+      // Con valor por defecto: un resumen guardado en el caché antes de que existieran las
+      // compras no trae estos campos, y sin esto la aplicación fallaría al abrir sin conexión.
+      comprasDelMes: (j['comprasDelMes'] as num?)?.toDouble() ?? 0,
+      comprasInmediatas: (j['comprasInmediatas'] as num?)?.toDouble() ?? 0,
+      comprasACredito: (j['comprasACredito'] as num?)?.toDouble() ?? 0,
+      cortesTarjetaPendientes:
+          (j['cortesTarjetaPendientes'] as num?)?.toDouble() ?? 0,
+      cortesTarjetaPagados:
+          (j['cortesTarjetaPagados'] as num?)?.toDouble() ?? 0,
       porCategoria: (j['porCategoria'] as List<dynamic>)
           .map((e) => TotalCategoria.deJson(e as Map<String, dynamic>))
           .toList(),
@@ -531,6 +636,226 @@ class MetaAhorro {
     porcentajeAlcanzado: (j['porcentajeAlcanzado'] as num?)?.toDouble(),
     color: j['color'] as String?,
   );
+}
+
+/// Una tarjeta con la que se paga.
+class Tarjeta {
+  const Tarjeta({
+    required this.id,
+    required this.nombre,
+    required this.tipo,
+    required this.activa,
+    this.diaCorte,
+    this.diaPago,
+    this.color,
+  });
+
+  final String id;
+  final String nombre;
+  final TipoTarjeta tipo;
+  final bool activa;
+
+  /// Día en que cierra el periodo de consumo. Solo en las de crédito.
+  final int? diaCorte;
+
+  /// Día del mes siguiente al corte en que vence el pago. Solo en las de crédito.
+  final int? diaPago;
+
+  final String? color;
+
+  bool get esDeCredito => tipo == TipoTarjeta.credito;
+
+  /// Descripción corta del ciclo, del estilo «corte 15 · pago 4».
+  String? get resumenCiclo => diaCorte == null || diaPago == null
+      ? null
+      : 'corte $diaCorte · pago $diaPago';
+
+  /// Fecha en que vencería una compra hecha ese día, o null si la tarjeta no tiene ciclo.
+  ///
+  /// El servidor es quien decide de verdad el mes de pago al guardar la compra; esto solo
+  /// existe para poder avisar antes de guardar, mientras se elige el medio de pago. Es la
+  /// diferencia entre enterarse de que algo se paga en octubre ahora o después.
+  DateTime? vencimientoDe(DateTime compra) {
+    final corte = diaCorte;
+    final pago = diaPago;
+    if (corte == null || pago == null) return null;
+
+    // Pasado el día de corte, la compra ya no cabe en el periodo que acaba de cerrar y espera
+    // al siguiente, con lo que su pago se va un mes más allá.
+    final mesDelCorte = compra.day > corte ? compra.month + 1 : compra.month;
+    // DateTime normaliza los meses fuera de rango: el mes 13 pasa a enero del año siguiente.
+    return DateTime(compra.year, mesDelCorte + 1, pago);
+  }
+
+  static Tarjeta deJson(Map<String, dynamic> j) => Tarjeta(
+    id: j['id'] as String,
+    nombre: j['nombre'] as String,
+    tipo: TipoTarjeta.desde(j['tipo'] as String),
+    activa: j['activa'] as bool,
+    diaCorte: (j['diaCorte'] as num?)?.toInt(),
+    diaPago: (j['diaPago'] as num?)?.toInt(),
+    color: j['color'] as String?,
+  );
+}
+
+/// Una compra del día a día.
+class Compra {
+  const Compra({
+    required this.id,
+    required this.fecha,
+    required this.descripcion,
+    required this.categoria,
+    required this.monto,
+    required this.medio,
+    required this.periodoPago,
+    required this.vencimiento,
+    required this.pagado,
+    this.tarjetaId,
+    this.tarjetaNombre,
+    this.nota,
+  });
+
+  final String id;
+  final DateTime fecha;
+  final String descripcion;
+  final CategoriaGasto categoria;
+  final double monto;
+  final MedioPago medio;
+
+  /// Mes del que sale el dinero. Con crédito no coincide con el de la compra.
+  final DateTime periodoPago;
+
+  /// Fecha exacta en que hay que pagarla.
+  final DateTime vencimiento;
+
+  /// Con efectivo o débito siempre cierto; con crédito, hasta que se salde el corte.
+  final bool pagado;
+
+  final String? tarjetaId;
+  final String? tarjetaNombre;
+  final String? nota;
+
+  /// Indica si el dinero de esta compra todavía no ha salido.
+  bool get quedaPorPagar => !pagado;
+
+  static Compra deJson(Map<String, dynamic> j) {
+    final partes = (j['periodoPago'] as String).split('-');
+
+    return Compra(
+      id: j['id'] as String,
+      fecha: DateTime.parse(j['fecha'] as String),
+      descripcion: j['descripcion'] as String,
+      categoria: CategoriaGasto.desde(j['categoria'] as String),
+      monto: (j['monto'] as num).toDouble(),
+      medio: MedioPago.desde(j['medio'] as String),
+      periodoPago: DateTime(int.parse(partes[0]), int.parse(partes[1])),
+      vencimiento: DateTime.parse(j['vencimiento'] as String),
+      pagado: j['pagado'] as bool,
+      tarjetaId: j['tarjetaId'] as String?,
+      tarjetaNombre: j['tarjetaNombre'] as String?,
+      nota: j['nota'] as String?,
+    );
+  }
+}
+
+/// Cuánto se gastó un día concreto, para ver el ritmo del mes.
+class TotalDia {
+  const TotalDia({required this.fecha, required this.total});
+
+  final DateTime fecha;
+  final double total;
+
+  static TotalDia deJson(Map<String, dynamic> j) => TotalDia(
+    fecha: DateTime.parse(j['fecha'] as String),
+    total: (j['total'] as num).toDouble(),
+  );
+}
+
+/// Las compras de un mes con sus totales.
+class ComprasDelMes {
+  const ComprasDelMes({
+    required this.total,
+    required this.inmediato,
+    required this.aCredito,
+    required this.porDia,
+    required this.compras,
+  });
+
+  final double total;
+  final double inmediato;
+  final double aCredito;
+  final List<TotalDia> porDia;
+  final List<Compra> compras;
+
+  static const vacio = ComprasDelMes(
+    total: 0,
+    inmediato: 0,
+    aCredito: 0,
+    porDia: [],
+    compras: [],
+  );
+
+  /// Cuánto se gasta al día de media, contando solo los días en que hubo alguna compra.
+  double get promedioPorDia => porDia.isEmpty ? 0 : total / porDia.length;
+
+  /// El día en que más se gastó.
+  TotalDia? get diaMasCaro => porDia.isEmpty
+      ? null
+      : porDia.reduce((a, b) => a.total >= b.total ? a : b);
+
+  static ComprasDelMes deJson(Map<String, dynamic> j) => ComprasDelMes(
+    total: (j['total'] as num).toDouble(),
+    inmediato: (j['inmediato'] as num).toDouble(),
+    aCredito: (j['aCredito'] as num).toDouble(),
+    porDia: (j['porDia'] as List<dynamic>)
+        .map((e) => TotalDia.deJson(e as Map<String, dynamic>))
+        .toList(),
+    compras: (j['compras'] as List<dynamic>)
+        .map((e) => Compra.deJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+}
+
+/// Lo que hay que pagarle a una tarjeta en un mes.
+class CorteTarjeta {
+  const CorteTarjeta({
+    required this.tarjetaId,
+    required this.tarjetaNombre,
+    required this.periodo,
+    required this.total,
+    required this.pendiente,
+    required this.saldado,
+    required this.compras,
+    this.vencimiento,
+  });
+
+  final String tarjetaId;
+  final String tarjetaNombre;
+  final DateTime periodo;
+  final double total;
+  final double pendiente;
+  final bool saldado;
+  final List<Compra> compras;
+  final DateTime? vencimiento;
+
+  static CorteTarjeta deJson(Map<String, dynamic> j) {
+    final partes = (j['periodo'] as String).split('-');
+
+    return CorteTarjeta(
+      tarjetaId: j['tarjetaId'] as String,
+      tarjetaNombre: j['tarjetaNombre'] as String,
+      periodo: DateTime(int.parse(partes[0]), int.parse(partes[1])),
+      total: (j['total'] as num).toDouble(),
+      pendiente: (j['pendiente'] as num).toDouble(),
+      saldado: j['saldado'] as bool,
+      compras: (j['compras'] as List<dynamic>)
+          .map((e) => Compra.deJson(e as Map<String, dynamic>))
+          .toList(),
+      vencimiento: j['vencimiento'] == null
+          ? null
+          : DateTime.parse(j['vencimiento'] as String),
+    );
+  }
 }
 
 class PlantillaGasto {

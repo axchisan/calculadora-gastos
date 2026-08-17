@@ -155,6 +155,39 @@ void main() {
       expect(resumen.salidaReal, 652000);
     });
 
+    test('las compras del día a día también salieron del bolsillo', () {
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoPagado': 600000,
+        'comprasInmediatas': 14300,
+        'cortesTarjetaPagados': 100000,
+      });
+
+      expect(resumen.salidaReal, 714300);
+    });
+
+    test('lo cargado a crédito no cuenta como salida de este mes', () {
+      // Se compró en agosto pero el dinero se va cuando venza el corte.
+      final resumen = ResumenMensual.deJson({
+        ...json,
+        'gastoPagado': 600000,
+        'comprasDelMes': 100000,
+        'comprasInmediatas': 0,
+        'comprasACredito': 100000,
+      });
+
+      expect(resumen.salidaReal, 600000);
+      expect(resumen.tieneCreditoPorVencer, isTrue);
+    });
+
+    test('un resumen guardado antes de las compras se sigue leyendo', () {
+      // El caché sin conexión puede tener respuestas de una versión anterior de la API.
+      final resumen = ResumenMensual.deJson(json);
+      expect(resumen.comprasDelMes, 0);
+      expect(resumen.cortesTarjetaPendientes, 0);
+      expect(resumen.tieneCreditoPorVencer, isFalse);
+    });
+
     test('lo que falta cuenta también las cuotas de deuda', () {
       // Una cuota de deuda hay que pagarla igual que el arriendo.
       final resumen = ResumenMensual.deJson({
@@ -287,6 +320,117 @@ void main() {
       );
       expect(gasto.origen, OrigenGasto.transporte);
       expect(gasto.editable, isFalse);
+    });
+  });
+
+  group('Compras del día a día', () {
+    Map<String, dynamic> compraJson(Map<String, dynamic> extra) => {
+      'id': 'c1',
+      'fecha': '2026-08-14',
+      'descripcion': 'Chocorramo',
+      'categoria': 'ANTOJOS',
+      'monto': 3600,
+      'medio': 'EFECTIVO',
+      'periodoPago': '2026-08',
+      'vencimiento': '2026-08-14',
+      'pagado': true,
+      'origen': 'MANUAL',
+      ...extra,
+    };
+
+    test('lo pagado en efectivo sale el mismo día', () {
+      final compra = Compra.deJson(compraJson({}));
+      expect(compra.medio.saleAlInstante, isTrue);
+      expect(compra.periodoPago, DateTime(2026, 8));
+      expect(compra.quedaPorPagar, isFalse);
+    });
+
+    test('lo pagado a crédito sale otro mes y queda pendiente', () {
+      final compra = Compra.deJson(
+        compraJson({
+          'medio': 'CREDITO',
+          'periodoPago': '2026-09',
+          'vencimiento': '2026-09-04',
+          'pagado': false,
+          'tarjetaNombre': 'Nu',
+        }),
+      );
+
+      expect(compra.periodoPago, DateTime(2026, 9));
+      expect(compra.vencimiento, DateTime(2026, 9, 4));
+      expect(compra.quedaPorPagar, isTrue);
+    });
+
+    test('la media por día solo cuenta los días en que hubo compras', () {
+      final datos = ComprasDelMes.deJson({
+        'total': 14300,
+        'inmediato': 14300,
+        'aCredito': 0,
+        'porDia': [
+          {'fecha': '2026-08-05', 'total': 5800},
+          {'fecha': '2026-08-09', 'total': 8500},
+        ],
+        'compras': [compraJson({})],
+      });
+
+      // 14.300 en dos días con gasto, no repartidos entre los 31 del mes.
+      expect(datos.promedioPorDia, 7150);
+      expect(datos.diaMasCaro?.fecha, DateTime(2026, 8, 9));
+    });
+
+    test('un mes sin compras no divide por cero', () {
+      expect(ComprasDelMes.vacio.promedioPorDia, 0);
+      expect(ComprasDelMes.vacio.diaMasCaro, isNull);
+    });
+
+    test('las categorías de compra dejan fuera las de compromiso mensual', () {
+      // Nadie compra «vivienda» sobre la marcha; verla al elegir deprisa solo estorba.
+      expect(
+        CategoriaGasto.deCompras,
+        isNot(contains(CategoriaGasto.vivienda)),
+      );
+      expect(
+        CategoriaGasto.deCompras,
+        isNot(contains(CategoriaGasto.suscripciones)),
+      );
+      expect(CategoriaGasto.deCompras, contains(CategoriaGasto.antojos));
+    });
+  });
+
+  group('Ciclo de la tarjeta', () {
+    // Corte el 15, pago el 4 del mes siguiente.
+    const nu = Tarjeta(
+      id: 't1',
+      nombre: 'Nu',
+      tipo: TipoTarjeta.credito,
+      activa: true,
+      diaCorte: 15,
+      diaPago: 4,
+    );
+
+    test('antes del corte se paga el mes siguiente', () {
+      expect(nu.vencimientoDe(DateTime(2026, 8, 14)), DateTime(2026, 9, 4));
+      // El propio día del corte todavía entra.
+      expect(nu.vencimientoDe(DateTime(2026, 8, 15)), DateTime(2026, 9, 4));
+    });
+
+    test('pasado el corte se va un mes más allá', () {
+      expect(nu.vencimientoDe(DateTime(2026, 8, 16)), DateTime(2026, 10, 4));
+    });
+
+    test('el cambio de año no lo despista', () {
+      expect(nu.vencimientoDe(DateTime(2026, 12, 20)), DateTime(2027, 2, 4));
+    });
+
+    test('una tarjeta de débito no tiene ciclo', () {
+      const debito = Tarjeta(
+        id: 't2',
+        nombre: 'Débito',
+        tipo: TipoTarjeta.debito,
+        activa: true,
+      );
+      expect(debito.vencimientoDe(DateTime(2026, 8, 14)), isNull);
+      expect(debito.resumenCiclo, isNull);
     });
   });
 

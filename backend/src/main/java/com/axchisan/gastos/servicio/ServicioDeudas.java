@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -47,6 +48,29 @@ public class ServicioDeudas {
     @Transactional(readOnly = true)
     public List<Deuda> listarActivas(UUID usuarioId) {
         return deudas.listarActivas(usuarioId);
+    }
+
+    /**
+     * Las deudas que tenían algo que ver con un mes concreto.
+     *
+     * <p>Sin filtrar por mes, las deudas saldadas en agosto seguían apareciendo en septiembre y
+     * en todos los meses posteriores, donde ya no significan nada.
+     */
+    @Transactional(readOnly = true)
+    public List<Deuda> listarDelPeriodo(UUID usuarioId, YearMonth periodo) {
+        return deudas.listarDelMes(usuarioId, periodo.atDay(1), periodo.atEndOfMonth());
+    }
+
+    /**
+     * Saldo que tenía una deuda al terminar un mes.
+     *
+     * <p>Al mirar un mes pasado interesa lo que se debía entonces, no lo que se debe hoy: si en
+     * agosto se debían 715.887 y se saldaron, agosto debe seguir contando esa cifra.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal saldoAlCierreDe(UUID deudaId, BigDecimal montoOriginal, YearMonth periodo) {
+        BigDecimal abonado = deudas.abonadoHasta(deudaId, periodo.atEndOfMonth());
+        return montoOriginal.subtract(abonado).max(BigDecimal.ZERO);
     }
 
     @Transactional

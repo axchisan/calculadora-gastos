@@ -340,11 +340,13 @@ class _DetalleSalidas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hayDeudasOAhorro =
+    final hayAlgoQueDesglosar =
         resumen.abonosDeuda > 0 ||
         resumen.aporteAhorro > 0 ||
-        resumen.cuotasDeudaPendientes > 0;
-    if (!hayDeudasOAhorro) return const SizedBox.shrink();
+        resumen.cuotasDeudaPendientes > 0 ||
+        resumen.comprasDelMes > 0 ||
+        resumen.cortesTarjetaPendientes > 0;
+    if (!hayAlgoQueDesglosar) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.only(top: 12),
@@ -362,6 +364,20 @@ class _DetalleSalidas extends StatelessWidget {
               etiqueta: 'Cuotas de deuda por pagar',
               valor: resumen.cuotasDeudaPendientes,
               color: Tema.negativo,
+            ),
+          if (resumen.cortesTarjetaPendientes > 0)
+            _Linea(
+              icono: Icons.credit_card,
+              etiqueta: 'Corte de tarjeta por pagar',
+              valor: resumen.cortesTarjetaPendientes,
+              color: Tema.negativo,
+            ),
+          if (resumen.comprasInmediatas > 0)
+            _Linea(
+              icono: Icons.shopping_basket_outlined,
+              etiqueta: 'Gastado en el día a día',
+              valor: resumen.comprasInmediatas,
+              color: Tema.positivo,
             ),
           if (resumen.abonosDeuda > 0)
             _Linea(
@@ -385,8 +401,49 @@ class _DetalleSalidas extends StatelessWidget {
             color: Theme.of(context).colorScheme.onSurface,
             resaltado: true,
           ),
+
+          // Va después del total y separado a propósito: no es dinero que falte este mes, pero
+          // ya está gastado y llegará como corte más adelante. Sumarlo arriba mentiría; no
+          // mostrarlo también.
+          if (resumen.tieneCreditoPorVencer) ...[
+            const SizedBox(height: 10),
+            _AvisoCredito(monto: resumen.comprasACredito),
+          ],
         ],
       ),
+    );
+  }
+}
+
+/// Recordatorio de lo que se cargó a crédito este mes y se pagará más adelante.
+class _AvisoCredito extends StatelessWidget {
+  const _AvisoCredito({required this.monto});
+
+  final double monto;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(
+          Icons.schedule,
+          size: 15,
+          color: tema.colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            'Además llevas ${Formato.dinero(monto)} a crédito este mes. '
+            'No sale ahora: llega con el corte de la tarjeta.',
+            style: tema.textTheme.bodySmall?.copyWith(
+              color: tema.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -402,8 +459,14 @@ class _DetalleCompromisos extends StatelessWidget {
     final esquema = Theme.of(context).colorScheme;
     final hayCuotas = resumen.cuotasDeudaPendientes > 0;
     final faltanCuotas = resumen.deudasSinCuota > 0;
+    final hayTarjetas = resumen.cortesTarjetaPendientes > 0;
+    final hayCompras = resumen.comprasInmediatas > 0;
 
-    if (!hayCuotas && !faltanCuotas && resumen.aporteAhorro == 0) {
+    if (!hayCuotas &&
+        !faltanCuotas &&
+        !hayTarjetas &&
+        !hayCompras &&
+        resumen.aporteAhorro == 0) {
       return const SizedBox.shrink();
     }
 
@@ -418,6 +481,20 @@ class _DetalleCompromisos extends StatelessWidget {
             valor: resumen.gastoTotal,
             color: Tema.pendiente,
           ),
+          if (hayCompras)
+            _Linea(
+              icono: Icons.shopping_basket_outlined,
+              etiqueta: 'Día a día',
+              valor: resumen.comprasInmediatas,
+              color: Tema.pendiente,
+            ),
+          if (hayTarjetas)
+            _Linea(
+              icono: Icons.credit_card,
+              etiqueta: 'Corte de tarjeta',
+              valor: resumen.cortesTarjetaPendientes,
+              color: Tema.negativo,
+            ),
           if (resumen.abonosDeuda > 0)
             _Linea(
               icono: Icons.credit_card,

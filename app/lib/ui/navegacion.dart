@@ -11,6 +11,12 @@ enum Seccion {
     Icons.account_balance_wallet,
     'Mes',
   ),
+  diario(
+    '/diario',
+    Icons.shopping_basket_outlined,
+    Icons.shopping_basket,
+    'Diario',
+  ),
   transporte(
     '/transporte',
     Icons.calendar_month_outlined,

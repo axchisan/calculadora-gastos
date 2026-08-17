@@ -38,10 +38,21 @@ class RepositorioDeudas {
 
   final ClienteApi _api;
 
-  Future<List<Deuda>> listar({bool soloActivas = false}) async {
+  /// Lista las deudas.
+  ///
+  /// Con [periodo] devuelve solo las que tenían algo que ver con ese mes: las que seguían
+  /// debiéndose al terminarlo y las que se saldaron durante él, y con el saldo que tenían
+  /// entonces en lugar del de hoy.
+  Future<List<Deuda>> listar({
+    bool soloActivas = false,
+    DateTime? periodo,
+  }) async {
     final datos = await _api.obtener<List<dynamic>>(
       '/api/deudas',
-      parametros: {'soloActivas': soloActivas},
+      parametros: {
+        'soloActivas': soloActivas,
+        if (periodo != null) 'periodo': _periodo(periodo),
+      },
     );
     return datos.map((e) => Deuda.deJson(e as Map<String, dynamic>)).toList();
   }
@@ -140,4 +151,8 @@ class RepositorioDeudas {
       : '${fecha.year.toString().padLeft(4, '0')}-'
             '${fecha.month.toString().padLeft(2, '0')}-'
             '${fecha.day.toString().padLeft(2, '0')}';
+
+  static String _periodo(DateTime mes) =>
+      '${mes.year.toString().padLeft(4, '0')}-'
+      '${mes.month.toString().padLeft(2, '0')}';
 }

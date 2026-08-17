@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -28,6 +29,48 @@ public interface DeudaRepository extends JpaRepository<Deuda, UUID> {
 
     @Query("SELECT d FROM Deuda d WHERE d.usuario.id = :usuarioId AND d.id = :id")
     Optional<Deuda> buscarDelUsuario(@Param("usuarioId") UUID usuarioId, @Param("id") UUID id);
+
+    /**
+     * Las deudas que tenían algo que ver con un mes concreto.
+     *
+     * <p>Una deuda no pertenece a un mes: se contrae en una fecha y se arrastra hasta saldarla.
+     * Pero listarlas todas siempre hacía que las de agosto, ya pagadas, siguieran apareciendo
+     * en septiembre como si aún se debieran.
+     *
+     * <p>Una deuda importa en el mes si ya existía al terminarlo y, además, o bien seguía
+     * debiéndose a esas alturas, o bien se abonó algo durante ese mes. Lo segundo es lo que
+     * conserva en agosto las deudas que se saldaron en agosto: el mes en que se pagaron es
+     * justamente donde tiene sentido verlas.
+     *
+     * @param inicio primer día del mes
+     * @param fin    último día del mes
+     */
+    @Query("""
+            SELECT d FROM Deuda d
+             WHERE d.usuario.id = :usuarioId
+               AND d.fechaInicio <= :fin
+               AND (
+                     d.montoOriginal > coalesce((SELECT sum(a.monto) FROM AbonoDeuda a
+                                                  WHERE a.deuda = d AND a.fecha <= :fin), 0)
+                  OR EXISTS (SELECT 1 FROM AbonoDeuda a
+                              WHERE a.deuda = d AND a.fecha BETWEEN :inicio AND :fin)
+               )
+             ORDER BY d.activa DESC, d.saldo DESC, d.fechaInicio
+            """)
+    List<Deuda> listarDelMes(@Param("usuarioId") UUID usuarioId,
+                             @Param("inicio") LocalDate inicio, @Param("fin") LocalDate fin);
+
+    /**
+     * Lo abonado a una deuda hasta una fecha, incluida.
+     *
+     * <p>Permite reconstruir el saldo que tenía al cerrar un mes pasado, en vez de mostrar
+     * siempre el de hoy.
+     */
+    @Query("""
+            SELECT coalesce(sum(a.monto), 0) FROM AbonoDeuda a
+             WHERE a.deuda.id = :deudaId AND a.fecha <= :fecha
+            """)
+    BigDecimal abonadoHasta(@Param("deudaId") UUID deudaId, @Param("fecha") LocalDate fecha);
 
     /** Total adeudado, base del cálculo del patrimonio neto. */
     @Query("""

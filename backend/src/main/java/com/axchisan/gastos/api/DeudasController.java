@@ -5,6 +5,7 @@ import com.axchisan.gastos.api.dto.DtosDeuda.AbonoDto;
 import com.axchisan.gastos.api.dto.DtosDeuda.ActualizarDeudaRequest;
 import com.axchisan.gastos.api.dto.DtosDeuda.CrearDeudaRequest;
 import com.axchisan.gastos.api.dto.DtosDeuda.DeudaDto;
+import com.axchisan.gastos.dominio.Deuda;
 import com.axchisan.gastos.seguridad.UsuarioActual;
 import com.axchisan.gastos.servicio.ServicioDeudas;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.YearMonth;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,12 +38,36 @@ public class DeudasController {
         this.deudas = deudas;
     }
 
+    /**
+     * Lista las deudas.
+     *
+     * <p>Con {@code periodo} se obtienen solo las que tenían algo que ver con ese mes: las que
+     * seguían debiéndose al terminarlo y las que se saldaron durante él. Sin ese filtro, las
+     * deudas pagadas en agosto seguían apareciendo en septiembre y en todos los meses
+     * siguientes, donde ya no significan nada.
+     */
     @GetMapping
-    @Operation(summary = "Lista las deudas; por defecto incluye las ya saldadas")
-    public List<DeudaDto> listar(@RequestParam(defaultValue = "false") boolean soloActivas) {
+    @Operation(summary = "Lista las deudas; con 'periodo' (aaaa-mm), solo las de ese mes")
+    public List<DeudaDto> listar(@RequestParam(defaultValue = "false") boolean soloActivas,
+                                 @RequestParam(required = false) YearMonth periodo) {
         UUID usuarioId = UsuarioActual.id();
-        var lista = soloActivas ? deudas.listarActivas(usuarioId) : deudas.listar(usuarioId);
-        return lista.stream().map(DeudaDto::de).toList();
+
+        List<Deuda> lista;
+        if (periodo != null) {
+            lista = deudas.listarDelPeriodo(usuarioId, periodo);
+        } else if (soloActivas) {
+            lista = deudas.listarActivas(usuarioId);
+        } else {
+            lista = deudas.listar(usuarioId);
+        }
+
+        // Al mirar un mes pasado interesa el saldo que la deuda tenía entonces, no el de hoy.
+        return lista.stream()
+                .map(deuda -> periodo == null
+                        ? DeudaDto.de(deuda)
+                        : DeudaDto.deEnPeriodo(deuda, deudas.saldoAlCierreDe(
+                                deuda.getId(), deuda.getMontoOriginal(), periodo)))
+                .toList();
     }
 
     @GetMapping("/{deudaId}")
