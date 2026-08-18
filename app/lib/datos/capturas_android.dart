@@ -42,6 +42,32 @@ class CapturasAndroid {
     }
   }
 
+  /// Indica si la aplicación se instaló desde un APK suelto y no desde una tienda.
+  ///
+  /// Es lo que decide si hará falta el rodeo por «Permitir ajustes restringidos»: Android 13
+  /// bloquea el acceso a notificaciones en las instalaciones laterales y deja el interruptor
+  /// apagado sin decir por qué.
+  Future<bool> instalacionLateral() async {
+    if (!disponible) return false;
+    try {
+      return await _canal.invokeMethod<bool>('instalacionLateral') ?? false;
+    } on PlatformException {
+      // Ante la duda se asume que sí: enseñar el paso de más no rompe nada, y ocultarlo
+      // dejaría al usuario sin saber qué hacer.
+      return true;
+    }
+  }
+
+  /// Abre la ficha de la aplicación en Ajustes, donde vive «Permitir ajustes restringidos».
+  Future<void> abrirInfoDeLaApp() async {
+    if (!disponible) return;
+    try {
+      await _canal.invokeMethod<void>('abrirInfoDeLaApp');
+    } on PlatformException {
+      // Si el fabricante no expone esa pantalla, no hay nada que hacer desde aquí.
+    }
+  }
+
   /// Las notificaciones capturadas que aún no se han resuelto.
   Future<List<NotificacionCapturada>> pendientes() async {
     if (!disponible) return const [];

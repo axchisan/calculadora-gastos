@@ -24,6 +24,11 @@ class MainActivity : FlutterActivity() {
                     abrirAjustesDeNotificaciones()
                     respuesta.success(null)
                 }
+                "instalacionLateral" -> respuesta.success(esInstalacionLateral())
+                "abrirInfoDeLaApp" -> {
+                    abrirInfoDeLaApp()
+                    respuesta.success(null)
+                }
                 "capturas" -> respuesta.success(capturas())
                 "descartar" -> {
                     descartar(llamada.arguments as List<*>)
@@ -58,6 +63,47 @@ class MainActivity : FlutterActivity() {
         startActivity(
             Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
+    }
+
+    /**
+     * Indica si la aplicación se instaló desde un APK suelto y no desde una tienda.
+     *
+     * Importa porque Android 13 bloquea el acceso a notificaciones en ese caso: marca el ajuste
+     * como restringido y deja el interruptor apagado sin explicar por qué. Saberlo permite
+     * contarle al usuario el paso que le falta en lugar de dejarlo mirando un interruptor
+     * muerto.
+     */
+    private fun esInstalacionLateral(): Boolean {
+        val instalador = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+                packageManager.getInstallSourceInfo(packageName).installingPackageName
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getInstallerPackageName(packageName)
+            }
+        } catch (e: Exception) {
+            null
+        }
+
+        // Sin instalador registrado, el APK se abrió a mano. Los paquetes de tiendas conocidas
+        // sí quedan anotados y no arrastran la restricción.
+        return instalador == null || instalador !in TIENDAS
+    }
+
+    /**
+     * Abre la ficha de la aplicación en Ajustes.
+     *
+     * Es donde vive el menú de tres puntos con «Permitir ajustes restringidos», que es el paso
+     * que desbloquea el acceso a notificaciones. Llevar ahí directamente evita que haya que
+     * buscarlo entre todas las aplicaciones del teléfono.
+     */
+    private fun abrirInfoDeLaApp() {
+        startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                android.net.Uri.parse("package:$packageName"),
+            ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         )
     }
 
@@ -103,5 +149,12 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val CANAL = "com.axchisan.calculadora_gastos/capturas"
+
+        /** Instaladores que Android considera una tienda y no dejan el ajuste restringido. */
+        val TIENDAS = setOf(
+            "com.android.vending",
+            "com.google.android.packageinstaller",
+            "com.android.packageinstaller",
+        )
     }
 }
