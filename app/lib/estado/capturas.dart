@@ -19,6 +19,15 @@ final permisoCapturaProvider = FutureProvider<bool>(
   (ref) => ref.watch(capturasAndroidProvider).permisoConcedido(),
 );
 
+/// Si la aplicación se instaló desde un APK y no desde una tienda.
+///
+/// Android 13 bloquea el acceso a notificaciones en ese caso: el interruptor aparece apagado y
+/// no se deja tocar, con el texto «Controlled by restricted setting» y sin explicar qué hacer.
+/// Detectarlo permite contar el paso que falta en vez de dejar al usuario adivinando.
+final instalacionLateralProvider = FutureProvider<bool>(
+  (ref) => ref.watch(capturasAndroidProvider).instalacionLateral(),
+);
+
 /// Un pago capturado esperando a que el usuario lo confirme.
 ///
 /// No se registra solo. Un importe mal reconocido metido directamente en el presupuesto haría

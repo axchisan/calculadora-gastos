@@ -6,6 +6,7 @@ import '../../../datos/cliente_api.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/capturas.dart';
 import '../../../estado/compras.dart';
+import 'guia_permiso.dart';
 
 /// Alta y edición de las tarjetas con las que se paga.
 ///
@@ -412,13 +413,16 @@ class _PermisoDeCapturas extends ConsumerWidget {
               : 'Hace falta darle acceso a las notificaciones en los ajustes de Android.',
         ),
         trailing: concedido ? null : const Icon(Icons.open_in_new, size: 18),
+        // Se abre la guía en lugar de saltar directamente a Ajustes. Ir derecho ahí dejaba al
+        // usuario delante de un interruptor apagado que no se deja tocar, sin ninguna pista de
+        // que el paso que falta está escondido en otro menú.
         onTap: concedido
             ? null
-            : () async {
-                await ref.read(capturasAndroidProvider).abrirAjustes();
-                // Al volver de Ajustes hay que releer el permiso: puede haber cambiado.
-                ref.invalidate(permisoCapturaProvider);
-              },
+            : () => showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                builder: (_) => const GuiaPermiso(),
+              ),
       ),
     );
   }

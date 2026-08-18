@@ -40,7 +40,7 @@ magia detrás: leen la notificación.
 | **Solo en Android** | La web y macOS seguirían con registro manual. iOS no permite nada parecido. |
 | **Permiso especial** | Se concede una vez en Ajustes → Notificaciones → Acceso a notificaciones. Es un permiso amplio: da acceso a **todas** las notificaciones del teléfono, no solo a las de pago. |
 | **Depende del texto** | Hay que reconocer el importe y el comercio dentro de un texto que escribe Google, y que cambia con las versiones y con el idioma. |
-| **Fuera de Play Store** | Google restringe mucho este permiso en las apps publicadas. Para una aplicación personal instalada por APK no hay problema. |
+| **Fuera de Play Store** | Google restringe este permiso en las apps publicadas, y Android lo bloquea en las instaladas desde un APK suelto. Tiene arreglo, pero hay que saberlo: ver más abajo. |
 
 ### Lo que llega de verdad
 
@@ -144,10 +144,49 @@ teléfono. Y una desventaja, que el formato varía de un banco a otro.
 Puede convivir con lo anterior: las dos fuentes alimentan la misma bandeja, con un filtro para
 no registrar dos veces la misma compra.
 
+## El obstáculo de los ajustes restringidos
+
+Instalar la aplicación abriendo el APK desde el gestor de archivos deja dos problemas, y los
+dos vienen de lo mismo: **Android anota quién instaló cada aplicación, y un APK abierto a mano
+no tiene instalador anotado.**
+
+- Play Protect avisa de que la aplicación es desconocida y hay que insistir para continuar.
+- Android 13 marca el acceso a notificaciones como **ajuste restringido**: el interruptor sale
+  apagado, no se deja tocar y el sistema muestra «Controlled by restricted setting» junto a un
+  aviso de que el permiso puede poner en riesgo la información financiera. Lo que **no** dice es
+  qué hacer al respecto.
+
+### La solución limpia: instalar por cable
+
+```bash
+scripts/instalar-en-el-telefono.sh
+```
+
+Por dentro hace `adb install -r -i com.android.vending`. Ese `-i` anota Play Store como
+instalador, con lo que Android deja de considerarla una instalación lateral y **ninguna de las
+dos restricciones se aplica**. Ni aviso de Play Protect, ni ajuste restringido.
+
+Requiere activar la depuración por USB una vez: Ajustes → Acerca del teléfono → tocar siete
+veces «Número de compilación», y allí encender «Depuración por USB».
+
+### Si se instaló desde el archivo
+
+Se puede desbloquear a mano, aunque el camino no es evidente:
+
+1. Ajustes → Aplicaciones → **Mis gastos**
+2. Menú de **tres puntos** arriba a la derecha → **«Permitir ajustes restringidos»**
+3. Volver al acceso a notificaciones y encender el interruptor, que ya se dejará tocar
+
+Si esa opción del menú no aparece, hay que entrar antes una vez en el acceso a notificaciones e
+intentar encender el interruptor. Al rechazarlo, Android habilita la opción.
+
+La aplicación detecta si se instaló de lado —consultando el instalador anotado— y enseña estos
+pasos en lugar de mandar al usuario a un interruptor muerto sin explicación.
+
 ## Cómo se activa
 
-1. En **Gastos diarios → Tarjetas**, tocar «Detectar pagos automáticamente». Lleva a la pantalla
-   de Android donde se concede el acceso a las notificaciones.
+1. En **Gastos diarios → Tarjetas**, tocar «Detectar pagos automáticamente». Se abre la guía con
+   los pasos que hagan falta según cómo se instalara la aplicación.
 2. En cada tarjeta, el icono de la campana abre sus apodos. Hay que añadir el nombre que tiene
    dentro de Google Wallet y, si se sabe, sus cuatro últimos dígitos.
 
