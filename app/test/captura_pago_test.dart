@@ -236,6 +236,117 @@ void main() {
     });
   });
 
+  group('SMS de Bancolombia', () {
+    // El texto real de una compra en una máquina expendedora, el 18 de agosto de 2026. Llega
+    // como SMS y lo muestra la aplicación de mensajes; no hay notificación de Google Wallet
+    // porque el teléfono no intervino en el pago.
+    final real = notificacion(
+      paquete: 'com.google.android.apps.messaging',
+      titulo: '85784',
+      texto:
+          r'Bancolombia: Compraste $9.000,00 en NOVAVENTA BOG CODIGO con tu '
+          'T.Deb *8329, el 18/08/2026 a las 10:08. Si tienes dudas, encuentranos '
+          'aqui: 6045109095 o 018000931987. Estamos cerca.',
+      instante: DateTime(2026, 8, 18, 10, 11),
+    );
+
+    test('saca el importe, el comercio y los cuatro dígitos', () {
+      final pago = LectorDePagos.leer(real)!;
+
+      expect(pago.monto, 9000);
+      expect(pago.comercio, 'NOVAVENTA BOG CODIGO');
+      expect(pago.ultimos4, '8329');
+      expect(pago.fuente, FuenteCaptura.sms);
+    });
+
+    /// Es el único aviso de los tres que dice de qué tipo es la tarjeta.
+    test('distingue débito de crédito', () {
+      expect(LectorDePagos.leer(real)!.esCredito, isFalse);
+
+      final aCredito = LectorDePagos.leer(
+        notificacion(
+          paquete: 'com.google.android.apps.messaging',
+          titulo: '85784',
+          texto:
+              r'Bancolombia: Compraste $120.000,00 en ALMACEN X con tu '
+              'T.Cred *4417, el 18/08/2026 a las 15:20. Estamos cerca.',
+        ),
+      )!;
+      expect(aCredito.esCredito, isTrue);
+      expect(aCredito.ultimos4, '4417');
+    });
+
+    /// Un SMS puede tardar minutos en llegar. Con una compra a crédito hecha el día del corte,
+    /// esos minutos deciden de qué mes sale el dinero.
+    test(
+      'se queda con la hora que declara el mensaje, no con la de llegada',
+      () {
+        final pago = LectorDePagos.leer(real)!;
+
+        // El SMS llegó a las 10:11 pero la compra fue a las 10:08.
+        expect(pago.instante, DateTime(2026, 8, 18, 10, 8));
+      },
+    );
+
+    test('la cola del mensaje no se cuela en el comercio', () {
+      // «Si tienes dudas, encuentranos aqui: 6045109095…» va detrás y no debe aparecer.
+      expect(LectorDePagos.leer(real)!.comercio, isNot(contains('dudas')));
+      expect(LectorDePagos.leer(real)!.comercio, isNot(contains('6045109095')));
+    });
+
+    test('un mensaje que no es una compra se ignora', () {
+      expect(
+        LectorDePagos.leer(
+          notificacion(
+            paquete: 'com.google.android.apps.messaging',
+            titulo: '85784',
+            texto:
+                'Bancolombia: Tu clave dinamica es 483920. No la compartas '
+                'con nadie.',
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('un mensaje de una persona no se toca', () {
+      expect(
+        LectorDePagos.leer(
+          notificacion(
+            paquete: 'com.google.android.apps.messaging',
+            titulo: 'Mamá',
+            texto: r'Compraste el mercado? te mando $50.000',
+          ),
+        ),
+        isNull,
+      );
+    });
+  });
+
+  group('Compra por internet con Nu', () {
+    // Comprar en Mercado Libre no pasa por el teléfono, así que no hay notificación de la
+    // billetera. La de Nu llega igual y basta por sí sola.
+    final real = notificacion(
+      paquete: 'com.nu.production',
+      titulo: r'Compra aprobada por $74.990,00',
+      texto:
+          r'Tu compra en MERCADO PAGO*MERCADOLI por $74.990,00 con tu tarjeta '
+          'terminada en 1086 ha sido APROBADA.',
+    );
+
+    test('se reconoce sin necesidad de Google Wallet', () {
+      final pago = LectorDePagos.leer(real)!;
+
+      expect(pago.monto, 74990);
+      expect(pago.comercio, 'MERCADO PAGO*MERCADOLI');
+      expect(pago.ultimos4, '1086');
+    });
+
+    test('el asterisco del comercio no estorba', () {
+      expect(LectorDePagos.leer(real)!.comercio, contains('*'));
+    });
+  });
+
   test('una notificación de otra aplicación se ignora', () {
     expect(
       LectorDePagos.leer(

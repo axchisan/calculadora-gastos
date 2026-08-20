@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../datos/capturas_android.dart';
@@ -110,6 +111,69 @@ Tarjeta? _buscar(List<Tarjeta> tarjetas, PagoDetectado pago) {
   }
   return null;
 }
+
+/// Lleva a la bandeja cuando la aplicación se abrió tocando el aviso de una compra.
+///
+/// Es lo que convierte el aviso en un atajo de verdad: se toca y aparece la compra lista para
+/// confirmar, sin pasar por la pantalla del mes ni buscar nada.
+class SaltoALaBandeja extends ConsumerStatefulWidget {
+  const SaltoALaBandeja({required this.hijo, super.key});
+
+  final Widget hijo;
+
+  @override
+  ConsumerState<SaltoALaBandeja> createState() => _SaltoALaBandejaState();
+}
+
+class _SaltoALaBandejaState extends ConsumerState<SaltoALaBandeja>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Al arrancar en frío desde el aviso, la comprobación tiene que esperar a que el primer
+    // fotograma exista: antes no hay navegador al que pedirle nada.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _comprobar());
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState estado) {
+    // Con la aplicación ya abierta, tocar el aviso solo la trae al frente.
+    if (estado == AppLifecycleState.resumed) _comprobar();
+  }
+
+  Future<void> _comprobar() async {
+    final desdeElAviso = await ref
+        .read(capturasAndroidProvider)
+        .abiertaDesdeElAviso();
+    if (!desdeElAviso || !mounted) return;
+
+    // Las capturas nuevas todavía no están leídas cuando se abre desde el aviso.
+    ref.invalidate(pagosPendientesProvider);
+    ref.read(alAbrirDesdeElAvisoProvider).ir();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.hijo;
+}
+
+/// Cómo llegar a la bandeja. Lo rellena la aplicación, que es quien conoce el enrutador.
+class DestinoDeLaBandeja {
+  const DestinoDeLaBandeja(this.ir);
+
+  final void Function() ir;
+}
+
+final alAbrirDesdeElAvisoProvider = Provider<DestinoDeLaBandeja>(
+  (ref) =>
+      throw StateError('El destino de la bandeja se define en la aplicación'),
+);
 
 /// Quita de la bandeja los pagos ya resueltos, se hayan registrado o descartado.
 final descartarCapturasProvider = Provider<Future<void> Function(List<String>)>(

@@ -47,7 +47,11 @@ enum FuenteCaptura {
   wallet('Google Wallet'),
 
   /// Llega también cuando se usa la tarjeta física, y es la única que da los cuatro dígitos.
-  banco('Notificación del banco');
+  banco('Notificación del banco'),
+
+  /// El SMS del banco. Llega en compras donde no interviene el teléfono —una máquina
+  /// expendedora, una compra por internet— y es el más completo de los tres.
+  sms('SMS del banco');
 
   const FuenteCaptura(this.etiqueta);
 
@@ -64,6 +68,7 @@ class PagoDetectado {
     this.comercio,
     this.apodoTarjeta,
     this.ultimos4,
+    this.esCredito,
   });
 
   final double monto;
@@ -80,6 +85,12 @@ class PagoDetectado {
 
   /// Los cuatro últimos dígitos, que solo publica el banco.
   final String? ultimos4;
+
+  /// Si el aviso decía que la tarjeta era de crédito o de débito.
+  ///
+  /// Solo lo dice el SMS del banco, con «T.Deb» o «T.Cred». Sirve de red: si la tarjeta no
+  /// está configurada todavía, al menos se sabe si el dinero sale hoy o en el corte.
+  final bool? esCredito;
 
   /// Dos notificaciones del mismo importe tan seguidas son la misma compra.
   ///
@@ -107,6 +118,7 @@ class PagoDetectado {
       comercio: comercio ?? otro.comercio,
       apodoTarjeta: apodoTarjeta ?? otro.apodoTarjeta,
       ultimos4: ultimos4 ?? otro.ultimos4,
+      esCredito: esCredito ?? otro.esCredito,
     );
   }
 }
@@ -122,6 +134,8 @@ class LectorDePagos {
   static const List<String> paquetesVigilados = [
     'com.google.android.apps.walletnfcrel',
     'com.nu.production',
+    // Los SMS del banco los muestra la aplicación de mensajes, no el banco.
+    'com.google.android.apps.messaging',
   ];
 
   /// Reconoce un pago dentro de una notificación, o devuelve null si no lo es.
@@ -131,6 +145,9 @@ class LectorDePagos {
     }
     if (notificacion.paquete.contains('nu.production')) {
       return _leerNu(notificacion);
+    }
+    if (notificacion.paquete.contains('messaging')) {
+      return _leerSmsDeBancolombia(notificacion);
     }
     return null;
   }
@@ -196,6 +213,57 @@ class LectorDePagos {
     );
   }
 
+  /// El SMS de Bancolombia, que la aplicación de mensajes muestra como notificación.
+  ///
+  /// ```
+  /// título:  85784
+  /// texto:   Bancolombia: Compraste $9.000,00 en NOVAVENTA BOG CODIGO con tu
+  ///          T.Deb *8329, el 18/08/2026 a las 10:08. Si tienes dudas...
+  /// ```
+  ///
+  /// Es el aviso más completo de los tres: trae el importe, el comercio, los cuatro dígitos,
+  /// **si la tarjeta es de débito o de crédito** y la hora real de la compra. Y llega en los
+  /// casos donde el teléfono no interviene —una máquina expendedora, una compra por internet—,
+  /// que es justo donde no hay notificación de la billetera.
+  static PagoDetectado? _leerSmsDeBancolombia(NotificacionCapturada n) {
+    final coincidencia = _patronBancolombia.firstMatch(n.texto);
+    if (coincidencia == null) return null;
+
+    final monto = interpretarMonto(coincidencia.group(1)!);
+    if (monto == null || monto <= 0) return null;
+
+    // «T.Deb» o «T.Cred». Se mira solo el principio porque el banco no siempre escribe la
+    // palabra entera.
+    final tipo = coincidencia.group(3)!.toLowerCase();
+    final esCredito = tipo.contains('cred');
+
+    return PagoDetectado(
+      monto: monto,
+      // La hora que trae el mensaje gana a la de llegada: un SMS puede tardar minutos, y con
+      // una compra a crédito hecha el día del corte esos minutos deciden el mes de pago.
+      instante: _fechaDelSms(n.texto) ?? n.instante,
+      fuente: FuenteCaptura.sms,
+      textoOriginal: n.texto,
+      comercio: coincidencia.group(2)?.trim(),
+      ultimos4: coincidencia.group(4),
+      esCredito: esCredito,
+    );
+  }
+
+  /// La fecha y la hora que el propio mensaje declara: `el 18/08/2026 a las 10:08`.
+  static DateTime? _fechaDelSms(String texto) {
+    final coincidencia = _patronFechaSms.firstMatch(texto);
+    if (coincidencia == null) return null;
+
+    return DateTime(
+      int.parse(coincidencia.group(3)!),
+      int.parse(coincidencia.group(2)!),
+      int.parse(coincidencia.group(1)!),
+      int.parse(coincidencia.group(4)!),
+      int.parse(coincidencia.group(5)!),
+    );
+  }
+
   /// `COP54,670.00 with crédito física`
   static final RegExp _patronWallet = RegExp(
     r'^\s*(?:COP\s*)?\$?\s*([\d.,]+)\s+(?:with|con)\s+(.+?)\s*$',
@@ -210,6 +278,20 @@ class LectorDePagos {
   );
 
   static final RegExp _patronMontoSuelto = RegExp(r'\$\s*([\d.,]+)');
+
+  /// `Compraste $9.000,00 en NOVAVENTA BOG CODIGO con tu T.Deb *8329`
+  static final RegExp _patronBancolombia = RegExp(
+    r'compraste\s+\$?\s*([\d.,]+)\s+en\s+(.+?)\s+con\s+tu\s+'
+    r'(T\.?\s*(?:Deb|Cred)\w*)\s*\*?\s*(\d{4})',
+    caseSensitive: false,
+    dotAll: true,
+  );
+
+  /// `el 18/08/2026 a las 10:08`
+  static final RegExp _patronFechaSms = RegExp(
+    r'el\s+(\d{1,2})/(\d{1,2})/(\d{4})\s+a\s+las\s+(\d{1,2}):(\d{2})',
+    caseSensitive: false,
+  );
 
   /// Convierte a número un importe escrito en cualquiera de los dos formatos que llegan.
   ///

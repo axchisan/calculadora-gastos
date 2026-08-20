@@ -68,6 +68,29 @@ class CapturasAndroid {
     }
   }
 
+  /// Pide el permiso de publicar avisos, obligatorio desde Android 13.
+  Future<void> pedirPermisoDeAvisos() async {
+    if (!disponible) return;
+    try {
+      await _canal.invokeMethod<void>('pedirPermisoDeAvisos');
+    } on PlatformException {
+      // En versiones anteriores no hay nada que pedir.
+    }
+  }
+
+  /// Indica si la aplicación se acaba de abrir tocando el aviso de una compra detectada.
+  ///
+  /// La respuesta se consume: preguntar dos veces devuelve falso la segunda. Así la aplicación
+  /// salta a la bandeja una sola vez y no en cada recarga de la pantalla.
+  Future<bool> abiertaDesdeElAviso() async {
+    if (!disponible) return false;
+    try {
+      return await _canal.invokeMethod<bool>('abriDesdeElAviso') ?? false;
+    } on PlatformException {
+      return false;
+    }
+  }
+
   /// Las notificaciones capturadas que aún no se han resuelto.
   Future<List<NotificacionCapturada>> pendientes() async {
     if (!disponible) return const [];

@@ -97,10 +97,13 @@ class GuiaPermiso extends ConsumerWidget {
 
             const SizedBox(height: 24),
             FilledButton.tonal(
-              onPressed: () {
-                // Al volver de Ajustes el permiso puede haber cambiado.
+              onPressed: () async {
+                // De paso se pide el permiso de publicar avisos: sin él la app detectaría las
+                // compras pero no podría avisar, que es lo que ahorra tener que abrirla.
+                await capturas.pedirPermisoDeAvisos();
+                // Al volver de Ajustes el permiso de notificaciones puede haber cambiado.
                 ref.invalidate(permisoCapturaProvider);
-                Navigator.pop(context);
+                if (context.mounted) Navigator.pop(context);
               },
               style: FilledButton.styleFrom(
                 minimumSize: const Size.fromHeight(48),
