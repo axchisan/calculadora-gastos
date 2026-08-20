@@ -54,13 +54,33 @@ título:  SURTIMAYORISTA CLARET
 texto:   COP54,670.00 with crédito física
 ```
 
-**El banco**, que llega también al usar la tarjeta física:
+**El banco**, que llega también al usar la tarjeta física y en las compras por internet:
 
 ```
 título:  Compra aprobada por $54.670,00
 texto:   Tu compra en SURTIMAYORISTA CLARET por $54.670,00 con tu tarjeta
          terminada en 2355 ha sido APROBADA.
 ```
+
+Y hay un tercer aviso que llega cuando el teléfono no interviene para nada —una máquina
+expendedora, un datáfono con la tarjeta física—: **el SMS del banco**, que muestra la
+aplicación de mensajes.
+
+```
+título:  85784
+texto:   Bancolombia: Compraste $9.000,00 en NOVAVENTA BOG CODIGO con tu
+         T.Deb *8329, el 18/08/2026 a las 10:08. Si tienes dudas...
+```
+
+Es el más completo de los tres. Trae el importe, el comercio, los cuatro dígitos, **si la
+tarjeta es de débito o de crédito** —eso es lo que dice el `T.Deb`— y **la hora real de la
+compra**. Esa hora se usa en lugar de la de llegada, porque un SMS puede tardar minutos y en una
+compra a crédito hecha el día del corte esos minutos deciden el mes de pago.
+
+> **Cuidado con la aplicación de mensajes.** Vigilarla significa ver todas las notificaciones de
+> mensajes del usuario, no solo las del banco. El filtro se aplica en Kotlin **antes de escribir
+> nada en disco**: se exige que el texto mencione un banco conocido *y* una palabra de
+> movimiento. Un mensaje personal no llega a guardarse en ningún sitio.
 
 Hay dos detalles que muerden si no se tratan:
 
@@ -127,22 +147,30 @@ reconocimiento contra lo que de verdad llega al teléfono, en lugar de adivinarl
 | `MainActivity.kt` | Canal de plataforma: permiso, lectura y descarte de capturas |
 | `captura_pago.dart` | El reconocimiento: importes, comercio, tarjeta y deduplicado |
 | `bandeja_capturas.dart` | La bandeja, dentro de Gastos diarios |
+| `guia_permiso.dart` | Los pasos para desbloquear el permiso que Android restringe |
 | `card_aliases` | La traducción entre lo que dice la notificación y la tarjeta de la aplicación |
 
 **El reconocimiento vive en Dart y no en Kotlin a propósito.** Así se puede probar contra los
 textos reales sin arrancar un teléfono, que es lo que permite tener cubierto el caso de los dos
 formatos de importe y el de las tildes que van y vienen. La parte nativa se limita a capturar.
 
-### Alternativa: los SMS del banco
+### El aviso propio
 
-En Colombia los bancos mandan un SMS por cada compra, con importe y comercio. Leerlos exige el
-permiso `READ_SMS`, todavía más amplio que el de notificaciones.
+Detectar la compra no sirve de nada si hay que acordarse de abrir la aplicación. Por eso, al
+capturar un pago, la aplicación publica su propia notificación: **«Compra detectada»** con el
+texto del aviso original. Al tocarla, la aplicación abre directamente en la bandeja, con la
+compra lista para confirmar o corregir.
 
-Tiene una ventaja real: el SMS llega igual aunque se pague con la tarjeta física, no solo con el
-teléfono. Y una desventaja, que el formato varía de un banco a otro.
+El texto de ese aviso se toma **tal cual** del original, recortado a la primera frase. No se
+interpreta nada en Kotlin a propósito: duplicar allí la lógica de importes y comercios acabaría
+con las dos versiones diciendo cosas distintas.
 
-Puede convivir con lo anterior: las dos fuentes alimentan la misma bandeja, con un filtro para
-no registrar dos veces la misma compra.
+Para no avisar dos veces de la misma compra —al pagar con el teléfono llegan dos
+notificaciones— se comparan **solo los dígitos del importe**, sin interpretarlos. Da igual que
+uno escriba `54,670.00` y el otro `54.670,00`: quitando los separadores, los dos dan `5467000`.
+
+Publicar avisos exige `POST_NOTIFICATIONS` desde Android 13. Se pide al activar la captura. Sin
+él, las compras se siguen detectando y guardando; lo que se pierde es el aviso.
 
 ## El obstáculo de los ajustes restringidos
 

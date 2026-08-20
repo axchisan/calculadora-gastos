@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'core/tema.dart';
 import 'estado/autenticacion.dart';
+import 'estado/capturas.dart';
 import 'ui/ahorro/pantalla_ahorro.dart';
 import 'ui/autenticacion/pantalla_acceso.dart';
 import 'ui/cuenta/pantalla_cuenta.dart';
@@ -110,13 +111,25 @@ class AplicacionGastos extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final enrutador = ref.watch(enrutadorProvider);
+
     return MaterialApp.router(
       title: 'Calculadora de gastos',
       debugShowCheckedModeBanner: false,
       theme: Tema.claro(),
       darkTheme: Tema.oscuro(),
       themeMode: ThemeMode.system,
-      routerConfig: ref.watch(enrutadorProvider),
+      routerConfig: enrutador,
+      // Envuelve toda la aplicación para poder saltar a la bandeja cuando se abre tocando el
+      // aviso de una compra detectada, venga de un arranque en frío o de traerla al frente.
+      builder: (_, hijo) => ProviderScope(
+        overrides: [
+          alAbrirDesdeElAvisoProvider.overrideWithValue(
+            DestinoDeLaBandeja(() => enrutador.go(Rutas.diario)),
+          ),
+        ],
+        child: SaltoALaBandeja(hijo: hijo ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

@@ -4,6 +4,10 @@
          aparece hasta que se instala un APK de publicación. -->
     <uses-permission android:name="android.permission.INTERNET"/>
 
+    <!-- Para avisar de cada compra detectada y poder apuntarla de un toque. Desde Android 13
+         el usuario tiene que concederlo, así que se pide desde la propia aplicación. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <!-- usesCleartextTraffic: todo va por HTTPS contra api.axchisan.com.
          allowBackup: la app maneja datos económicos y las copias automáticas de Android los
          subirían a Google Drive; el servidor ya es la única fuente de verdad. -->
