@@ -3,6 +3,54 @@ import 'package:flutter/services.dart';
 
 import '../dominio/captura_pago.dart';
 
+/// Cómo está la captura de pagos, con el detalle suficiente para saber qué falta.
+///
+/// Android enseña todo esto como un único interruptor, pero son cosas distintas: se puede tener
+/// el permiso concedido y el servicio sin enganchar, y en ese estado no llega ni una captura
+/// sin que nada lo advierta.
+class EstadoCaptura {
+  const EstadoCaptura({
+    required this.permiso,
+    required this.avisosPermitidos,
+    required this.bateriaLibre,
+    required this.capturas,
+    this.conectadoDesde,
+  });
+
+  /// El acceso a notificaciones está concedido.
+  final bool permiso;
+
+  /// La aplicación puede publicar sus propios avisos.
+  final bool avisosPermitidos;
+
+  /// El sistema no restringe a la aplicación en segundo plano.
+  final bool bateriaLibre;
+
+  /// Cuántas capturas hay guardadas sin resolver.
+  final int capturas;
+
+  /// Desde cuándo el servicio está enganchado, o nulo si no lo está.
+  final DateTime? conectadoDesde;
+
+  /// Si el servicio está de verdad recibiendo notificaciones.
+  bool get enganchado => conectadoDesde != null;
+
+  /// Si todo lo necesario está en su sitio.
+  bool get todoListo => permiso && enganchado && avisosPermitidos;
+
+  static EstadoCaptura deJson(Map<String, Object?> j) => EstadoCaptura(
+    permiso: j['permiso'] as bool? ?? false,
+    avisosPermitidos: j['avisosPermitidos'] as bool? ?? false,
+    bateriaLibre: j['bateriaLibre'] as bool? ?? false,
+    capturas: (j['capturas'] as num?)?.toInt() ?? 0,
+    conectadoDesde: j['conectadoDesde'] == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(
+            (j['conectadoDesde'] as num).toInt(),
+          ),
+  );
+}
+
 /// Acceso a las notificaciones de pago que recoge el servicio de Android.
 ///
 /// Solo hace algo en Android. En la web y en macOS no existe nada equivalente —ni Apple ni los
@@ -88,6 +136,48 @@ class CapturasAndroid {
       return await _canal.invokeMethod<bool>('abriDesdeElAviso') ?? false;
     } on PlatformException {
       return false;
+    }
+  }
+
+  /// Cómo está de verdad la captura de pagos.
+  ///
+  /// Devuelve nulo fuera de Android.
+  Future<EstadoCaptura?> estado() async {
+    if (!disponible) return null;
+    try {
+      final crudo = await _canal.invokeMapMethod<String, Object?>('estado');
+      return crudo == null ? null : EstadoCaptura.deJson(crudo);
+    } on PlatformException {
+      return null;
+    }
+  }
+
+  /// Pide a Android que vuelva a enganchar el servicio si lo tiene suelto.
+  Future<void> reconectar() async {
+    if (!disponible) return;
+    try {
+      await _canal.invokeMethod<void>('reconectar');
+    } on PlatformException {
+      // Nada que hacer; el estado seguirá mostrando que no está conectado.
+    }
+  }
+
+  /// Publica un aviso de prueba por el mismo camino que los de verdad.
+  Future<void> probarAviso() async {
+    if (!disponible) return;
+    try {
+      await _canal.invokeMethod<void>('probarAviso');
+    } on PlatformException {
+      // Sin permiso de avisos no llegará nada, que es justo lo que la prueba revela.
+    }
+  }
+
+  Future<void> abrirAjustesDeBateria() async {
+    if (!disponible) return;
+    try {
+      await _canal.invokeMethod<void>('abrirAjustesDeBateria');
+    } on PlatformException {
+      // Algunos fabricantes no exponen esa pantalla.
     }
   }
 

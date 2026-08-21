@@ -1,10 +1,12 @@
 package com.axchisan.calculadora_gastos
 
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
 import androidx.core.app.ActivityCompat
+import androidx.core.app.NotificationManagerCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -34,6 +36,13 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Abrir la aplicación es el momento natural para recuperar el servicio si el sistema lo
+        // soltó. No cuesta nada si ya está enganchado.
+        if (tienePermiso()) EscuchaDeNotificaciones.pedirReconexion(this)
+    }
+
     override fun configureFlutterEngine(motor: FlutterEngine) {
         super.configureFlutterEngine(motor)
 
@@ -46,6 +55,22 @@ class MainActivity : FlutterActivity() {
                     respuesta.success(null)
                 }
                 "instalacionLateral" -> respuesta.success(esInstalacionLateral())
+                "estado" -> respuesta.success(estado())
+                "reconectar" -> {
+                    EscuchaDeNotificaciones.pedirReconexion(this)
+                    respuesta.success(null)
+                }
+                "probarAviso" -> {
+                    EscuchaDeNotificaciones.publicarAviso(
+                        this,
+                        "Prueba · si ves esto, los avisos funcionan",
+                    )
+                    respuesta.success(null)
+                }
+                "abrirAjustesDeBateria" -> {
+                    abrirAjustesDeBateria()
+                    respuesta.success(null)
+                }
                 "pedirPermisoDeAvisos" -> {
                     pedirPermisoDeAvisos()
                     respuesta.success(null)
@@ -151,6 +176,51 @@ class MainActivity : FlutterActivity() {
         if (checkSelfPermission(permiso) == PackageManager.PERMISSION_GRANTED) return
 
         ActivityCompat.requestPermissions(this, arrayOf(permiso), 1)
+    }
+
+    /**
+     * Cómo está de verdad la captura de pagos.
+     *
+     * Distingue lo que Android muestra como un solo interruptor pero son dos cosas: que el
+     * permiso esté concedido y que el servicio esté **enganchado**. Puede estar lo primero sin
+     * lo segundo —los fabricantes con gestión agresiva de batería matan el proceso y Android no
+     * siempre lo vuelve a conectar—, y en ese estado no llega ni una captura sin que nada avise.
+     */
+    private fun estado(): Map<String, Any?> {
+        val preferencias = getSharedPreferences(
+            EscuchaDeNotificaciones.ALMACEN,
+            MODE_PRIVATE,
+        )
+        val conectadoDesde = preferencias.getLong(
+            EscuchaDeNotificaciones.CLAVE_CONECTADO, 0,
+        )
+
+        return mapOf(
+            "permiso" to tienePermiso(),
+            "conectadoDesde" to if (conectadoDesde == 0L) null else conectadoDesde,
+            "capturas" to capturas().size,
+            "avisosPermitidos" to NotificationManagerCompat.from(this).areNotificationsEnabled(),
+            "bateriaLibre" to sinRestriccionDeBateria(),
+        )
+    }
+
+    /**
+     * Si el sistema deja a la aplicación funcionar en segundo plano sin restricciones.
+     *
+     * Con la batería optimizada, el fabricante puede matar el servicio y dejar de entregarle
+     * notificaciones. Es la causa más habitual de que la captura funcione un rato y luego deje
+     * de hacerlo sin motivo aparente.
+     */
+    private fun sinRestriccionDeBateria(): Boolean {
+        val energia = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
+        return energia.isIgnoringBatteryOptimizations(packageName)
+    }
+
+    private fun abrirAjustesDeBateria() {
+        startActivity(
+            Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        )
     }
 
     private fun capturas(): List<Map<String, Any?>> {

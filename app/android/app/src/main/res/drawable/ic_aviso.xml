@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Icono del aviso de compra detectada.
+
+  Va aquí y no se reutiliza el del lanzador porque el icono pequeño de una notificación tiene
+  que ser una silueta: Android lo tiñe con el color del sistema y descarta todo menos el canal
+  alfa. Un icono a color se vería como un cuadrado blanco.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFF">
+    <!-- Un billete con el signo de peso: lo mismo que representa la aplicación. -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M3,6h18c0.55,0 1,0.45 1,1v10c0,0.55 -0.45,1 -1,1H3c-0.55,0 -1,-0.45 -1,-1V7C2,6.45 2.45,6 3,6zM4,8v8h16V8H4z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12.5,9.2v0.7c0.9,0.15 1.5,0.7 1.55,1.5h-1.05c-0.05,-0.4 -0.4,-0.7 -1,-0.7c-0.55,0 -0.95,0.25 -0.95,0.65c0,0.35 0.25,0.55 1.05,0.75l0.55,0.15c1.05,0.25 1.55,0.7 1.55,1.5c0,0.85 -0.65,1.4 -1.7,1.55v0.7h-0.9v-0.7c-1,-0.15 -1.65,-0.7 -1.7,-1.55h1.05c0.05,0.4 0.45,0.7 1.1,0.7c0.6,0 1,-0.25 1,-0.65c0,-0.35 -0.25,-0.5 -0.95,-0.7l-0.65,-0.15c-1,-0.25 -1.5,-0.75 -1.5,-1.55c0,-0.8 0.6,-1.35 1.6,-1.5V9.2H12.5z" />
+</vector>

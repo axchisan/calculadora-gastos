@@ -3,8 +3,10 @@ package com.axchisan.calculadora_gastos
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.app.NotificationCompat
@@ -24,6 +26,35 @@ import org.json.JSONObject
  * textos reales sin arrancar un teléfono.
  */
 class EscuchaDeNotificaciones : NotificationListenerService() {
+
+    /**
+     * El sistema acaba de enganchar el servicio. Se deja constancia de cuándo.
+     *
+     * Sin esta marca no había forma de saber desde la aplicación si el servicio estaba vivo o
+     * si Android lo tenía «habilitado» pero sin conectar, que son dos cosas distintas y solo la
+     * segunda explica que no llegue ninguna captura.
+     */
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        getSharedPreferences(ALMACEN, MODE_PRIVATE).edit()
+            .putLong(CLAVE_CONECTADO, System.currentTimeMillis())
+            .apply()
+    }
+
+    /**
+     * El sistema soltó el servicio. Se pide volver a engancharlo.
+     *
+     * Pasa más de lo que debería: los fabricantes con gestión agresiva de batería matan el
+     * proceso y Android no siempre lo vuelve a conectar por su cuenta. Pedirlo explícitamente
+     * es la forma que da la propia API de recuperarse.
+     */
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        getSharedPreferences(ALMACEN, MODE_PRIVATE).edit()
+            .remove(CLAVE_CONECTADO)
+            .apply()
+        requestRebind(ComponentName(this, EscuchaDeNotificaciones::class.java))
+    }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
         if (!esDeInteres(sbn.packageName)) return
@@ -54,7 +85,7 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
             }
         )
 
-        avisar(titulo, texto)
+        if (!yaSeAviso(texto)) publicarAviso(this, resumir(titulo, texto))
     }
 
     private fun esDeInteres(paquete: String): Boolean =
@@ -112,49 +143,6 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
 
     // --- aviso propio ---
 
-    /**
-     * Publica un aviso de que hay una compra por apuntar.
-     *
-     * El texto se toma tal cual del aviso original, recortado. No se interpreta nada aquí a
-     * propósito: la lógica de importes y comercios vive en Dart, y duplicarla en Kotlin solo
-     * para rellenar un texto acabaría con las dos versiones diciendo cosas distintas.
-     */
-    private fun avisar(titulo: String, texto: String) {
-        if (yaSeAviso(texto)) return
-
-        val gestor = NotificationManagerCompat.from(this)
-        if (!gestor.areNotificationsEnabled()) return
-
-        crearCanal()
-
-        val abrirLaApp = PendingIntent.getActivity(
-            this,
-            0,
-            Intent(this, MainActivity::class.java)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                .putExtra(EXTRA_BANDEJA, true),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-
-        val aviso = NotificationCompat.Builder(this, CANAL_AVISOS)
-            .setSmallIcon(android.R.drawable.ic_menu_add)
-            .setContentTitle("Compra detectada")
-            .setContentText(resumir(titulo, texto))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(resumir(titulo, texto)))
-            .setContentIntent(abrirLaApp)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .addAction(0, "Apuntarla", abrirLaApp)
-            .build()
-
-        try {
-            gestor.notify(texto.hashCode(), aviso)
-        } catch (e: SecurityException) {
-            // Sin permiso para publicar avisos. La captura ya quedó guardada, así que la compra
-            // sigue apareciendo en la aplicación al abrirla.
-        }
-    }
-
     /** Lo que se enseña en el aviso: el título si dice algo, y si no la primera frase. */
     private fun resumir(titulo: String, texto: String): String {
         // El SMS del banco arrastra una cola de teléfonos de contacto que no aporta nada.
@@ -194,22 +182,9 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
         return false
     }
 
-    private fun crearCanal() {
-        val canal = NotificationChannel(
-            CANAL_AVISOS,
-            "Compras detectadas",
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply {
-            description = "Avisa de los pagos del teléfono para poder apuntarlos de un toque"
-            setShowBadge(true)
-        }
-        getSystemService(Context.NOTIFICATION_SERVICE).let {
-            (it as NotificationManager).createNotificationChannel(canal)
-        }
-    }
-
     companion object {
         const val ALMACEN = "capturas_de_pago"
+        const val CLAVE_CONECTADO = "conectado_desde"
         const val CLAVE = "pendientes"
         const val EXTRA_BANDEJA = "abrir_bandeja"
 
@@ -241,5 +216,88 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
         val BANCOS = listOf("bancolombia", "nequi", "davivienda", "bbva", "scotiabank")
 
         val MOVIMIENTOS = listOf("compraste", "compra por", "pagaste", "retiraste", "transferiste")
+
+        /**
+         * Publica el aviso de que hay una compra por apuntar.
+         *
+         * Vive en el companion para que la aplicación pueda usar el mismo camino al probar el
+         * aviso: si la prueba llega, el problema está en la captura, y si no llega, en los
+         * permisos. Sin eso, diagnosticar por qué no aparece nada es adivinar.
+         */
+        fun publicarAviso(contexto: Context, resumen: String) {
+            val gestor = NotificationManagerCompat.from(contexto)
+            if (!gestor.areNotificationsEnabled()) return
+
+            crearCanal(contexto)
+
+            val abrirLaApp = PendingIntent.getActivity(
+                contexto,
+                0,
+                Intent(contexto, MainActivity::class.java)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                    .putExtra(EXTRA_BANDEJA, true),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+
+            val aviso = NotificationCompat.Builder(contexto, CANAL_AVISOS)
+                // El icono pequeño tiene que ser una silueta propia: Android lo tiñe y descarta
+                // todo menos el canal alfa.
+                .setSmallIcon(R.drawable.ic_aviso)
+                .setContentTitle("Compra detectada")
+                .setContentText(resumen)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(resumen))
+                .setContentIntent(abrirLaApp)
+                .setAutoCancel(true)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .build()
+
+            try {
+                gestor.notify(resumen.hashCode(), aviso)
+            } catch (e: SecurityException) {
+                // Sin permiso para publicar. La captura ya quedó guardada, así que la compra
+                // sigue apareciendo en la aplicación al abrirla.
+            }
+        }
+
+        private fun crearCanal(contexto: Context) {
+            val canal = NotificationChannel(
+                CANAL_AVISOS,
+                "Compras detectadas",
+                NotificationManager.IMPORTANCE_DEFAULT,
+            ).apply {
+                description = "Avisa de los pagos del teléfono para apuntarlos de un toque"
+                setShowBadge(true)
+            }
+            val gestor = contexto.getSystemService(Context.NOTIFICATION_SERVICE)
+            (gestor as NotificationManager).createNotificationChannel(canal)
+        }
+
+        /**
+         * Pide a Android que vuelva a enganchar el servicio si lo tiene suelto.
+         *
+         * Se hacen dos cosas porque una sola no siempre basta. `requestRebind` es la vía que da
+         * la API, pero solo surte efecto si el sistema llegó a conectar el servicio alguna vez.
+         * Apagar y encender el componente obliga a Android a reevaluarlo desde cero, y es lo que
+         * lo recupera cuando quedó habilitado pero sin conectar nunca —el estado en el que no
+         * llega ni una captura y nada lo advierte.
+         */
+        fun pedirReconexion(contexto: Context) {
+            val componente = ComponentName(contexto, EscuchaDeNotificaciones::class.java)
+
+            contexto.packageManager.apply {
+                setComponentEnabledSetting(
+                    componente,
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+                setComponentEnabledSetting(
+                    componente,
+                    PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
+                    PackageManager.DONT_KILL_APP,
+                )
+            }
+
+            requestRebind(componente)
+        }
     }
 }

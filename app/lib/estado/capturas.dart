@@ -20,6 +20,11 @@ final permisoCapturaProvider = FutureProvider<bool>(
   (ref) => ref.watch(capturasAndroidProvider).permisoConcedido(),
 );
 
+/// Cómo está de verdad la captura de pagos, con el detalle de qué falta.
+final estadoCapturaProvider = FutureProvider<EstadoCaptura?>(
+  (ref) => ref.watch(capturasAndroidProvider).estado(),
+);
+
 /// Si la aplicación se instaló desde un APK y no desde una tienda.
 ///
 /// Android 13 bloquea el acceso a notificaciones en ese caso: el interruptor aparece apagado y
