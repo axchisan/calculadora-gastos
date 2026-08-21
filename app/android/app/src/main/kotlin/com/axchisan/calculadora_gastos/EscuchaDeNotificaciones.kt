@@ -39,6 +39,32 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
         getSharedPreferences(ALMACEN, MODE_PRIVATE).edit()
             .putLong(CLAVE_CONECTADO, System.currentTimeMillis())
             .apply()
+
+        revisarLoQueYaEstaEnLaBandeja()
+    }
+
+    /**
+     * Recoge las compras que ya estaban en la bandeja de notificaciones al conectar.
+     *
+     * Sin esto se perdía una compra entera por un minuto de diferencia: el servicio se engancha
+     * cuando se abre la aplicación o cuando arranca el teléfono, y todo lo que hubiera llegado
+     * antes de ese instante no se veía nunca, aunque siguiera ahí en pantalla.
+     *
+     * No se avisa de lo que se recoge aquí. Conectar pasa al abrir la aplicación —con el usuario
+     * ya delante— o al arrancar el teléfono, y en ese caso soltarle de golpe los avisos de todo
+     * lo pendiente sería una avalancha inútil. Las compras aparecen en la bandeja igual.
+     */
+    private fun revisarLoQueYaEstaEnLaBandeja() {
+        val enPantalla = try {
+            activeNotifications
+        } catch (e: SecurityException) {
+            // El sistema todavía no considera conectado el servicio.
+            return
+        } ?: return
+
+        for (notificacion in enPantalla) {
+            capturar(notificacion, avisar = false)
+        }
     }
 
     /**
@@ -57,6 +83,16 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification) {
+        capturar(sbn, avisar = true)
+    }
+
+    /**
+     * Guarda una notificación de pago, y avisa si procede.
+     *
+     * @param avisar falso al repasar lo que ya estaba en la bandeja, donde avisar de todo de
+     *               golpe sería una avalancha
+     */
+    private fun capturar(sbn: StatusBarNotification, avisar: Boolean) {
         if (!esDeInteres(sbn.packageName)) return
 
         val extras = sbn.notification.extras
@@ -85,7 +121,7 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
             }
         )
 
-        if (!yaSeAviso(texto)) publicarAviso(this, resumir(titulo, texto))
+        if (avisar && !yaSeAviso(texto)) publicarAviso(this, resumir(titulo, texto))
     }
 
     private fun esDeInteres(paquete: String): Boolean =

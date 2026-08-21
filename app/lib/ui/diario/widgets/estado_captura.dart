@@ -85,9 +85,11 @@ class _Detalle extends ConsumerWidget {
           ),
           _Punto(
             listo: estado.enganchado,
+            // Con la hora, no solo la fecha: fue justo eso lo que reveló que el servicio se
+            // había conectado un minuto después de la compra que no detectó.
             texto: estado.enganchado
-                ? 'Servicio conectado desde '
-                      '${Formato.fechaCorta(estado.conectadoDesde!)}'
+                ? 'Servicio conectado desde las '
+                      '${Formato.horaYFecha(estado.conectadoDesde!)}'
                 : 'Servicio conectado',
             // Es el punto que Android no enseña en ninguna parte y el que más falla.
             pista: estado.permiso && !estado.enganchado

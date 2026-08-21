@@ -224,6 +224,39 @@ y la tarjeta ya puestos. Solo queda elegir la categoría.
 Si una notificación menciona una tarjeta que la aplicación no conoce, lo dice en vez de
 adivinar: sin identificarla no se sabe si el pago fue con débito o con crédito.
 
+## Habilitado no es lo mismo que conectado
+
+Android presenta como un único interruptor dos cosas distintas, y confundirlas cuesta horas:
+
+- que el **permiso** esté concedido, y
+- que el servicio esté **enganchado**.
+
+Se puede tener lo primero sin lo segundo. En ese estado no llega ni una notificación al
+servicio, y nada lo advierte: ni un error en pantalla, ni una línea en el registro. Todo parece
+correcto y nada funciona. Solo se ve comparando dos listas de `dumpsys notification`:
+
+```
+Habilitadas:  ...calculadora_gastos/EscuchaDeNotificaciones  ✓
+Vivas (9):    biometrics, systemui, hihonor.systemmanager…   ✗
+```
+
+Se recupera de tres formas, porque ninguna basta sola:
+
+| Cuándo | Qué |
+|---|---|
+| Al abrir la aplicación | `requestRebind`, más apagar y encender el componente para que Android lo reevalúe desde cero |
+| Al arrancar el teléfono | Un receptor de `BOOT_COMPLETED` que pide la reconexión |
+| Al soltarlo el sistema | El propio servicio se repide en `onListenerDisconnected` |
+
+**Y al conectar se repasa lo que ya está en la bandeja.** Es lo que evita perder una compra por
+un minuto de diferencia: el servicio se engancha al abrir la aplicación, y sin ese repaso todo
+lo que hubiera llegado antes no se veía nunca, aunque siguiera ahí en pantalla. De lo que se
+recoge así no se avisa: sería una avalancha de avisos viejos.
+
+La pantalla de estado, dentro de Gastos diarios → Tarjetas, enseña los cuatro puntos por
+separado y trae un botón para publicar un aviso de prueba por el mismo camino que los de verdad.
+Si la prueba llega y las compras no, el problema está en la captura y no en los permisos.
+
 ## Lo que queda fuera
 
 - **Solo Android.** En la web y en macOS el registro sigue siendo a mano.
