@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # El número tras el '+' es el código de versión de Android, que debe subir en cada publicación
 # aunque el nombre de versión no cambie.
-version: 1.3.0+5
+version: 1.3.2+7
 
 environment:
   sdk: ^3.12.2

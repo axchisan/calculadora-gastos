@@ -6,6 +6,7 @@ import '../../../datos/cliente_api.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/capturas.dart';
 import '../../../estado/compras.dart';
+import 'estado_captura.dart';
 import 'guia_permiso.dart';
 
 /// Alta y edición de las tarjetas con las que se paga.
@@ -81,6 +82,7 @@ class GestionTarjetas extends ConsumerWidget {
 
           const SizedBox(height: 8),
           const _PermisoDeCapturas(),
+          const EstadoDeLaCaptura(),
         ],
       ),
     );
