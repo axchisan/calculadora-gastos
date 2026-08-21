@@ -30,6 +30,7 @@ class Formato {
   static final DateFormat _fechaCorta = DateFormat('d MMM', _localeCo);
   static final DateFormat _mesYAnio = DateFormat('MMMM y', _localeCo);
   static final DateFormat _diaSemana = DateFormat('EEEE', _localeCo);
+  static final DateFormat _hora = DateFormat('HH:mm', _localeCo);
 
   /// `$3.174.000`
   static String dinero(num valor) => _moneda.format(valor);
@@ -48,6 +49,10 @@ class Formato {
   /// `53,4%`
   static String porcentaje(num valor) =>
       '${_numero.format(valor.toDouble().roundToDouble() == valor ? valor : double.parse(valor.toStringAsFixed(1)))}%';
+
+  /// `10:16 del 21 ago`
+  static String horaYFecha(DateTime valor) =>
+      '${_hora.format(valor)} del ${fechaCorta(valor)}';
 
   /// `17 de agosto de 2026`
   static String fecha(DateTime valor) => _fechaLarga.format(valor);
