@@ -104,15 +104,29 @@ class FormatoDeImporte extends TextInputFormatter {
     TextEditingValue anterior,
     TextEditingValue nuevo,
   ) {
-    // Se admite un único separador decimal, y solo dos cifras detrás: no existe medio centavo.
     final limpio = nuevo.text.replaceAll(RegExp(r'[^\d,.]'), '');
-    final unificado = limpio.replaceAll('.', _coma);
 
-    final partes = unificado.split(_coma);
-    final entero = partes.first.replaceAll(RegExp(r'\D'), '');
-    final decimales = partes.length > 1
-        ? partes[1].replaceAll(RegExp(r'\D'), '')
-        : null;
+    // Dónde separa este texto la parte entera de los centavos, si es que ya los separa.
+    //
+    // El texto que llega no es lo que ha tecleado el usuario, sino lo que este mismo formateador
+    // dejó escrito hace un instante más la última tecla. Por eso no vale tomar cualquier punto
+    // por separador decimal: los puntos que ya están ahí son los separadores de miles que puso
+    // él mismo, y confundirlos convertía 192.729 en 1,92 en cuanto se tecleaba la coma.
+    var corte = limpio.lastIndexOf(_coma);
+    if (corte == -1) {
+      final punto = limpio.lastIndexOf('.');
+      // Sin coma, un punto sí puede ser la coma decimal de un teclado en inglés. Se distingue
+      // por lo que lleva detrás: un separador de miles siempre arrastra tres cifras. Y donde no
+      // hay miles que separar, como en una tasa, todo punto es decimal.
+      final esDeMiles = separadorDeMiles && limpio.length - punto - 1 >= 3;
+      if (punto != -1 && !esDeMiles) corte = punto;
+    }
+
+    final entero = (corte == -1 ? limpio : limpio.substring(0, corte))
+        .replaceAll(RegExp(r'\D'), '');
+    final decimales = corte == -1
+        ? null
+        : limpio.substring(corte + 1).replaceAll(RegExp(r'\D'), '');
 
     if (entero.isEmpty && decimales == null) {
       return const TextEditingValue();

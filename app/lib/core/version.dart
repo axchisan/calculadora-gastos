@@ -22,10 +22,6 @@ class VersionApp {
   /// Número de compilación, el que sube en cada publicación de Android.
   final String compilacion;
 
-  /// `1.6.0 (10)`, o solo la versión si la plataforma no da número de compilación.
-  String get etiqueta =>
-      compilacion.isEmpty ? version : '$version ($compilacion)';
-
   /// Plataforma en la que se está ejecutando, en palabras.
   static String get plataforma {
     if (kIsWeb) return 'Web';
