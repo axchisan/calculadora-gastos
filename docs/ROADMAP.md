@@ -33,7 +33,7 @@ pantalla.
 - [x] Creación de un mes a partir de las plantillas de gastos fijos
 - [x] Endpoints REST y documentación OpenAPI
 - [x] Cuotas de deuda proyectadas dentro del cupo comprometido del mes
-- [x] 223 pruebas cubriendo los motores y la API completa
+- [x] 247 pruebas cubriendo los motores y la API completa
 
 **El backend está terminado.** Ver [API.md](API.md).
 
@@ -62,7 +62,10 @@ pantalla.
 - [x] Deudas filtradas por el mes al que corresponden
 - [x] Captura automática de los pagos con el teléfono — ver
       [CAPTURA-DE-PAGOS.md](CAPTURA-DE-PAGOS.md)
-- [ ] Leer también los SMS del banco, para las compras con la tarjeta física
+- [x] Leer también los SMS del banco, para las compras con la tarjeta física
+- [x] Servicio en primer plano opcional, para que la detección no dependa de abrir la app
+- [x] Créditos con cuadro de amortización y simulación de abonos extraordinarios
+- [x] Importes con centavos y compras fechadas en el mes anterior
 
 ## Fase 5 — Gráficas
 
