@@ -172,10 +172,18 @@ class _TarjetaPago extends ConsumerWidget {
     final periodo = ref.read(periodoProvider);
     final pago = pendiente.pago;
 
-    // La compra se registra en el mes en que se hizo. Si la captura es de un mes que no es el
-    // que se está viendo, se avisa en vez de guardarla donde no toca.
-    if (pago.instante.year != periodo.year ||
-        pago.instante.month != periodo.month) {
+    // Una compra se imputa al mes que se está viendo aunque su fecha sea del anterior, que es
+    // lo normal a fin de mes. Solo se rechaza lo que queda demasiado atrás: ahí es más probable
+    // que sea una captura vieja olvidada en la bandeja que algo que se quiera apuntar aquí.
+    final mesAnterior = DateTime(periodo.year, periodo.month - 1);
+    final esDelMes =
+        pago.instante.year == periodo.year &&
+        pago.instante.month == periodo.month;
+    final esDelAnterior =
+        pago.instante.year == mesAnterior.year &&
+        pago.instante.month == mesAnterior.month;
+
+    if (!esDelMes && !esDelAnterior) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

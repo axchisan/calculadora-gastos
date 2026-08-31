@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/dinero.dart';
 import '../../../core/formato.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/compras.dart';
@@ -39,7 +40,10 @@ class FormularioCompra extends ConsumerStatefulWidget {
     super.key,
   });
 
-  /// Mes al que pertenece la compra: la fecha tiene que caer dentro.
+  /// Mes presupuestal al que se imputa la compra.
+  ///
+  /// La fecha puede ser de ese mes o del anterior: quien cobra el 28 imputa a septiembre lo que
+  /// compra desde esa fecha, aunque el calendario diga agosto.
   final DateTime periodo;
 
   /// Si se pasa, el formulario edita esa compra en lugar de crear una nueva.
@@ -78,9 +82,9 @@ class _FormularioCompraState extends ConsumerState<FormularioCompra> {
 
     _monto = TextEditingController(
       text: compra != null
-          ? compra.monto.round().toString()
+          ? Dinero.paraEditar(compra.monto)
           : inicial != null
-          ? inicial.monto.round().toString()
+          ? Dinero.paraEditar(inicial.monto)
           : '',
     );
     _descripcion = TextEditingController(
@@ -142,15 +146,22 @@ class _FormularioCompraState extends ConsumerState<FormularioCompra> {
               TextFormField(
                 controller: _monto,
                 autofocus: !_editando,
-                keyboardType: const TextInputType.numberWithOptions(),
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                // Se admiten coma y punto: un importe con centavos se teclea «192.729,03» y
+                // hay teclados que solo ofrecen el punto.
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
+                ],
                 style: tema.textTheme.headlineMedium,
                 decoration: const InputDecoration(
                   prefixText: r'$ ',
                   labelText: 'Cuánto',
+                  hintText: '11.500 o 192.729,03',
                 ),
                 validator: (valor) {
-                  final monto = double.tryParse(valor ?? '');
+                  final monto = Dinero.interpretar(valor ?? '');
                   if (monto == null || monto <= 0) return 'Escribe el importe';
                   return null;
                 },
@@ -315,11 +326,13 @@ class _FormularioCompraState extends ConsumerState<FormularioCompra> {
       context,
       DatosCompra(
         descripcion: _descripcion.text.trim(),
-        monto: double.parse(_monto.text),
+        monto: Dinero.interpretar(_monto.text)!,
         categoria: _categoria,
         fecha: _fecha,
         medio: _medio,
-        tarjetaId: _medio == MedioPago.credito ? _tarjetaId : null,
+        // La tarjeta se conserva también con débito. No hace falta para calcular nada, pero es
+        // el dato que dice de qué cuenta salió el dinero, y tirarlo empobrecía la compra.
+        tarjetaId: _tarjetaId,
       ),
     );
   }
@@ -394,7 +407,9 @@ class _SelectorFecha extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primero = DateTime(periodo.year, periodo.month, 1);
+    // Se abre desde el primer día del mes anterior: el mes presupuestal no coincide con el del
+    // calendario y las compras de finales del mes pasado se imputan a este.
+    final primero = DateTime(periodo.year, periodo.month - 1, 1);
     // El día cero del mes siguiente es el último de este, sin tener que saber cuántos tiene.
     final ultimo = DateTime(periodo.year, periodo.month + 1, 0);
 
@@ -410,7 +425,13 @@ class _SelectorFecha extends StatelessWidget {
         if (elegida != null) alCambiar(elegida);
       },
       icon: const Icon(Icons.calendar_today_outlined, size: 18),
-      label: Text(Formato.fecha(fecha)),
+      label: Text(
+        // Se avisa cuando la compra es de otro mes: es correcto, pero conviene verlo.
+        fecha.month == periodo.month && fecha.year == periodo.year
+            ? Formato.fecha(fecha)
+            : '${Formato.fecha(fecha)}  ·  se imputa a '
+                  '${Formato.mesYAnio(periodo).toLowerCase()}',
+      ),
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(48),
         alignment: Alignment.centerLeft,

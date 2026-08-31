@@ -199,15 +199,26 @@ public class ServicioCompras {
     }
 
     /**
-     * Una compra tiene que caer dentro del mes en el que se registra.
+     * Una compra puede caer en el mes en que se registra o en el anterior.
      *
-     * <p>Sin esto sería fácil apuntar en agosto algo comprado en septiembre, y el mes de pago
-     * saldría mal sin que nada avisara.
+     * <p>El mes presupuestal no coincide con el del calendario. Quien cobra el 28 empieza a
+     * imputar a septiembre lo que compra desde esa fecha, aunque el calendario diga agosto.
+     * Exigir que la fecha cayera dentro del mes obligaba a mentir sobre el día de la compra, y
+     * con crédito eso además desplaza el mes de pago.
+     *
+     * <p>Se admite un mes hacia atrás y no cualquier fecha porque el límite sigue sirviendo
+     * para lo que se puso: cazar un año o un mes tecleado mal.
      */
     private void exigirQueLaFechaCaigaEnElMes(MesPresupuestal mes, LocalDate fecha) {
-        if (!YearMonth.from(fecha).equals(mes.periodo())) {
+        YearMonth periodo = mes.periodo();
+        YearMonth deLaCompra = YearMonth.from(fecha);
+
+        boolean cabe = deLaCompra.equals(periodo) || deLaCompra.equals(periodo.minusMonths(1));
+        if (!cabe) {
             throw new IllegalArgumentException(
-                    "La compra es del " + fecha + " y el mes es " + mes.periodo());
+                    "La compra es del " + fecha + ", y en el mes " + periodo
+                            + " solo caben compras de " + periodo.minusMonths(1)
+                            + " en adelante");
         }
     }
 }

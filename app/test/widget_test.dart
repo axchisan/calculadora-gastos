@@ -1,3 +1,4 @@
+import 'package:calculadora_gastos/core/dinero.dart';
 import 'package:calculadora_gastos/core/formato.dart';
 import 'package:calculadora_gastos/dominio/modelos.dart';
 import 'package:calculadora_gastos/estado/modo_vista.dart';
@@ -320,6 +321,59 @@ void main() {
       );
       expect(gasto.origen, OrigenGasto.transporte);
       expect(gasto.editable, isFalse);
+    });
+  });
+
+  group('Importes con centavos', () {
+    test('las cifras redondas se muestran sin decimales', () {
+      // El peso se maneja en cifras redondas y arrastrar «,00» detrás de cada importe
+      // emborrona la lectura de una lista entera.
+      expect(Formato.dinero(11500), r'$11.500');
+      expect(Formato.dinero(3174000), r'$3.174.000');
+    });
+
+    test('y con decimales cuando los tienen', () {
+      // Un plan de pagos sí los trae, y redondearlos descuadraría contra el papel del banco.
+      expect(Formato.dinero(192729.03), r'$192.729,03');
+      expect(Formato.dinero(404304.50), r'$404.304,50');
+    });
+
+    test('reconoce cuándo hay centavos de verdad', () {
+      expect(Formato.tieneCentavos(192729.03), isTrue);
+      // En coma flotante 11500.0 puede no ser exacto; la comprobación va sobre céntimos.
+      expect(Formato.tieneCentavos(11500), isFalse);
+      expect(Formato.tieneCentavos(0.1 + 0.2), isTrue);
+    });
+
+    test(
+      'el formato exacto siempre los enseña, para columnas que deben cuadrar',
+      () {
+        expect(Formato.dineroExacto(11500), r'$11.500,00');
+      },
+    );
+  });
+
+  group('Interpretar lo que se teclea', () {
+    test('acepta el formato colombiano', () {
+      expect(Dinero.interpretar('192.729,03'), 192729.03);
+      expect(Dinero.interpretar('11.500'), 11500);
+    });
+
+    test('y el que sale de un teclado con punto', () {
+      expect(Dinero.interpretar('192729.03'), 192729.03);
+      expect(Dinero.interpretar('11500'), 11500);
+    });
+
+    test('lo que se escribe en el campo vuelve igual', () {
+      // Editar una compra no debe cambiarle el importe por el camino.
+      for (final valor in [11500.0, 192729.03, 0.5, 404304.50]) {
+        expect(Dinero.interpretar(Dinero.paraEditar(valor)), valor);
+      }
+    });
+
+    test('una cifra redonda se edita sin decimales de adorno', () {
+      expect(Dinero.paraEditar(11500), '11500');
+      expect(Dinero.paraEditar(192729.03), '192729,03');
     });
   });
 
