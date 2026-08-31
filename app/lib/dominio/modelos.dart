@@ -318,6 +318,8 @@ class ResumenMensual {
     required this.comprasACredito,
     required this.cortesTarjetaPendientes,
     required this.cortesTarjetaPagados,
+    required this.cuotasCreditoPendientes,
+    required this.cuotasCreditoPagadas,
     required this.porCategoria,
   });
 
@@ -380,6 +382,12 @@ class ResumenMensual {
   /// Cortes que vencían este mes y ya se saldaron.
   final double cortesTarjetaPagados;
 
+  /// Cuotas de créditos que vencen este mes y siguen sin pagar.
+  final double cuotasCreditoPendientes;
+
+  /// Cuotas de créditos que vencían este mes y ya se pagaron.
+  final double cuotasCreditoPagadas;
+
   final List<TotalCategoria> porCategoria;
 
   bool get cierraEnPositivo => saldoProyectado >= 0;
@@ -405,7 +413,8 @@ class ResumenMensual {
       abonosDeuda +
       aporteAhorro +
       comprasInmediatas +
-      cortesTarjetaPagados;
+      cortesTarjetaPagados +
+      cuotasCreditoPagadas;
 
   /// Indica si hay algo cargado a crédito este mes que se pagará más adelante.
   ///
@@ -463,6 +472,10 @@ class ResumenMensual {
           (j['cortesTarjetaPendientes'] as num?)?.toDouble() ?? 0,
       cortesTarjetaPagados:
           (j['cortesTarjetaPagados'] as num?)?.toDouble() ?? 0,
+      cuotasCreditoPendientes:
+          (j['cuotasCreditoPendientes'] as num?)?.toDouble() ?? 0,
+      cuotasCreditoPagadas:
+          (j['cuotasCreditoPagadas'] as num?)?.toDouble() ?? 0,
       porCategoria: (j['porCategoria'] as List<dynamic>)
           .map((e) => TotalCategoria.deJson(e as Map<String, dynamic>))
           .toList(),

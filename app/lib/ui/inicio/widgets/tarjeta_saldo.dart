@@ -345,7 +345,8 @@ class _DetalleSalidas extends StatelessWidget {
         resumen.aporteAhorro > 0 ||
         resumen.cuotasDeudaPendientes > 0 ||
         resumen.comprasDelMes > 0 ||
-        resumen.cortesTarjetaPendientes > 0;
+        resumen.cortesTarjetaPendientes > 0 ||
+        resumen.cuotasCreditoPendientes > 0;
     if (!hayAlgoQueDesglosar) return const SizedBox.shrink();
 
     return Padding(
@@ -370,6 +371,13 @@ class _DetalleSalidas extends StatelessWidget {
               icono: Icons.credit_card,
               etiqueta: 'Corte de tarjeta por pagar',
               valor: resumen.cortesTarjetaPendientes,
+              color: Tema.negativo,
+            ),
+          if (resumen.cuotasCreditoPendientes > 0)
+            _Linea(
+              icono: Icons.account_balance,
+              etiqueta: 'Cuota de crédito por pagar',
+              valor: resumen.cuotasCreditoPendientes,
               color: Tema.negativo,
             ),
           if (resumen.comprasInmediatas > 0)
@@ -461,11 +469,13 @@ class _DetalleCompromisos extends StatelessWidget {
     final faltanCuotas = resumen.deudasSinCuota > 0;
     final hayTarjetas = resumen.cortesTarjetaPendientes > 0;
     final hayCompras = resumen.comprasInmediatas > 0;
+    final hayCredito = resumen.cuotasCreditoPendientes > 0;
 
     if (!hayCuotas &&
         !faltanCuotas &&
         !hayTarjetas &&
         !hayCompras &&
+        !hayCredito &&
         resumen.aporteAhorro == 0) {
       return const SizedBox.shrink();
     }
@@ -493,6 +503,13 @@ class _DetalleCompromisos extends StatelessWidget {
               icono: Icons.credit_card,
               etiqueta: 'Corte de tarjeta',
               valor: resumen.cortesTarjetaPendientes,
+              color: Tema.negativo,
+            ),
+          if (hayCredito)
+            _Linea(
+              icono: Icons.account_balance,
+              etiqueta: 'Cuota de crédito',
+              valor: resumen.cuotasCreditoPendientes,
               color: Tema.negativo,
             ),
           if (resumen.abonosDeuda > 0)

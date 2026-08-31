@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
+import '../../dominio/credito.dart';
 import '../../dominio/modelos.dart';
+import '../../estado/creditos.dart';
 import '../../estado/deudas.dart';
 import '../../estado/mes.dart';
+import '../creditos/pantalla_credito.dart';
 import 'widgets/detalle_deuda.dart';
 import 'widgets/formulario_deuda.dart';
 
@@ -106,6 +109,10 @@ class _Contenido extends ConsumerWidget {
               _Resumen(datos: datos),
               const SizedBox(height: 20),
 
+              // Los créditos van arriba: son deudas también, pero con un plan cerrado detrás y
+              // mucho más dinero en juego que un préstamo entre amigos.
+              const _Creditos(),
+
               if (datos.activas.isNotEmpty) ...[
                 _Encabezado(
                   titulo: 'Pendientes',
@@ -129,6 +136,137 @@ class _Contenido extends ConsumerWidget {
                   _TarjetaDeuda(deuda: deuda),
                   const SizedBox(height: 10),
                 ],
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Los créditos con cuadro de amortización, que son deudas de otra naturaleza.
+class _Creditos extends ConsumerWidget {
+  const _Creditos();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref
+        .watch(creditosProvider)
+        .maybeWhen(
+          data: (creditos) {
+            if (creditos.isEmpty) return const SizedBox.shrink();
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _Encabezado(titulo: 'Créditos', cantidad: creditos.length),
+                const SizedBox(height: 8),
+                for (final credito in creditos) ...[
+                  _TarjetaCredito(credito: credito),
+                  const SizedBox(height: 10),
+                ],
+                const SizedBox(height: 12),
+              ],
+            );
+          },
+          // Un fallo aquí no debe tapar las deudas, que es lo principal de la pantalla.
+          orElse: () => const SizedBox.shrink(),
+        );
+  }
+}
+
+class _TarjetaCredito extends StatelessWidget {
+  const _TarjetaCredito({required this.credito});
+
+  final Credito credito;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => PantallaCredito(credito: credito),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.account_balance,
+                    size: 20,
+                    color: tema.colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      credito.entidad,
+                      style: tema.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    Formato.dinero(credito.saldo),
+                    style: tema.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: Tema.negativo,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: SizedBox(
+                  height: 6,
+                  child: Stack(
+                    children: [
+                      Container(
+                        color: tema.colorScheme.surfaceContainerHighest,
+                      ),
+                      FractionallySizedBox(
+                        widthFactor: (credito.porcentajePagado / 100).clamp(
+                          0.0,
+                          1.0,
+                        ),
+                        child: Container(color: Tema.positivo),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                [
+                  '${credito.cuotasPagadas} de ${credito.cuotasTotales} cuotas',
+                  if (credito.proximaCuota case final proxima?)
+                    'próxima el ${Formato.fechaCorta(proxima.fecha)} '
+                        'por ${Formato.dinero(proxima.valorCuota)}',
+                ].join(' · '),
+                style: tema.textTheme.bodySmall?.copyWith(
+                  color: tema.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (credito.tieneVencidas) ...[
+                const SizedBox(height: 6),
+                Text(
+                  credito.cuotasVencidas == 1
+                      ? 'Una cuota vencida'
+                      : '${credito.cuotasVencidas} cuotas vencidas',
+                  style: tema.textTheme.bodySmall?.copyWith(
+                    color: Tema.negativo,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
               ],
             ],
           ),
