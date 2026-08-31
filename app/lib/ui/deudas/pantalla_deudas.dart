@@ -91,7 +91,14 @@ class _Contenido extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (datos.deudas.isEmpty) return const _SinDeudas();
+    // Los créditos se listan aparte de las deudas, así que un mes sin deudas puede tener
+    // igualmente un crédito vivo. Cortar aquí por las deudas lo dejaba invisible: en septiembre
+    // no había ninguna deuda y Bancamía desaparecía de la pantalla.
+    final hayCreditos = ref
+        .watch(creditosProvider)
+        .maybeWhen(data: (lista) => lista.isNotEmpty, orElse: () => false);
+
+    if (datos.deudas.isEmpty && !hayCreditos) return const _SinDeudas();
 
     final anchoMaximo = Pantalla.esEscritorio(context)
         ? 720.0

@@ -5,6 +5,8 @@
 /// veces garantizaría que las dos versiones acabaran discrepando.
 library;
 
+import 'package:flutter/services.dart';
+
 class Dinero {
   const Dinero._();
 
@@ -46,11 +48,76 @@ class Dinero {
 
   /// Cómo se escribe un importe dentro de un campo de texto editable.
   ///
-  /// Sin separadores de miles, porque estorban al corregir una cifra, y con la coma decimal
-  /// que es la que se teclea en Colombia. Los centavos solo aparecen si los hay.
+  /// Con los separadores de miles puestos, igual que quedaría al teclearlo: un campo que se
+  /// abre con `192729` y pasa a `192.729` en cuanto se toca una tecla desconcierta. Los
+  /// centavos solo aparecen si los hay.
   static String paraEditar(double valor) {
     final centavos = (valor * 100).round();
-    if (centavos % 100 == 0) return (centavos ~/ 100).toString();
-    return (centavos / 100).toStringAsFixed(2).replaceAll('.', ',');
+    final entero = FormatoDeImporte.conSeparadores('${centavos ~/ 100}');
+
+    if (centavos % 100 == 0) return entero;
+    return '$entero,${(centavos % 100).toString().padLeft(2, '0')}';
+  }
+}
+
+/// Va poniendo los puntos de miles mientras se teclea un importe.
+///
+/// Sin esto, escribir 192729 obliga a contar las cifras a ojo para saber si son ciento noventa
+/// mil o un millón novecientos. Con el separador puesto sobre la marcha, el error de un cero de
+/// más se ve en el momento en lugar de descubrirse al revisar las cuentas.
+class FormatoDeImporte extends TextInputFormatter {
+  const FormatoDeImporte();
+
+  /// El separador decimal que se teclea en Colombia.
+  static const String _coma = ',';
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue anterior,
+    TextEditingValue nuevo,
+  ) {
+    // Se admite un único separador decimal, y solo dos cifras detrás: no existe medio centavo.
+    final limpio = nuevo.text.replaceAll(RegExp(r'[^\d,.]'), '');
+    final unificado = limpio.replaceAll('.', _coma);
+
+    final partes = unificado.split(_coma);
+    final entero = partes.first.replaceAll(RegExp(r'\D'), '');
+    final decimales = partes.length > 1
+        ? partes[1].replaceAll(RegExp(r'\D'), '')
+        : null;
+
+    if (entero.isEmpty && decimales == null) {
+      return const TextEditingValue();
+    }
+
+    final buffer = StringBuffer(conSeparadores(entero));
+    if (decimales != null) {
+      // Se conserva la coma aunque todavía no haya cifras detrás: quien acaba de teclearla
+      // está a mitad de escribir los centavos, y borrársela sería pelearse con el usuario.
+      buffer
+        ..write(_coma)
+        ..write(decimales.length > 2 ? decimales.substring(0, 2) : decimales);
+    }
+
+    final texto = buffer.toString();
+    return TextEditingValue(
+      text: texto,
+      // El cursor se deja al final. Mantener su posición exacta al reescribir el texto es
+      // frágil y aquí no aporta: se escribe de izquierda a derecha y se corrige borrando.
+      selection: TextSelection.collapsed(offset: texto.length),
+    );
+  }
+
+  /// `192729` → `192.729`
+  static String conSeparadores(String digitos) {
+    if (digitos.length <= 3) return digitos;
+
+    final buffer = StringBuffer();
+    for (var i = 0; i < digitos.length; i++) {
+      // Un punto cada tres cifras contando desde la derecha.
+      if (i > 0 && (digitos.length - i) % 3 == 0) buffer.write('.');
+      buffer.write(digitos[i]);
+    }
+    return buffer.toString();
   }
 }

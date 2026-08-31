@@ -253,6 +253,96 @@ class ComprasDiariasTest {
                 .andExpect(jsonPath("$.cortesTarjetaPendientes").value(100000));
     }
 
+    /**
+     * Recargar la tarjeta del bus cuesta una comisión fija por operación, así que recargar de a
+     * poco sale más caro. Ese cargo se perdía: el gasto de transporte reflejaba solo los pasajes.
+     */
+    @Test
+    void abonar_al_transporte_apunta_la_comision_de_recarga() throws Exception {
+        // Se prepara el transporte del mes con su comisión.
+        mvc.perform(auth(patch("/api/meses/" + agosto + "/transporte/configuracion"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"valorPasaje\":3550,\"comisionRecarga\":230}"))
+                .andExpect(status().isOk());
+
+        String transporte = idDelGastoDeTransporte(agosto);
+
+        mvc.perform(auth(post("/api/gastos/" + transporte + "/abonar"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"importe\":20000,\"fecha\":\"2026-08-10\"}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(auth(get("/api/meses/" + agosto + "/compras")))
+                .andExpect(jsonPath("$.total").value(230))
+                .andExpect(jsonPath("$.compras[0].descripcion").value("Comisión de recarga"))
+                .andExpect(jsonPath("$.compras[0].categoria").value("COMISIONES"))
+                .andExpect(jsonPath("$.compras[0].fecha").value("2026-08-10"));
+    }
+
+    @Test
+    void cada_recarga_apunta_su_propia_comision() throws Exception {
+        mvc.perform(auth(patch("/api/meses/" + agosto + "/transporte/configuracion"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"valorPasaje\":3550,\"comisionRecarga\":230}"))
+                .andExpect(status().isOk());
+
+        String transporte = idDelGastoDeTransporte(agosto);
+        for (final String dia : new String[] {"2026-08-05", "2026-08-12", "2026-08-19"}) {
+            mvc.perform(auth(post("/api/gastos/" + transporte + "/abonar"))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"importe\":10000,\"fecha\":\"" + dia + "\"}"))
+                    .andExpect(status().isOk());
+        }
+
+        // Tres recargas, tres comisiones: es justo lo que hace visible que fraccionar sale caro.
+        mvc.perform(auth(get("/api/meses/" + agosto + "/compras")))
+                .andExpect(jsonPath("$.total").value(690))
+                .andExpect(jsonPath("$.compras.length()").value(3));
+    }
+
+    @Test
+    void sin_comision_configurada_no_se_apunta_nada() throws Exception {
+        // Con tarifa pero sin comisión: hay gasto de transporte al que abonar, y nada más.
+        mvc.perform(auth(patch("/api/meses/" + agosto + "/transporte/configuracion"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"valorPasaje\":3550}"))
+                .andExpect(status().isOk());
+
+        String transporte = idDelGastoDeTransporte(agosto);
+
+        mvc.perform(auth(post("/api/gastos/" + transporte + "/abonar"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"importe\":20000}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(auth(get("/api/meses/" + agosto + "/compras")))
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void abonar_a_un_gasto_normal_no_apunta_comision() throws Exception {
+        mvc.perform(auth(patch("/api/meses/" + agosto + "/transporte/configuracion"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"valorPasaje\":3550,\"comisionRecarga\":230}"))
+                .andExpect(status().isOk());
+
+        String respuesta = mvc.perform(auth(post("/api/meses/" + agosto + "/gastos"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"nombre\":\"Celular\",\"categoria\":\"SERVICIOS\","
+                                + "\"monto\":100000}"))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+        String celular = json.readTree(respuesta).get("id").asText();
+
+        mvc.perform(auth(post("/api/gastos/" + celular + "/abonar"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"importe\":50000}"))
+                .andExpect(status().isOk());
+
+        mvc.perform(auth(get("/api/meses/" + agosto + "/compras")))
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
     // --- lo que no se admite ---
 
     @Test
@@ -409,6 +499,19 @@ class ComprasDiariasTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"pagado\":" + pagado + "}"))
                 .andExpect(status().isNoContent());
+    }
+
+    /** El gasto que el sistema genera con el cálculo del transporte. */
+    private String idDelGastoDeTransporte(UUID mesId) throws Exception {
+        String respuesta = mvc.perform(auth(get("/api/meses/" + mesId + "/gastos")))
+                .andReturn().getResponse().getContentAsString();
+
+        for (var gasto : json.readTree(respuesta)) {
+            if ("TRANSPORTE".equals(gasto.get("origen").asText())) {
+                return gasto.get("id").asText();
+            }
+        }
+        throw new AssertionError("el mes no tiene gasto de transporte");
     }
 
     private static String cuerpoCompra(String descripcion, int monto, String categoria,

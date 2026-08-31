@@ -58,8 +58,10 @@ flutter_launcher_icons:
 
   android: true
   # Los lanzadores modernos recortan el icono con la forma que elija el usuario, así que el
-  # primer plano se entrega con margen y el fondo como color plano.
-  adaptive_icon_background: "#00695C"
+  # primer plano se entrega con margen. El fondo es el mismo degradado del icono completo y no
+  # un color plano: con el color liso el icono de Android quedaba mucho más pobre que el de
+  # macOS, que sí lleva el degradado.
+  adaptive_icon_background: "assets/icono/icono_fondo.png"
   adaptive_icon_foreground: "assets/icono/icono_adaptativo.png"
   # Monocromo para los iconos con tema de Android 13 en adelante.
   adaptive_icon_monochrome: "assets/icono/icono_adaptativo.png"

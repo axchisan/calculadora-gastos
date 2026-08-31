@@ -101,6 +101,14 @@ class ControladorTransporte extends StateNotifier<AsyncValue<DatosTransporte>> {
     (id) => _repositorio.actualizarConfiguracion(id, valorPasaje: valor),
   );
 
+  /// Cambia lo que cobra el sistema de recarga por operación.
+  ///
+  /// A partir de ahí, cada abono al transporte apunta esa comisión como una compra del día a
+  /// día. Con cero deja de apuntarse.
+  Future<void> cambiarComisionRecarga(double valor) => _aplicar(
+    (id) => _repositorio.actualizarConfiguracion(id, comisionRecarga: valor),
+  );
+
   Future<void> cambiarDiasKarate(Set<int> dias) => _aplicar(
     (id) => _repositorio.actualizarConfiguracion(id, diasKarate: dias),
   );

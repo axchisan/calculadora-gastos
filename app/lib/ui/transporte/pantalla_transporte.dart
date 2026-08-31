@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/dinero.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
@@ -330,6 +331,24 @@ class _Ajustes extends ConsumerWidget {
               onTap: () => _cambiarPasaje(context, ref, config.valorPasaje),
             ),
 
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.percent),
+              title: const Text('Comisión por recarga'),
+              subtitle: Text(
+                config.comisionRecarga > 0
+                    ? 'Se apunta sola cada vez que abonas al transporte'
+                    : 'Sin comisión configurada',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              trailing: Text(
+                Formato.dinero(config.comisionRecarga),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onTap: () =>
+                  _cambiarComision(context, ref, config.comisionRecarga),
+            ),
+
             const Divider(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 10),
@@ -412,6 +431,61 @@ class _Ajustes extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Cambia lo que cobra el sistema de recarga por operación.
+  ///
+  /// Es fija por recarga, así que recargar de a poco sale más caro. Apuntarla cada vez es lo que
+  /// hace visible ese sobrecoste, que de otro modo se pierde.
+  Future<void> _cambiarComision(
+    BuildContext context,
+    WidgetRef ref,
+    double actual,
+  ) async {
+    final controlador = TextEditingController(text: Dinero.paraEditar(actual));
+
+    final valor = await showDialog<double>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('Comisión por recarga'),
+        content: TextField(
+          controller: controlador,
+          autofocus: true,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: const [FormatoDeImporte()],
+          decoration: const InputDecoration(
+            prefixText: r'$ ',
+            helperText:
+                'Se apuntará como gasto en cada abono al transporte. '
+                'Pon 0 para no apuntarla.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              contexto,
+              Dinero.interpretar(controlador.text) ?? 0,
+            ),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+
+    if (valor == null) return;
+    try {
+      await ref.read(transporteProvider.notifier).cambiarComisionRecarga(valor);
+    } on ErrorApi catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
   }
 
   Future<void> _cambiarPasaje(

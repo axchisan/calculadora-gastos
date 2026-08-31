@@ -10,10 +10,28 @@ final repositorioMesesProvider = Provider<RepositorioMeses>(
       RepositorioMeses(ref.watch(clienteApiProvider), ref.watch(cacheProvider)),
 );
 
-/// Periodo que se está viendo. Arranca en el mes en curso.
+/// Periodo que se está viendo.
+///
+/// Arranca donde se quedó la última vez, no en el mes del calendario. El mes presupuestal no
+/// coincide con el del almanaque: quien cobra el 28 lleva días trabajando en septiembre mientras
+/// el teléfono todavía dice agosto, y abrir siempre en el mes del calendario obligaba a corregir
+/// el rumbo cada vez.
 final periodoProvider = StateProvider<DateTime>((ref) {
+  final guardado = ref.watch(cacheProvider).leerPeriodo();
+  if (guardado != null) return guardado;
+
   final ahora = DateTime.now();
   return DateTime(ahora.year, ahora.month);
+});
+
+/// Guarda el mes elegido para que la próxima apertura empiece ahí.
+///
+/// Se observa desde la aplicación en lugar de escribir dentro del propio proveedor: un
+/// `StateProvider` debe poder leerse sin efectos secundarios.
+final recordarPeriodoProvider = Provider<void>((ref) {
+  ref.listen<DateTime>(periodoProvider, (_, periodo) {
+    ref.read(cacheProvider).guardarPeriodo(periodo);
+  });
 });
 
 /// Contenido de un mes: el resumen y sus gastos, cargados juntos.

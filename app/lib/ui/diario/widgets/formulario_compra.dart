@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/dinero.dart';
@@ -151,9 +150,7 @@ class _FormularioCompraState extends ConsumerState<FormularioCompra> {
                 ),
                 // Se admiten coma y punto: un importe con centavos se teclea «192.729,03» y
                 // hay teclados que solo ofrecen el punto.
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
-                ],
+                inputFormatters: const [FormatoDeImporte()],
                 style: tema.textTheme.headlineMedium,
                 decoration: const InputDecoration(
                   prefixText: r'$ ',

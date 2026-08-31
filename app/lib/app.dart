@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'core/tema.dart';
 import 'estado/autenticacion.dart';
 import 'estado/capturas.dart';
+import 'estado/mes.dart';
 import 'ui/ahorro/pantalla_ahorro.dart';
 import 'ui/autenticacion/pantalla_acceso.dart';
 import 'ui/cuenta/pantalla_cuenta.dart';
@@ -112,6 +113,8 @@ class AplicacionGastos extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final enrutador = ref.watch(enrutadorProvider);
+    // Deja anotado el mes elegido para volver a él en la próxima apertura.
+    ref.watch(recordarPeriodoProvider);
 
     return MaterialApp.router(
       title: 'Calculadora de gastos',

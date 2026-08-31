@@ -25,7 +25,23 @@ class PantallaInicio extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(Formato.mesYAnio(periodo)),
+        // El título es un botón: con solo las flechas, plantarse en un mes lejano costaba
+        // muchos toques, y volver al de hoy tras curiosear el año que viene, otros tantos.
+        title: InkWell(
+          onTap: () => _elegirMes(context, ref),
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(Formato.mesYAnio(periodo)),
+                const SizedBox(width: 4),
+                const Icon(Icons.arrow_drop_down, size: 22),
+              ],
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.chevron_left),
@@ -191,6 +207,23 @@ class PantallaInicio extends ConsumerWidget {
           context,
         ).showSnackBar(SnackBar(content: Text(e.mensaje)));
       }
+    }
+  }
+
+  /// Salta a cualquier mes, o vuelve al de hoy.
+  ///
+  /// Hace falta porque el mes presupuestal y el del calendario no coinciden: se puede estar
+  /// trabajando en septiembre mientras el teléfono dice 31 de agosto.
+  Future<void> _elegirMes(BuildContext context, WidgetRef ref) async {
+    final actual = ref.read(periodoProvider);
+    final hoy = DateTime.now();
+
+    final elegido = await showDialog<DateTime>(
+      context: context,
+      builder: (contexto) => _SelectorDeMes(actual: actual, hoy: hoy),
+    );
+    if (elegido != null) {
+      ref.read(periodoProvider.notifier).state = elegido;
     }
   }
 
@@ -453,6 +486,128 @@ class _FormularioGastoState extends State<_FormularioGasto> {
               child: const Text('Añadir'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Elige un mes de los que tienen sentido: unos atrás y unos adelante.
+///
+/// Se limita el rango a propósito. Un selector de fecha completo obligaría a navegar por días
+/// que aquí no significan nada, y de todas formas nadie presupuesta a cinco años vista.
+class _SelectorDeMes extends StatefulWidget {
+  const _SelectorDeMes({required this.actual, required this.hoy});
+
+  final DateTime actual;
+  final DateTime hoy;
+
+  @override
+  State<_SelectorDeMes> createState() => _SelectorDeMesState();
+}
+
+class _SelectorDeMesState extends State<_SelectorDeMes> {
+  late int _anio = widget.actual.year;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final esteMes = DateTime(widget.hoy.year, widget.hoy.month);
+
+    return AlertDialog(
+      contentPadding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+      title: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.chevron_left),
+            onPressed: () => setState(() => _anio--),
+          ),
+          Expanded(
+            child: Text(
+              '$_anio',
+              textAlign: TextAlign.center,
+              style: tema.textTheme.titleLarge,
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.chevron_right),
+            onPressed: () => setState(() => _anio++),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 320,
+        child: GridView.count(
+          crossAxisCount: 3,
+          shrinkWrap: true,
+          childAspectRatio: 2.1,
+          mainAxisSpacing: 6,
+          crossAxisSpacing: 6,
+          children: [
+            for (var mes = 1; mes <= 12; mes++)
+              _Mes(
+                periodo: DateTime(_anio, mes),
+                seleccionado:
+                    _anio == widget.actual.year && mes == widget.actual.month,
+                esElDeHoy: DateTime(_anio, mes) == esteMes,
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, esteMes),
+          child: const Text('Ir al mes de hoy'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancelar'),
+        ),
+      ],
+    );
+  }
+}
+
+class _Mes extends StatelessWidget {
+  const _Mes({
+    required this.periodo,
+    required this.seleccionado,
+    required this.esElDeHoy,
+  });
+
+  final DateTime periodo;
+  final bool seleccionado;
+  final bool esElDeHoy;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
+    return Material(
+      color: seleccionado
+          ? tema.colorScheme.primaryContainer
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () => Navigator.pop(context, periodo),
+        child: Container(
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            // El mes del calendario se marca con un borde, para poder distinguirlo del que se
+            // está viendo cuando no son el mismo.
+            border: esElDeHoy && !seleccionado
+                ? Border.all(color: tema.colorScheme.outline)
+                : null,
+          ),
+          child: Text(
+            Formato.nombreDeMes(periodo.month),
+            style: tema.textTheme.bodyMedium?.copyWith(
+              fontWeight: seleccionado ? FontWeight.w700 : null,
+              color: seleccionado ? tema.colorScheme.onPrimaryContainer : null,
+            ),
+          ),
         ),
       ),
     );
