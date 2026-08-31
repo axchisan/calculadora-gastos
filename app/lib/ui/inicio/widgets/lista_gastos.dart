@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/dinero.dart';
 import '../../../core/formato.dart';
 import '../../../core/tema.dart';
 import '../../../datos/cliente_api.dart';
@@ -338,7 +339,7 @@ class _FilaGasto extends ConsumerWidget {
   /// nada o se pagó el total.
   Future<double?> _pedirCorreccion(BuildContext context) async {
     final controlador = TextEditingController(
-      text: gasto.montoPagado == 0 ? '' : gasto.montoPagado.round().toString(),
+      text: gasto.montoPagado == 0 ? '' : Dinero.paraEditar(gasto.montoPagado),
     );
 
     return showDialog<double>(
@@ -358,8 +359,9 @@ class _FilaGasto extends ConsumerWidget {
               controller: controlador,
               autofocus: true,
               keyboardType: const TextInputType.numberWithOptions(
-                decimal: false,
+                decimal: true,
               ),
+              inputFormatters: const [FormatoDeImporte()],
               decoration: const InputDecoration(
                 prefixText: r'$ ',
                 labelText: 'Cuánto has pagado en realidad',
@@ -388,9 +390,7 @@ class _FilaGasto extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () {
-              final valor = double.tryParse(
-                controlador.text.replaceAll('.', ''),
-              );
+              final valor = Dinero.interpretar(controlador.text);
               Navigator.pop(contexto, valor);
             },
             child: const Text('Guardar'),
@@ -409,7 +409,8 @@ class _FilaGasto extends ConsumerWidget {
         content: TextField(
           controller: controlador,
           autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: false),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: const [FormatoDeImporte()],
           decoration: InputDecoration(
             prefixText: r'$ ',
             helperText: 'Falta ${Formato.dinero(gasto.saldoPendiente)}',
@@ -422,9 +423,7 @@ class _FilaGasto extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () {
-              final valor = double.tryParse(
-                controlador.text.replaceAll('.', ''),
-              );
+              final valor = Dinero.interpretar(controlador.text);
               Navigator.pop(contexto, valor);
             },
             child: const Text('Abonar'),

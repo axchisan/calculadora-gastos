@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/dinero.dart';
 import '../../../core/formato.dart';
 import '../../../core/tema.dart';
 import '../../../datos/cliente_api.dart';
@@ -217,8 +218,9 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
                 controller: campo,
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false,
+                  decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte()],
                 decoration: InputDecoration(
                   prefixText: r'$ ',
                   helperText: 'Debes ${Formato.dinero(widget.deuda.saldo)}',
@@ -244,7 +246,7 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
             ),
             FilledButton(
               onPressed: () {
-                final valor = double.tryParse(campo.text.replaceAll('.', ''));
+                final valor = Dinero.interpretar(campo.text);
                 if (valor != null) {
                   Navigator.pop(contexto, (valor, imputarAlMes));
                 }

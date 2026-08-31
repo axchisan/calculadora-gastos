@@ -46,6 +46,20 @@ class Dinero {
     return double.tryParse(enteroYDecimal);
   }
 
+  /// Convierte a número una tasa o un porcentaje, donde el separador siempre es decimal.
+  ///
+  /// Aquí no sirve [interpretar]: su regla de los dos decimales está pensada para importes, y
+  /// con ella un interés del `2,5` acabaría siendo del 25 %, porque en un importe una sola cifra
+  /// detrás del separador solo puede ser un separador de miles. En una tasa no hay miles que
+  /// separar, así que la lectura no tiene ambigüedad y el punto y la coma valen lo mismo.
+  static double? interpretarTasa(String texto) {
+    final limpio = texto
+        .replaceAll(RegExp(r'[^\d.,]'), '')
+        .replaceAll(',', '.');
+    if (limpio.isEmpty) return null;
+    return double.tryParse(limpio);
+  }
+
   /// Cómo se escribe un importe dentro de un campo de texto editable.
   ///
   /// Con los separadores de miles puestos, igual que quedaría al teclearlo: un campo que se
@@ -66,7 +80,21 @@ class Dinero {
 /// mil o un millón novecientos. Con el separador puesto sobre la marcha, el error de un cero de
 /// más se ve en el momento en lugar de descubrirse al revisar las cuentas.
 class FormatoDeImporte extends TextInputFormatter {
-  const FormatoDeImporte();
+  const FormatoDeImporte() : separadorDeMiles = true, decimalesMaximos = 2;
+
+  /// Para tasas y porcentajes, que se teclean con coma decimal pero nunca llegan a mil y no
+  /// llevan separador de miles. Lo que se escriba con ellos se lee con [Dinero.interpretarTasa].
+  ///
+  /// Admiten cuatro decimales porque así se guarda el interés de una deuda; los porcentajes que
+  /// se almacenan con dos pasan ese límite al crearlos, para no prometer una precisión que la
+  /// base de datos va a redondear sin avisar.
+  const FormatoDeImporte.tasa({this.decimalesMaximos = 4})
+    : separadorDeMiles = false;
+
+  final bool separadorDeMiles;
+
+  /// Cuántas cifras se admiten detrás de la coma.
+  final int decimalesMaximos;
 
   /// El separador decimal que se teclea en Colombia.
   static const String _coma = ',';
@@ -90,13 +118,19 @@ class FormatoDeImporte extends TextInputFormatter {
       return const TextEditingValue();
     }
 
-    final buffer = StringBuffer(conSeparadores(entero));
+    final buffer = StringBuffer(
+      separadorDeMiles ? conSeparadores(entero) : entero,
+    );
     if (decimales != null) {
       // Se conserva la coma aunque todavía no haya cifras detrás: quien acaba de teclearla
       // está a mitad de escribir los centavos, y borrársela sería pelearse con el usuario.
       buffer
         ..write(_coma)
-        ..write(decimales.length > 2 ? decimales.substring(0, 2) : decimales);
+        ..write(
+          decimales.length > decimalesMaximos
+              ? decimales.substring(0, decimalesMaximos)
+              : decimales,
+        );
     }
 
     final texto = buffer.toString();

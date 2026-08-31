@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../core/dinero.dart';
 import '../../../core/formato.dart';
 import '../../../dominio/modelos.dart';
 
@@ -50,7 +52,7 @@ class _EditorGastoState extends State<EditorGasto> {
   void initState() {
     super.initState();
     _nombre = TextEditingController(text: widget.gasto.nombre);
-    _monto = TextEditingController(text: widget.gasto.monto.round().toString());
+    _monto = TextEditingController(text: Dinero.paraEditar(widget.gasto.monto));
     _dia = TextEditingController(
       text: widget.gasto.diaVencimiento?.toString() ?? '',
     );
@@ -103,8 +105,9 @@ class _EditorGastoState extends State<EditorGasto> {
                 controller: _monto,
                 autofocus: true,
                 keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false,
+                  decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte()],
                 decoration: InputDecoration(
                   labelText: 'Monto de este mes',
                   prefixText: r'$ ',
@@ -114,7 +117,7 @@ class _EditorGastoState extends State<EditorGasto> {
                   helperMaxLines: 2,
                 ),
                 validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll('.', ''));
+                  final valor = Dinero.interpretar(v ?? '');
                   if (valor == null || valor < 0) {
                     return 'Escribe un monto válido';
                   }
@@ -145,6 +148,10 @@ class _EditorGastoState extends State<EditorGasto> {
               TextFormField(
                 controller: _dia,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(2),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'Día de vencimiento (opcional)',
                 ),
@@ -167,7 +174,7 @@ class _EditorGastoState extends State<EditorGasto> {
                     DatosGastoEditado(
                       nombre: _nombre.text.trim(),
                       categoria: _categoria,
-                      monto: double.parse(_monto.text.replaceAll('.', '')),
+                      monto: Dinero.interpretar(_monto.text)!,
                       diaVencimiento: int.tryParse(_dia.text),
                     ),
                   );

@@ -66,6 +66,7 @@ pantalla.
 - [x] Servicio en primer plano opcional, para que la detección no dependa de abrir la app
 - [x] Créditos con cuadro de amortización y simulación de abonos extraordinarios
 - [x] Importes con centavos y compras fechadas en el mes anterior
+- [x] Separadores en vivo y lectura de la coma decimal en todos los formularios
 
 ## Fase 5 — Gráficas
 

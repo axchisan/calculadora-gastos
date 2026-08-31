@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/dinero.dart';
 import '../../../core/formato.dart';
 
 /// Diálogo para ajustar el sueldo del mes.
@@ -30,7 +31,7 @@ class _EditorIngresoState extends State<EditorIngreso> {
   void initState() {
     super.initState();
     _campo = TextEditingController(
-      text: widget.actual == 0 ? '' : widget.actual.round().toString(),
+      text: widget.actual == 0 ? '' : Dinero.paraEditar(widget.actual),
     );
   }
 
@@ -41,7 +42,7 @@ class _EditorIngresoState extends State<EditorIngreso> {
   }
 
   void _guardar() {
-    final valor = double.tryParse(_campo.text.replaceAll('.', ''));
+    final valor = Dinero.interpretar(_campo.text);
     if (valor == null || valor < 0) {
       setState(() => _error = 'Escribe un monto válido');
       return;
@@ -60,7 +61,8 @@ class _EditorIngresoState extends State<EditorIngreso> {
           TextField(
             controller: _campo,
             autofocus: true,
-            keyboardType: const TextInputType.numberWithOptions(decimal: false),
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: const [FormatoDeImporte()],
             onSubmitted: (_) => _guardar(),
             decoration: InputDecoration(
               prefixText: r'$ ',
