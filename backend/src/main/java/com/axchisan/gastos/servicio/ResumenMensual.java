@@ -44,6 +44,8 @@ import java.util.UUID;
  * @param comprasACredito             lo cargado a tarjetas de crédito, que se pagará más adelante
  * @param cortesTarjetaPendientes     cortes de tarjeta que vencen este mes y siguen sin pagar
  * @param cortesTarjetaPagados        cortes que vencían este mes y ya se saldaron
+ * @param cuotasCreditoPendientes     cuotas de créditos que vencen este mes y siguen sin pagar
+ * @param cuotasCreditoPagadas        cuotas de créditos que vencían este mes y ya se pagaron
  * @param porCategoria                reparto del gasto por categoría
  */
 public record ResumenMensual(
@@ -75,6 +77,8 @@ public record ResumenMensual(
         BigDecimal comprasACredito,
         BigDecimal cortesTarjetaPendientes,
         BigDecimal cortesTarjetaPagados,
+        BigDecimal cuotasCreditoPendientes,
+        BigDecimal cuotasCreditoPagadas,
         List<TotalCategoria> porCategoria) {
 
     /** Gasto acumulado de una categoría dentro del mes. */

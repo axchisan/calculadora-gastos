@@ -4,6 +4,7 @@ import com.axchisan.gastos.dominio.CategoriaGasto;
 import com.axchisan.gastos.dominio.MesPresupuestal;
 import com.axchisan.gastos.repositorio.AbonoDeudaRepository;
 import com.axchisan.gastos.repositorio.CompraRepository;
+import com.axchisan.gastos.repositorio.CreditoRepository;
 import com.axchisan.gastos.repositorio.DeudaRepository;
 import com.axchisan.gastos.repositorio.GastoRepository;
 import com.axchisan.gastos.repositorio.IngresoRepository;
@@ -34,11 +35,13 @@ public class ServicioResumen {
     private final MetaAhorroRepository metas;
     private final MovimientoAhorroRepository movimientos;
     private final CompraRepository compras;
+    private final CreditoRepository creditos;
 
     public ServicioResumen(MesPresupuestalRepository meses, GastoRepository gastos,
                            IngresoRepository ingresos, AbonoDeudaRepository abonos,
                            DeudaRepository deudas, MetaAhorroRepository metas,
-                           MovimientoAhorroRepository movimientos, CompraRepository compras) {
+                           MovimientoAhorroRepository movimientos, CompraRepository compras,
+                           CreditoRepository creditos) {
         this.meses = meses;
         this.gastos = gastos;
         this.ingresos = ingresos;
@@ -47,6 +50,7 @@ public class ServicioResumen {
         this.metas = metas;
         this.movimientos = movimientos;
         this.compras = compras;
+        this.creditos = creditos;
     }
 
     /** Resumen completo de un mes. */
@@ -111,12 +115,21 @@ public class ServicioResumen {
         BigDecimal cortesPendientes = compras.cortesPendientesDe(usuarioId, anio, numeroMes);
         BigDecimal cortesPagados = compras.cortesPagadosDe(usuarioId, anio, numeroMes);
 
+        // Las cuotas de un crédito tienen fecha propia en su cuadro: se cruzan por el día en que
+        // vencen, no por el mes al que el usuario decida imputarlas.
+        java.time.LocalDate primerDia = mes.periodo().atDay(1);
+        java.time.LocalDate ultimoDia = mes.periodo().atEndOfMonth();
+        BigDecimal creditoPendiente =
+                creditos.cuotasPendientesEntre(usuarioId, primerDia, ultimoDia);
+        BigDecimal creditoPagado = creditos.cuotasPagadasEntre(usuarioId, primerDia, ultimoDia);
+
         // Todo lo que ya salió del bolsillo durante el mes.
         BigDecimal salidaReal = gastoPagado
                 .add(abonosDeuda)
                 .add(aporteAhorro)
                 .add(comprasInmediatas)
-                .add(cortesPagados);
+                .add(cortesPagados)
+                .add(creditoPagado);
 
         BigDecimal disponibleHoy = ingresoTotal.subtract(salidaReal);
 
@@ -126,7 +139,9 @@ public class ServicioResumen {
                 .subtract(aporteAhorro)
                 .subtract(comprasInmediatas)
                 .subtract(cortesPagados)
-                .subtract(cortesPendientes);
+                .subtract(cortesPendientes)
+                .subtract(creditoPagado)
+                .subtract(creditoPendiente);
 
         BigDecimal deudaTotal = deudas.saldoTotal(usuarioId);
         BigDecimal ahorroTotal = metas.saldoTotal(usuarioId);
@@ -138,7 +153,8 @@ public class ServicioResumen {
                 .add(abonosDeuda)
                 .add(aporteAhorro)
                 .add(comprasInmediatas)
-                .add(cortesPagados);
+                .add(cortesPagados)
+                .add(creditoPagado);
 
         // Las deudas con cuota pactada seguirán pidiendo dinero este mes aunque todavía no se
         // haya abonado nada. Contarlas es lo que permite ver el cupo real del sueldo antes de
@@ -147,7 +163,8 @@ public class ServicioResumen {
         BigDecimal cuotasPendientes = calcularCuotasPendientes(usuarioId, mesId);
         BigDecimal comprometidoConCuotas = comprometido
                 .add(cuotasPendientes)
-                .add(cortesPendientes);
+                .add(cortesPendientes)
+                .add(creditoPendiente);
 
         BigDecimal porcentajeComprometido = ingresoProyectado.signum() == 0
                 ? BigDecimal.ZERO
@@ -183,6 +200,8 @@ public class ServicioResumen {
                 comprasACredito,
                 cortesPendientes,
                 cortesPagados,
+                creditoPendiente,
+                creditoPagado,
                 distribucionPorCategoria(mesId, gastoTotal.add(comprasDelMes)));
     }
 
