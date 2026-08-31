@@ -16,6 +16,7 @@ class CacheLocal {
   const CacheLocal._(this._prefs);
 
   static const String _prefijo = 'cache.';
+  static const String _clavePeriodo = 'periodo.elegido';
 
   /// Pasado este tiempo, el contenido guardado se considera solo un adelanto mientras llega la
   /// respuesta real, y nunca sustituto de ella.
@@ -25,6 +26,32 @@ class CacheLocal {
 
   static Future<CacheLocal> abrir() async =>
       CacheLocal._(await SharedPreferences.getInstance());
+
+  /// Guarda el mes que se está viendo, para volver a él en la siguiente apertura.
+  ///
+  /// Va aparte del resto del caché y sin caducidad: no es una copia de datos del servidor sino
+  /// una preferencia, y no tiene sentido que se «pase» a las doce horas.
+  Future<void> guardarPeriodo(DateTime periodo) async {
+    await _prefs.setString(
+      _clavePeriodo,
+      '${periodo.year}-${periodo.month.toString().padLeft(2, '0')}',
+    );
+  }
+
+  /// El último mes visto, o null si nunca se eligió ninguno.
+  DateTime? leerPeriodo() {
+    final crudo = _prefs.getString(_clavePeriodo);
+    if (crudo == null) return null;
+
+    final partes = crudo.split('-');
+    if (partes.length != 2) return null;
+
+    final anio = int.tryParse(partes[0]);
+    final mes = int.tryParse(partes[1]);
+    if (anio == null || mes == null || mes < 1 || mes > 12) return null;
+
+    return DateTime(anio, mes);
+  }
 
   Future<void> guardar(String clave, Object datos) async {
     await _prefs.setString(

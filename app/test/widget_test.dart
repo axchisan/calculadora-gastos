@@ -371,9 +371,19 @@ void main() {
       }
     });
 
-    test('una cifra redonda se edita sin decimales de adorno', () {
-      expect(Dinero.paraEditar(11500), '11500');
-      expect(Dinero.paraEditar(192729.03), '192729,03');
+    test('el campo se abre ya con los separadores puestos', () {
+      // Si el campo se abriera con «192729» y pasara a «192.729» al tocar una tecla,
+      // desconcertaría. Se abre como quedaría al teclearlo.
+      expect(Dinero.paraEditar(11500), '11.500');
+      expect(Dinero.paraEditar(192729.03), '192.729,03');
+      expect(Dinero.paraEditar(500), '500');
+    });
+
+    test('los separadores se ponen cada tres cifras desde la derecha', () {
+      expect(FormatoDeImporte.conSeparadores('192729'), '192.729');
+      expect(FormatoDeImporte.conSeparadores('1234567'), '1.234.567');
+      expect(FormatoDeImporte.conSeparadores('500'), '500');
+      expect(FormatoDeImporte.conSeparadores('1000'), '1.000');
     });
   });
 

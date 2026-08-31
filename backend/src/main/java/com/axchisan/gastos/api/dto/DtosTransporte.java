@@ -23,12 +23,14 @@ public final class DtosTransporte {
     private DtosTransporte() {
     }
 
-    public record ConfigDto(BigDecimal valorPasaje, int pasajesDiaOficina, int pasajesExtraKarate,
+    public record ConfigDto(BigDecimal valorPasaje, BigDecimal comisionRecarga,
+                            int pasajesDiaOficina, int pasajesExtraKarate,
                             int pasajesKarateDesdeCasa, Set<DayOfWeek> diasLaborales,
                             Set<DayOfWeek> diasKarate, int diasRemotosPorSemana) {
 
         public static ConfigDto de(ConfigTransporteMes config) {
-            return new ConfigDto(config.getValorPasaje(), config.getPasajesDiaOficina(),
+            return new ConfigDto(config.getValorPasaje(), config.getComisionRecarga(),
+                    config.getPasajesDiaOficina(),
                     config.getPasajesExtraKarate(), config.getPasajesKarateDesdeCasa(),
                     config.getDiasLaborales(), config.getDiasKarate(),
                     config.getDiasRemotosPorSemana());
@@ -45,6 +47,8 @@ public final class DtosTransporte {
     public record ActualizarConfigRequest(
             @PositiveOrZero(message = "El valor del pasaje no puede ser negativo")
             BigDecimal valorPasaje,
+            @PositiveOrZero(message = "La comisión no puede ser negativa")
+            BigDecimal comisionRecarga,
             @Min(0) @Max(10) Integer pasajesDiaOficina,
             @Min(0) @Max(10) Integer pasajesExtraKarate,
             @Min(0) @Max(10) Integer pasajesKarateDesdeCasa,

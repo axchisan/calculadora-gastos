@@ -66,7 +66,7 @@ public class TransporteController {
                                               @Valid @RequestBody ActualizarConfigRequest peticion) {
         UUID usuarioId = UsuarioActual.id();
         ResumenTransporte resumen = transporte.actualizarConfiguracion(
-                usuarioId, mesId, peticion.valorPasaje(), peticion.pasajesDiaOficina(),
+                usuarioId, mesId, peticion.valorPasaje(), peticion.comisionRecarga(), peticion.pasajesDiaOficina(),
                 peticion.pasajesExtraKarate(), peticion.pasajesKarateDesdeCasa(),
                 peticion.diasLaborales(), peticion.diasKarate(), peticion.diasRemotosPorSemana(),
                 peticion.debeRegenerar());

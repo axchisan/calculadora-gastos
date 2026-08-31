@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/dinero.dart';
@@ -66,9 +65,7 @@ class _SimuladorAbonoState extends ConsumerState<SimuladorAbono> {
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[\d.,]')),
-              ],
+              inputFormatters: const [FormatoDeImporte()],
               style: tema.textTheme.headlineSmall,
               decoration: InputDecoration(
                 prefixText: r'$ ',

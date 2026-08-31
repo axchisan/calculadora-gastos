@@ -5,6 +5,7 @@ import 'cliente_api.dart';
 class ConfigTransporte {
   const ConfigTransporte({
     required this.valorPasaje,
+    required this.comisionRecarga,
     required this.pasajesDiaOficina,
     required this.pasajesExtraKarate,
     required this.pasajesKarateDesdeCasa,
@@ -14,6 +15,12 @@ class ConfigTransporte {
   });
 
   final double valorPasaje;
+
+  /// Lo que cobra el sistema de recarga por cada operación.
+  ///
+  /// Es fija por recarga y no proporcional, así que recargar de a poco sale más caro. Cero
+  /// significa que no se cobra ninguna.
+  final double comisionRecarga;
   final int pasajesDiaOficina;
   final int pasajesExtraKarate;
 
@@ -28,6 +35,7 @@ class ConfigTransporte {
 
   static ConfigTransporte deJson(Map<String, dynamic> j) => ConfigTransporte(
     valorPasaje: (j['valorPasaje'] as num).toDouble(),
+    comisionRecarga: (j['comisionRecarga'] as num?)?.toDouble() ?? 0,
     pasajesDiaOficina: j['pasajesDiaOficina'] as int,
     pasajesExtraKarate: j['pasajesExtraKarate'] as int,
     pasajesKarateDesdeCasa: j['pasajesKarateDesdeCasa'] as int,
@@ -186,6 +194,7 @@ class RepositorioTransporte {
   Future<ResumenTransporte> actualizarConfiguracion(
     String mesId, {
     double? valorPasaje,
+    double? comisionRecarga,
     int? pasajesDiaOficina,
     int? pasajesExtraKarate,
     int? pasajesKarateDesdeCasa,
@@ -198,6 +207,7 @@ class RepositorioTransporte {
       '/api/meses/$mesId/transporte/configuracion',
       cuerpo: {
         'valorPasaje': ?valorPasaje,
+        'comisionRecarga': ?comisionRecarga,
         'pasajesDiaOficina': ?pasajesDiaOficina,
         'pasajesExtraKarate': ?pasajesExtraKarate,
         'pasajesKarateDesdeCasa': ?pasajesKarateDesdeCasa,

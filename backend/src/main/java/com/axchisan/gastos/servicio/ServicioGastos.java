@@ -4,6 +4,12 @@ import com.axchisan.gastos.dominio.CategoriaGasto;
 import com.axchisan.gastos.dominio.Gasto;
 import com.axchisan.gastos.dominio.MesPresupuestal;
 import com.axchisan.gastos.dominio.OrigenGasto;
+import com.axchisan.gastos.dominio.Compra;
+import com.axchisan.gastos.dominio.ConfigTransporteMes;
+import com.axchisan.gastos.dominio.MesPresupuestal;
+import com.axchisan.gastos.dominio.OrigenGasto;
+import com.axchisan.gastos.repositorio.CompraRepository;
+import com.axchisan.gastos.repositorio.ConfigTransporteMesRepository;
 import com.axchisan.gastos.repositorio.GastoRepository;
 import com.axchisan.gastos.repositorio.MesPresupuestalRepository;
 import org.springframework.stereotype.Service;
@@ -20,10 +26,16 @@ public class ServicioGastos {
 
     private final GastoRepository gastos;
     private final MesPresupuestalRepository meses;
+    private final ConfigTransporteMesRepository configuraciones;
+    private final CompraRepository compras;
 
-    public ServicioGastos(GastoRepository gastos, MesPresupuestalRepository meses) {
+    public ServicioGastos(GastoRepository gastos, MesPresupuestalRepository meses,
+                          ConfigTransporteMesRepository configuraciones,
+                          CompraRepository compras) {
         this.gastos = gastos;
         this.meses = meses;
+        this.configuraciones = configuraciones;
+        this.compras = compras;
     }
 
     @Transactional(readOnly = true)
@@ -105,13 +117,42 @@ public class ServicioGastos {
         return gastos.save(gasto);
     }
 
-    /** Registra un abono parcial. */
+    /**
+     * Registra un abono parcial.
+     *
+     * <p>Si el gasto es el del transporte y el mes tiene configurada una comisión de recarga, se
+     * apunta además esa comisión como una compra del día a día. El sistema de recarga la cobra
+     * por operación, así que recargar de a poco sale más caro; verla aparecer cada vez es lo que
+     * hace visible ese sobrecoste, que de otro modo se pierde.
+     */
     @Transactional
     public Gasto abonar(UUID usuarioId, UUID gastoId, BigDecimal importe, LocalDate fecha) {
         Gasto gasto = buscar(usuarioId, gastoId);
         ServicioMeses.verificarAbierto(gasto.getMes());
         gasto.abonar(importe, fecha);
+
+        if (gasto.getOrigen() == OrigenGasto.TRANSPORTE) {
+            apuntarComisionDeRecarga(gasto.getMes(), fecha);
+        }
         return gastos.save(gasto);
+    }
+
+    /** Deja constancia de lo que cobró el sistema de recarga por esta operación. */
+    private void apuntarComisionDeRecarga(MesPresupuestal mes, LocalDate fecha) {
+        BigDecimal comision = configuraciones.buscarDelMes(mes.getId())
+                .map(ConfigTransporteMes::getComisionRecarga)
+                .orElse(BigDecimal.ZERO);
+
+        if (comision.signum() <= 0) {
+            return;
+        }
+
+        LocalDate cuando = fecha == null ? LocalDate.now() : fecha;
+        // La comisión pertenece al mes al que se está abonando aunque la recarga se haga a
+        // caballo entre dos: es parte del coste de ese transporte, no de otro.
+        Compra compra = new Compra(mes, cuando, "Comisión de recarga",
+                CategoriaGasto.COMISIONES, comision);
+        compras.save(compra);
     }
 
     @Transactional

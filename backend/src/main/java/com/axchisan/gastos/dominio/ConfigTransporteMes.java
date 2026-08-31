@@ -45,6 +45,16 @@ public class ConfigTransporteMes {
     @Column(name = "valor_pasaje", nullable = false)
     private BigDecimal valorPasaje;
 
+    /**
+     * Lo que cobra el sistema de recarga por cada operación.
+     *
+     * <p>Es fija por recarga, no proporcional, así que recargar de a poco sale más caro. Tenerla
+     * aquí permite apuntarla sola cada vez que se abona al transporte, en lugar de que se pierda
+     * entre las compras sueltas o no se apunte.
+     */
+    @Column(name = "comision_recarga", nullable = false)
+    private BigDecimal comisionRecarga = BigDecimal.ZERO;
+
     @Column(name = "pasajes_dia_oficina", nullable = false)
     private short pasajesDiaOficina = 2;
 
@@ -137,6 +147,17 @@ public class ConfigTransporteMes {
 
     public void setValorPasaje(BigDecimal valorPasaje) {
         this.valorPasaje = valorPasaje;
+    }
+
+    public BigDecimal getComisionRecarga() {
+        return comisionRecarga;
+    }
+
+    public void setComisionRecarga(BigDecimal comisionRecarga) {
+        if (comisionRecarga != null && comisionRecarga.signum() < 0) {
+            throw new IllegalArgumentException("La comisión no puede ser negativa");
+        }
+        this.comisionRecarga = comisionRecarga == null ? BigDecimal.ZERO : comisionRecarga;
     }
 
     public short getPasajesDiaOficina() {

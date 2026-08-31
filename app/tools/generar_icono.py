@@ -133,6 +133,11 @@ def generar() -> None:
     # Icono con fondo, para Android antiguo, macOS y la web.
     completo.convert("RGB").save(DESTINO / "icono.png")
 
+    # Fondo de los iconos adaptativos de Android: el mismo degradado del icono completo, no un
+    # color plano. Es lo que hace que en el teléfono se vea igual que en el Mac; con el fondo
+    # liso, el degradado desaparecía y el icono quedaba mucho más pobre.
+    fondo.convert("RGB").save(DESTINO / "icono_fondo.png")
+
     # Capa de primer plano para los iconos adaptativos de Android, que recortan la imagen con la
     # forma que elija el lanzador: círculo, cuadrado redondeado o gota.
     # El factor de escala sale del punto pintado más lejano al centro, no del recuadro que lo

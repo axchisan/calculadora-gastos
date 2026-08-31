@@ -138,7 +138,8 @@ public class ServicioTransporteMes {
      */
     @Transactional
     public ResumenTransporte actualizarConfiguracion(
-            UUID usuarioId, UUID mesId, BigDecimal valorPasaje, Integer pasajesDiaOficina,
+            UUID usuarioId, UUID mesId, BigDecimal valorPasaje, BigDecimal comisionRecarga,
+            Integer pasajesDiaOficina,
             Integer pasajesExtraKarate, Integer pasajesKarateDesdeCasa,
             Set<DayOfWeek> diasLaborales, Set<DayOfWeek> diasKarate, Integer diasRemotosPorSemana,
             boolean regenerarClasificacion) {
@@ -149,6 +150,9 @@ public class ServicioTransporteMes {
 
         if (valorPasaje != null) {
             config.setValorPasaje(valorPasaje);
+        }
+        if (comisionRecarga != null) {
+            config.setComisionRecarga(comisionRecarga);
         }
         if (pasajesDiaOficina != null) {
             config.setPasajesDiaOficina(pasajesDiaOficina.shortValue());
