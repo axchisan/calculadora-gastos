@@ -276,14 +276,64 @@ class ComprasDiariasTest {
                 .andExpect(status().isBadRequest());
     }
 
+    /**
+     * El mes presupuestal no coincide con el del calendario: quien cobra el 28 imputa a
+     * septiembre lo que compra desde esa fecha. Exigir que la fecha cayera dentro del mes
+     * obligaba a mentir sobre el día de la compra.
+     */
     @Test
-    void la_compra_tiene_que_caer_en_el_mes_en_que_se_registra() throws Exception {
+    void una_compra_de_fin_del_mes_pasado_se_imputa_a_este() throws Exception {
+        comprar(septiembre, "Dunkins", 69000, "ANTOJOS", "2026-08-28", "EFECTIVO", null);
+
+        mvc.perform(auth(get("/api/meses/" + septiembre + "/compras")))
+                .andExpect(jsonPath("$.total").value(69000))
+                .andExpect(jsonPath("$.compras[0].fecha").value("2026-08-28"));
+
+        // Y no cuenta en agosto, que es el mes en que se compró pero no al que se imputa.
+        mvc.perform(auth(get("/api/meses/" + agosto + "/compras")))
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void con_credito_la_fecha_real_sigue_decidiendo_el_mes_de_pago() throws Exception {
+        String nu = crearTarjeta("Nu", "CREDITO", 15, 4);
+        // Comprada el 28 de agosto pero apuntada en septiembre: pasado el corte del 15, se paga
+        // en octubre. Mentir sobre la fecha lo habría mandado a noviembre.
+        comprar(septiembre, "Perfume", 100000, "CUIDADO_PERSONAL", "2026-08-28", "CREDITO", nu);
+
+        mvc.perform(auth(get("/api/meses/" + octubre + "/resumen")))
+                .andExpect(jsonPath("$.cortesTarjetaPendientes").value(100000));
+    }
+
+    @Test
+    void una_fecha_de_hace_meses_se_sigue_rechazando() throws Exception {
+        // El límite existe para cazar un mes o un año tecleado mal, y eso no cambia.
+        mvc.perform(auth(post("/api/meses/" + octubre + "/compras"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(cuerpoCompra("De agosto", 1000, "OTRO", "2026-08-03",
+                                "EFECTIVO", null)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.mensaje").value(containsString("2026-10")));
+    }
+
+    @Test
+    void una_compra_del_mes_siguiente_no_cabe() throws Exception {
         mvc.perform(auth(post("/api/meses/" + agosto + "/compras"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(cuerpoCompra("De septiembre", 1000, "OTRO", "2026-09-03",
                                 "EFECTIVO", null)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.mensaje").value(containsString("2026-08")));
+    }
+
+    @Test
+    void los_importes_conservan_los_centavos() throws Exception {
+        // Un plan de pagos o un extracto traen decimales; redondearlos descuadra las cuentas.
+        comprar2(agosto, "Cuota", "192729.03", "OTRO", "2026-08-05", "EFECTIVO", null);
+
+        mvc.perform(auth(get("/api/meses/" + agosto + "/compras")))
+                .andExpect(jsonPath("$.total").value(192729.03))
+                .andExpect(jsonPath("$.compras[0].monto").value(192729.03));
     }
 
     @Test
@@ -342,6 +392,16 @@ class ComprasDiariasTest {
                 .andExpect(status().isCreated())
                 .andReturn().getResponse().getContentAsString();
         return json.readTree(respuesta).get("id").asText();
+    }
+
+    private void comprar2(UUID mesId, String descripcion, String monto, String categoria,
+                          String fecha, String medio, String tarjetaId) throws Exception {
+        mvc.perform(auth(post("/api/meses/" + mesId + "/compras"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"descripcion\":\"" + descripcion + "\",\"monto\":" + monto
+                                + ",\"categoria\":\"" + categoria + "\",\"fecha\":\"" + fecha
+                                + "\",\"medio\":\"" + medio + "\"}"))
+                .andExpect(status().isCreated());
     }
 
     private void saldarCorte(String tarjetaId, String periodo, boolean pagado) throws Exception {

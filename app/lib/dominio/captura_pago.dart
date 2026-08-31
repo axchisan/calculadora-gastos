@@ -10,6 +10,8 @@
 /// tal cual llega.
 library;
 
+import '../core/dinero.dart';
+
 /// Una notificación tal y como la capturó Android, sin interpretar.
 class NotificacionCapturada {
   const NotificacionCapturada({
@@ -295,38 +297,8 @@ class LectorDePagos {
 
   /// Convierte a número un importe escrito en cualquiera de los dos formatos que llegan.
   ///
-  /// Y llegan los dos, en la misma compra: Google Wallet lo escribe a la americana
-  /// (`54,670.00`) porque el sistema del teléfono está en inglés, y el banco a la colombiana
-  /// (`54.670,00`). El punto y la coma significan lo contrario en cada uno, así que dar por
-  /// buena una de las dos convenciones convertiría 54.670 pesos en 54,67.
-  ///
-  /// La regla que los distingue sin ambigüedad: **el último separador es el decimal solo si le
-  /// siguen exactamente dos dígitos.** Con tres es un separador de miles, porque no existe una
-  /// moneda con tres decimales que se escriba así.
-  static double? interpretarMonto(String texto) {
-    final limpio = texto.replaceAll(RegExp(r'[^\d.,]'), '');
-    if (limpio.isEmpty) return null;
-
-    final ultimoPunto = limpio.lastIndexOf('.');
-    final ultimaComa = limpio.lastIndexOf(',');
-    final ultimoSeparador = ultimoPunto > ultimaComa ? ultimoPunto : ultimaComa;
-
-    String enteroYDecimal;
-    if (ultimoSeparador == -1) {
-      enteroYDecimal = limpio;
-    } else {
-      final decimales = limpio.length - ultimoSeparador - 1;
-      if (decimales == 2) {
-        final entero = limpio
-            .substring(0, ultimoSeparador)
-            .replaceAll(RegExp(r'[.,]'), '');
-        enteroYDecimal = '$entero.${limpio.substring(ultimoSeparador + 1)}';
-      } else {
-        // Todos los separadores son de miles.
-        enteroYDecimal = limpio.replaceAll(RegExp(r'[.,]'), '');
-      }
-    }
-
-    return double.tryParse(enteroYDecimal);
-  }
+  /// Delega en [Dinero.interpretar], que es la misma regla que se aplica al teclear una compra
+  /// a mano: si el reconocimiento y el teclado interpretaran distinto un mismo importe, la
+  /// aplicación se contradiría a sí misma.
+  static double? interpretarMonto(String texto) => Dinero.interpretar(texto);
 }
