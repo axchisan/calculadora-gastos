@@ -27,18 +27,25 @@ BLANCO_TENUE = (255, 255, 255, 90)
 
 DESTINO = Path(__file__).resolve().parent.parent / "assets" / "icono"
 
-# Radio, en fracción del lado del lienzo, dentro del cual debe caber todo el dibujo de un icono
-# adaptativo de Android. La zona visible es el 66% central del lienzo y el lanzador puede
-# recortarla en círculo, así que lo que salga de ese radio se pierde; se deja algo de aire.
-RADIO_SEGURO = 0.315
+# Fracción del lienzo que un lanzador de Android deja ver de un icono adaptativo: el 66% central.
+# El resto lo recorta la máscara que elija el usuario (círculo, cuadrado redondeado, gota).
+ZONA_VISIBLE = 0.667
 
 
-def degradado_vertical(lado: int) -> Image.Image:
-    """Fondo con un degradado suave, más oscuro abajo para dar algo de profundidad."""
+def degradado_vertical(lado: int, tramo: float = 1.0) -> Image.Image:
+    """Fondo con un degradado suave, más oscuro abajo para dar algo de profundidad.
+
+    'tramo' es la fracción central del lienzo en la que se recorre el degradado entero; por fuera
+    de ella el color se queda en el extremo. Con 1.0 sale el degradado normal, para el icono
+    completo. Para el fondo adaptativo de Android se pasa la zona visible, porque el lanzador
+    recorta los bordes: sin estirarlo, del degradado solo asomaba la banda central y el icono del
+    teléfono quedaba mucho más plano que el del Mac.
+    """
     imagen = Image.new("RGB", (lado, lado))
     dibujo = ImageDraw.Draw(imagen)
+    inicio = lado * (1 - tramo) / 2
     for y in range(lado):
-        t = y / lado
+        t = min(1.0, max(0.0, (y - inicio) / (lado * tramo)))
         color = tuple(
             round(FONDO_CLARO[i] + (FONDO_OSCURO[i] - FONDO_CLARO[i]) * t) for i in range(3)
         )
@@ -136,19 +143,28 @@ def generar() -> None:
     # Fondo de los iconos adaptativos de Android: el mismo degradado del icono completo, no un
     # color plano. Es lo que hace que en el teléfono se vea igual que en el Mac; con el fondo
     # liso, el degradado desaparecía y el icono quedaba mucho más pobre.
-    fondo.convert("RGB").save(DESTINO / "icono_fondo.png")
+    degradado_vertical(LADO, tramo=ZONA_VISIBLE).save(DESTINO / "icono_fondo.png")
 
     # Capa de primer plano para los iconos adaptativos de Android, que recortan la imagen con la
     # forma que elija el lanzador: círculo, cuadrado redondeado o gota.
-    # El factor de escala sale del punto pintado más lejano al centro, no del recuadro que lo
-    # encierra: encajar el recuadro entero en el círculo dejaría el dibujo mucho más pequeño de
-    # lo necesario, porque sus esquinas van en transparente.
-    escala = (LADO * RADIO_SEGURO) / radio_del_dibujo(capa)
+    # Se reduce el dibujo exactamente por la zona visible. Así, cuando el lanzador se quede con
+    # ese 66% central, la composición ocupará dentro del recorte la misma proporción que ocupa en
+    # el icono completo del Mac, y las dos plataformas se verán iguales. Antes se escalaba para
+    # llenar el círculo de recorte, y el resultado era un icono ampliado en el que las barras
+    # tenues quedaban fuera de plano.
     adaptativo = Image.new("RGBA", (LADO, LADO), (0, 0, 0, 0))
-    reducido = capa.resize((round(LADO * escala), round(LADO * escala)), Image.LANCZOS)
+    reducido = capa.resize((round(LADO * ZONA_VISIBLE),) * 2, Image.LANCZOS)
     desplazamiento = (LADO - reducido.width) // 2
-    adaptativo.paste(reducido, (desplazamiento, desplazamiento), reducido)
+    # Se copia el RGBA tal cual, sin pasar la propia imagen como máscara: al hacerlo, 'paste'
+    # mezcla el alfa contra el lienzo transparente y lo acaba multiplicando por sí mismo, de modo
+    # que las barras atenuadas caían de alfa 90 a 32 y desaparecían del icono de Android.
+    adaptativo.paste(reducido, (desplazamiento, desplazamiento))
     adaptativo.save(DESTINO / "icono_adaptativo.png")
+
+    # Aviso, no error: el dibujo cabe de sobra, pero si alguien lo agranda conviene enterarse
+    # antes de ver el icono cortado en el teléfono.
+    if radio_del_dibujo(adaptativo) > LADO * ZONA_VISIBLE / 2:
+        print("  aviso: el dibujo se sale del círculo de recorte de Android")
 
     print(f"  icono.png y icono_adaptativo.png generados en {DESTINO}")
 
