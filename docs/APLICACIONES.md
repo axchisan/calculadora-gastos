@@ -41,8 +41,20 @@ dart run flutter_launcher_icons     # los reparte a Android, macOS y web
 ```
 
 `tools/generar_icono.py` dibuja el icono por código; ajustando las constantes del principio se
-cambia el color o la composición. El icono adaptativo de Android sale con margen porque los
-lanzadores recortan la imagen con la forma que elija el usuario.
+cambia el color o la composición.
+
+Android no recibe la imagen tal cual, sino separada en fondo y primer plano, porque los
+lanzadores la recortan con la forma que elija el usuario y solo dejan ver el 66% central. Para
+que el icono del teléfono salga igual que el del Mac, el generador hace dos cosas con ese dato:
+
+- **reduce el dibujo justo a ese 66%**, de modo que dentro del recorte ocupe la misma proporción
+  que ocupa en el icono completo. Escalarlo para llenar el círculo lo dejaba ampliado y las dos
+  barras atenuadas quedaban fuera de plano;
+- **estira el degradado del fondo** para que recorra sus dos colores dentro de esa banda visible,
+  en vez de perder los extremos en el recorte.
+
+La comprobación es directa: componer `icono_fondo.png` con `icono_adaptativo.png`, recortar el
+66% central y comparar contra `icono.png`; deben salir el mismo dibujo.
 
 ## Requisitos del entorno
 
