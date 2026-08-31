@@ -493,7 +493,7 @@ class _Ajustes extends ConsumerWidget {
     WidgetRef ref,
     double actual,
   ) async {
-    final controlador = TextEditingController(text: actual.round().toString());
+    final controlador = TextEditingController(text: Dinero.paraEditar(actual));
 
     final valor = await showDialog<double>(
       context: context,
@@ -502,7 +502,8 @@ class _Ajustes extends ConsumerWidget {
         content: TextField(
           controller: controlador,
           autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: false),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: const [FormatoDeImporte()],
           decoration: const InputDecoration(
             prefixText: r'$ ',
             helperText: 'Se recalcula el mes con la tarifa nueva',
@@ -514,10 +515,8 @@ class _Ajustes extends ConsumerWidget {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(
-              contexto,
-              double.tryParse(controlador.text.replaceAll('.', '')),
-            ),
+            onPressed: () =>
+                Navigator.pop(contexto, Dinero.interpretar(controlador.text)),
             child: const Text('Guardar'),
           ),
         ],

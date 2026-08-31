@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/formato.dart';
@@ -171,6 +172,10 @@ class DetalleDia extends ConsumerWidget {
           controller: campo,
           autofocus: true,
           keyboardType: TextInputType.number,
+          inputFormatters: [
+            FilteringTextInputFormatter.digitsOnly,
+            LengthLimitingTextInputFormatter(2),
+          ],
           decoration: const InputDecoration(
             helperText: 'El valor se conserva aunque se recalcule el mes',
           ),

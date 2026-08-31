@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app.dart';
+import '../../core/dinero.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
@@ -445,14 +446,15 @@ class _FormularioGastoState extends State<_FormularioGasto> {
             TextFormField(
               controller: _monto,
               keyboardType: const TextInputType.numberWithOptions(
-                decimal: false,
+                decimal: true,
               ),
+              inputFormatters: const [FormatoDeImporte()],
               decoration: const InputDecoration(
                 labelText: 'Monto',
                 prefixText: r'$ ',
               ),
               validator: (v) {
-                final valor = double.tryParse((v ?? '').replaceAll('.', ''));
+                final valor = Dinero.interpretar(v ?? '');
                 if (valor == null) return 'Escribe un monto válido';
                 if (valor < 0) return 'No puede ser negativo';
                 return null;
@@ -479,7 +481,7 @@ class _FormularioGastoState extends State<_FormularioGasto> {
                   _NuevoGasto(
                     _nombre.text.trim(),
                     _categoria,
-                    double.parse(_monto.text.replaceAll('.', '')),
+                    Dinero.interpretar(_monto.text)!,
                   ),
                 );
               },

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/dinero.dart';
 import '../../../core/formato.dart';
 import '../../../dominio/modelos.dart';
 
@@ -52,15 +53,15 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
     final d = widget.deuda;
     _acreedor = TextEditingController(text: d?.acreedor ?? '');
     _monto = TextEditingController(
-      text: d == null ? '' : d.montoOriginal.round().toString(),
+      text: d == null ? '' : Dinero.paraEditar(d.montoOriginal),
     );
     _tasa = TextEditingController(
-      text: d?.tasaInteresMensual?.toString() ?? '',
+      text: d?.tasaInteresMensual?.toString().replaceAll('.', ',') ?? '',
     );
     _cuota = TextEditingController(
       text: d?.cuotaSugerida == null
           ? ''
-          : d!.cuotaSugerida!.round().toString(),
+          : Dinero.paraEditar(d!.cuotaSugerida!),
     );
     _tipo = d?.tipo ?? TipoDeuda.tarjetaCredito;
   }
@@ -125,8 +126,9 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
               TextFormField(
                 controller: _monto,
                 keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false,
+                  decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte()],
                 decoration: InputDecoration(
                   labelText: 'Cuánto debes en total',
                   prefixText: r'$ ',
@@ -138,7 +140,7 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                   helperMaxLines: 2,
                 ),
                 validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll('.', ''));
+                  final valor = Dinero.interpretar(v ?? '');
                   if (valor == null || valor <= 0) {
                     return 'Escribe un monto mayor que cero';
                   }
@@ -156,6 +158,7 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte.tasa()],
                 decoration: const InputDecoration(
                   labelText: 'Interés mensual (opcional)',
                   suffixText: '%',
@@ -167,8 +170,9 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
               TextFormField(
                 controller: _cuota,
                 keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false,
+                  decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte()],
                 decoration: const InputDecoration(
                   labelText: 'Cuota mensual',
                   prefixText: r'$ ',
@@ -188,11 +192,9 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                     DatosNuevaDeuda(
                       acreedor: _acreedor.text.trim(),
                       tipo: _tipo,
-                      monto: double.parse(_monto.text.replaceAll('.', '')),
-                      tasaInteres: double.tryParse(
-                        _tasa.text.replaceAll(',', '.'),
-                      ),
-                      cuota: double.tryParse(_cuota.text.replaceAll('.', '')),
+                      monto: Dinero.interpretar(_monto.text)!,
+                      tasaInteres: Dinero.interpretarTasa(_tasa.text),
+                      cuota: Dinero.interpretar(_cuota.text),
                     ),
                   );
                 },

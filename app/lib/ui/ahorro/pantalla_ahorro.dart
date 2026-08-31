@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/dinero.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
@@ -394,7 +395,8 @@ class _TarjetaMeta extends ConsumerWidget {
         content: TextField(
           controller: campo,
           autofocus: true,
-          keyboardType: const TextInputType.numberWithOptions(decimal: false),
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          inputFormatters: const [FormatoDeImporte()],
           decoration: InputDecoration(
             prefixText: r'$ ',
             helperText: accion == TipoMovimiento.retiro
@@ -408,10 +410,8 @@ class _TarjetaMeta extends ConsumerWidget {
             child: const Text('Cancelar'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(
-              contexto,
-              double.tryParse(campo.text.replaceAll('.', '')),
-            ),
+            onPressed: () =>
+                Navigator.pop(contexto, Dinero.interpretar(campo.text)),
             child: const Text('Guardar'),
           ),
         ],

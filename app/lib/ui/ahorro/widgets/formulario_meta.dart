@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/dinero.dart';
 import '../../../dominio/modelos.dart';
 
 /// Datos recogidos para crear una meta de ahorro.
@@ -35,6 +36,13 @@ class _FormularioMetaState extends State<FormularioMeta> {
   TipoAsignacion _tipo = TipoAsignacion.porcentajeSobrante;
 
   bool get _esPorcentaje => _tipo != TipoAsignacion.montoFijo;
+
+  /// Lee el campo del valor según lo que represente ahora mismo.
+  ///
+  /// Un porcentaje no puede leerse como importe: la regla de los importes trata una sola cifra
+  /// tras el separador como miles, y convertiría un `2,5 %` en un 25 %.
+  double? _leerValor(String texto) =>
+      _esPorcentaje ? Dinero.interpretarTasa(texto) : Dinero.interpretar(texto);
 
   @override
   void dispose() {
@@ -91,8 +99,16 @@ class _FormularioMetaState extends State<FormularioMeta> {
                           DropdownMenuItem(value: t, child: Text(t.etiqueta)),
                     )
                     .toList(),
-                onChanged: (v) =>
-                    setState(() => _tipo = v ?? TipoAsignacion.montoFijo),
+                onChanged: (v) => setState(() {
+                  final nuevo = v ?? TipoAsignacion.montoFijo;
+                  // Un 50 significa medio sobrante o cincuenta mil pesos según el tipo, así
+                  // que al cambiarlo se vacía el campo: reinterpretar la cifra por dentro
+                  // sería adivinar, y aquí adivinar mal cuesta dinero.
+                  if ((nuevo != TipoAsignacion.montoFijo) != _esPorcentaje) {
+                    _valor.clear();
+                  }
+                  _tipo = nuevo;
+                }),
               ),
               const SizedBox(height: 8),
               Text(
@@ -105,16 +121,21 @@ class _FormularioMetaState extends State<FormularioMeta> {
 
               TextFormField(
                 controller: _valor,
-                keyboardType: TextInputType.number,
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  _esPorcentaje
+                      ? const FormatoDeImporte.tasa(decimalesMaximos: 2)
+                      : const FormatoDeImporte(),
+                ],
                 decoration: InputDecoration(
                   labelText: _esPorcentaje ? 'Porcentaje' : 'Cantidad mensual',
                   prefixText: _esPorcentaje ? null : r'$ ',
                   suffixText: _esPorcentaje ? '%' : null,
                 ),
                 validator: (v) {
-                  final valor = double.tryParse(
-                    (v ?? '').replaceAll('.', '').replaceAll(',', '.'),
-                  );
+                  final valor = _leerValor(v ?? '');
                   if (valor == null || valor <= 0) {
                     return 'Escribe un valor mayor que cero';
                   }
@@ -129,8 +150,9 @@ class _FormularioMetaState extends State<FormularioMeta> {
               TextFormField(
                 controller: _objetivo,
                 keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false,
+                  decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte()],
                 decoration: const InputDecoration(
                   labelText: 'Objetivo (opcional)',
                   prefixText: r'$ ',
@@ -147,12 +169,8 @@ class _FormularioMetaState extends State<FormularioMeta> {
                     DatosNuevaMeta(
                       nombre: _nombre.text.trim(),
                       tipo: _tipo,
-                      valor: double.parse(
-                        _valor.text.replaceAll('.', '').replaceAll(',', '.'),
-                      ),
-                      objetivo: double.tryParse(
-                        _objetivo.text.replaceAll('.', ''),
-                      ),
+                      valor: _leerValor(_valor.text)!,
+                      objetivo: Dinero.interpretar(_objetivo.text),
                     ),
                   );
                 },

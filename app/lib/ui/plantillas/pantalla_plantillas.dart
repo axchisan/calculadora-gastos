@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/dinero.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
@@ -293,7 +295,7 @@ class _FormularioState extends State<_Formulario> {
     final p = widget.plantilla;
     _nombre = TextEditingController(text: p?.nombre ?? '');
     _monto = TextEditingController(
-      text: p == null ? '' : p.montoDefault.round().toString(),
+      text: p == null ? '' : Dinero.paraEditar(p.montoDefault),
     );
     _dia = TextEditingController(text: p?.diaVencimiento?.toString() ?? '');
     _categoria = p?.categoria ?? CategoriaGasto.otro;
@@ -345,15 +347,16 @@ class _FormularioState extends State<_Formulario> {
               TextFormField(
                 controller: _monto,
                 keyboardType: const TextInputType.numberWithOptions(
-                  decimal: false,
+                  decimal: true,
                 ),
+                inputFormatters: const [FormatoDeImporte()],
                 decoration: const InputDecoration(
                   labelText: 'Monto habitual',
                   prefixText: r'$ ',
                   helperText: 'Se puede ajustar mes a mes',
                 ),
                 validator: (v) {
-                  final valor = double.tryParse((v ?? '').replaceAll('.', ''));
+                  final valor = Dinero.interpretar(v ?? '');
                   if (valor == null || valor < 0) {
                     return 'Escribe un monto válido';
                   }
@@ -379,6 +382,10 @@ class _FormularioState extends State<_Formulario> {
               TextFormField(
                 controller: _dia,
                 keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(2),
+                ],
                 decoration: const InputDecoration(
                   labelText: 'Día de vencimiento (opcional)',
                   helperText: 'Del 1 al 31, para ordenar lo que vence antes',
@@ -402,7 +409,7 @@ class _FormularioState extends State<_Formulario> {
                     _DatosPlantilla(
                       nombre: _nombre.text.trim(),
                       categoria: _categoria,
-                      monto: double.parse(_monto.text.replaceAll('.', '')),
+                      monto: Dinero.interpretar(_monto.text)!,
                       diaVencimiento: int.tryParse(_dia.text),
                     ),
                   );

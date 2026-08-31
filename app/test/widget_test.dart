@@ -386,6 +386,66 @@ void main() {
       expect(FormatoDeImporte.conSeparadores('500'), '500');
       expect(FormatoDeImporte.conSeparadores('1000'), '1.000');
     });
+
+    test('el formateador va poniendo los puntos según se teclea', () {
+      String teclear(String texto) => const FormatoDeImporte()
+          .formatEditUpdate(
+            TextEditingValue.empty,
+            TextEditingValue(text: texto),
+          )
+          .text;
+
+      expect(teclear('192729'), '192.729');
+      // El punto que se teclea en un móvil configurado en inglés es la coma decimal de aquí.
+      expect(teclear('192729.03'), '192.729,03');
+      expect(teclear('192729,03'), '192.729,03');
+      // La coma recién tecleada se conserva aunque todavía no haya centavos detrás.
+      expect(teclear('1500,'), '1.500,');
+      // No existe medio centavo.
+      expect(teclear('1500,039'), '1.500,03');
+      expect(teclear(''), '');
+    });
+
+    test('una tasa se teclea con coma pero sin separador de miles', () {
+      String teclear(String texto) => const FormatoDeImporte.tasa()
+          .formatEditUpdate(
+            TextEditingValue.empty,
+            TextEditingValue(text: texto),
+          )
+          .text;
+
+      expect(teclear('2.5'), '2,5');
+      expect(teclear('2,5'), '2,5');
+      // Un porcentaje no llega a mil, y si alguien escribe de más no se le puntea.
+      expect(teclear('1500'), '1500');
+      // El interés de una deuda se guarda con cuatro decimales.
+      expect(teclear('2,3456'), '2,3456');
+      expect(teclear('2,34567'), '2,3456');
+      // El porcentaje de una meta, en cambio, solo con dos.
+      expect(
+        const FormatoDeImporte.tasa(decimalesMaximos: 2)
+            .formatEditUpdate(
+              TextEditingValue.empty,
+              const TextEditingValue(text: '33,3333'),
+            )
+            .text,
+        '33,33',
+      );
+    });
+
+    test('una tasa se lee con el separador siempre como decimal', () {
+      // Con la regla de los importes, este 2,5 % acabaría siendo un 25 %.
+      expect(Dinero.interpretarTasa('2,5'), 2.5);
+      expect(Dinero.interpretarTasa('2.5'), 2.5);
+      expect(Dinero.interpretarTasa('0,05'), 0.05);
+      expect(Dinero.interpretarTasa('3'), 3);
+      expect(Dinero.interpretarTasa(''), isNull);
+      expect(
+        Dinero.interpretar('2,5'),
+        25,
+        reason: 'como importe sí son miles',
+      );
+    });
   });
 
   group('Compras del día a día', () {
