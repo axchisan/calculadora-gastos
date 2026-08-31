@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
 import '../../estado/autenticacion.dart';
+import 'widgets/acerca_de.dart';
 
 /// Ajustes de la cuenta.
 ///
@@ -103,6 +104,9 @@ class PantallaCuenta extends ConsumerWidget {
                   ],
                 ),
               ),
+
+              const SizedBox(height: 20),
+              const TarjetaVersion(),
 
               const SizedBox(height: 20),
               Card(

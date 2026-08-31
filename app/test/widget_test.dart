@@ -1,5 +1,6 @@
 import 'package:calculadora_gastos/core/dinero.dart';
 import 'package:calculadora_gastos/core/formato.dart';
+import 'package:calculadora_gastos/core/version.dart';
 import 'package:calculadora_gastos/dominio/modelos.dart';
 import 'package:calculadora_gastos/estado/modo_vista.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -570,6 +571,27 @@ void main() {
     test('cada modo explica qué mide', () {
       expect(ModoVista.real.descripcion, contains('pagado'));
       expect(ModoVista.estimacion.descripcion, contains('comprometido'));
+    });
+  });
+
+  group('Versión de la aplicación', () {
+    test('junta la versión y el número de compilación', () {
+      const v = VersionApp(
+        nombre: 'Mis gastos',
+        version: '1.6.1',
+        compilacion: '11',
+      );
+      expect(v.etiqueta, '1.6.1 (11)');
+    });
+
+    test('sin número de compilación muestra solo la versión', () {
+      // La web no tiene número de compilación y ahí sobra el paréntesis vacío.
+      const v = VersionApp(
+        nombre: 'Mis gastos',
+        version: '1.6.1',
+        compilacion: '',
+      );
+      expect(v.etiqueta, '1.6.1');
     });
   });
 }

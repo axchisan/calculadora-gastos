@@ -97,6 +97,8 @@ Ver [DESPLIEGUE.md](DESPLIEGUE.md).
 - [x] Icono propio en las tres plataformas, generado por código
 - [x] Nombre, identificadores y versión de cada plataforma
 - [x] Tamaño y mínimo de la ventana en macOS
+- [x] Icono de Android idéntico al de macOS bajo cualquier máscara de lanzador
+- [x] Apartado con la versión instalada, la plataforma y el servidor
 - [x] Permiso de internet en el manifiesto de publicación de Android
 - [x] Firma de publicación leída de `key.properties` si existe
 - [x] APK por arquitectura: 20 MB en vez de 57
