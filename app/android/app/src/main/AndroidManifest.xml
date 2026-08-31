@@ -12,6 +12,11 @@
          que el usuario se acuerde de abrir la aplicación. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!-- Para mantener vivo el proceso y que la escucha de notificaciones no se caiga. Es
+         opcional: el usuario lo enciende desde la aplicación. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
+
     <!-- usesCleartextTraffic: todo va por HTTPS contra api.axchisan.com.
          allowBackup: la app maneja datos económicos y las copias automáticas de Android los
          subirían a Google Drive; el servidor ya es la única fuente de verdad. -->
@@ -60,6 +65,20 @@
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService"/>
             </intent-filter>
+        </service>
+
+        <!-- android:foregroundServiceType es obligatorio desde Android 14. Ninguno de los
+             tipos con nombre describe esto —no se sincronizan datos ni se reproduce nada, solo
+             se mantiene despierta una escucha del sistema—, así que se declara como uso
+             especial con su explicación, que es justo para lo que existe esa categoría. -->
+        <service
+            android:name=".ServicioVigilante"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Mantener despierta la lectura de notificaciones de pago para
+                               registrar las compras sin abrir la aplicación"/>
         </service>
 
         <receiver

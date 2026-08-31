@@ -56,6 +56,16 @@ class MainActivity : FlutterActivity() {
                 }
                 "instalacionLateral" -> respuesta.success(esInstalacionLateral())
                 "estado" -> respuesta.success(estado())
+                "vigilante" -> {
+                    val encender = llamada.arguments as? Boolean ?: false
+                    ServicioVigilante.recordarEleccion(this, encender)
+                    if (encender) {
+                        ServicioVigilante.encender(this)
+                    } else {
+                        ServicioVigilante.apagar(this)
+                    }
+                    respuesta.success(null)
+                }
                 "reconectar" -> {
                     EscuchaDeNotificaciones.pedirReconexion(this)
                     respuesta.success(null)
@@ -201,6 +211,7 @@ class MainActivity : FlutterActivity() {
             "capturas" to capturas().size,
             "avisosPermitidos" to NotificationManagerCompat.from(this).areNotificationsEnabled(),
             "bateriaLibre" to sinRestriccionDeBateria(),
+            "vigilante" to ServicioVigilante.estaEncendido(this),
         )
     }
 
