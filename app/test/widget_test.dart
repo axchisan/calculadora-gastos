@@ -3,6 +3,8 @@ import 'package:calculadora_gastos/core/formato.dart';
 import 'package:calculadora_gastos/core/version.dart';
 import 'package:calculadora_gastos/dominio/modelos.dart';
 import 'package:calculadora_gastos/estado/modo_vista.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
@@ -387,6 +389,33 @@ void main() {
       expect(FormatoDeImporte.conSeparadores('1000'), '1.000');
     });
 
+    test('escribir tecla a tecla no estropea lo ya formateado', () {
+      // Este es el caso de verdad: el campo devuelve al formateador lo que él mismo escribió
+      // hace un instante, más la tecla nueva. Probarlo de un solo golpe escondía que los puntos
+      // de miles ya puestos se estaban tomando por separadores decimales, y que teclear la coma
+      // detrás de 192.729 dejaba un 1,92.
+      String tecleando(String texto, {TextInputFormatter? con}) {
+        final formateador = con ?? const FormatoDeImporte();
+        var actual = const TextEditingValue();
+        for (final tecla in texto.split('')) {
+          actual = formateador.formatEditUpdate(
+            actual,
+            TextEditingValue(text: actual.text + tecla),
+          );
+        }
+        return actual.text;
+      }
+
+      expect(tecleando('192729,03'), '192.729,03');
+      expect(tecleando('192729'), '192.729');
+      expect(tecleando('1234567'), '1.234.567');
+      // El punto del teclado en inglés sigue valiendo como coma decimal.
+      expect(tecleando('192729.03'), '192.729,03');
+      expect(tecleando('1500,5'), '1.500,5');
+      expect(tecleando('500'), '500');
+      expect(tecleando('2,3456', con: const FormatoDeImporte.tasa()), '2,3456');
+    });
+
     test('el formateador va poniendo los puntos según se teclea', () {
       String teclear(String texto) => const FormatoDeImporte()
           .formatEditUpdate(
@@ -635,23 +664,18 @@ void main() {
   });
 
   group('Versión de la aplicación', () {
-    test('junta la versión y el número de compilación', () {
-      const v = VersionApp(
-        nombre: 'Mis gastos',
-        version: '1.6.1',
-        compilacion: '11',
-      );
-      expect(v.etiqueta, '1.6.1 (11)');
-    });
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
 
-    test('sin número de compilación muestra solo la versión', () {
-      // La web no tiene número de compilación y ahí sobra el paréntesis vacío.
-      const v = VersionApp(
-        nombre: 'Mis gastos',
-        version: '1.6.1',
-        compilacion: '',
-      );
-      expect(v.etiqueta, '1.6.1');
+    test('nombra la plataforma en palabras', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      expect(VersionApp.plataforma, 'Android');
+
+      debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+      expect(VersionApp.plataforma, 'macOS');
+
+      // Se nombra el aparato, no el sistema: quien lee esto quiere saber dónde está mirando.
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      expect(VersionApp.plataforma, 'iPhone');
     });
   });
 }

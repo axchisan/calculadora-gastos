@@ -34,12 +34,21 @@ class TarjetaVersion extends ConsumerWidget {
             ),
             title: Text(version.valueOrNull?.nombre ?? 'Mis gastos'),
             subtitle: Text(switch (version) {
-              AsyncData(:final value) => 'Versión ${value.etiqueta}',
+              AsyncData(:final value) => 'Versión ${value.version}',
               AsyncError() => 'No se pudo leer la versión',
               _ => 'Leyendo la versión…',
             }),
           ),
           const Divider(height: 1, indent: 16, endIndent: 16),
+          // El número de compilación va con su etiqueta y no entre paréntesis tras la versión:
+          // suelto, un 2013 se lee como un año. En Android además no coincide con el del
+          // pubspec, porque al compilar por arquitectura Flutter le antepone la suya.
+          if (version.valueOrNull?.compilacion.isNotEmpty ?? false)
+            _Dato(
+              etiqueta: 'Compilación',
+              valor: version.requireValue.compilacion,
+              color: esquema.onSurfaceVariant,
+            ),
           _Dato(
             etiqueta: 'Plataforma',
             valor: VersionApp.plataforma,
