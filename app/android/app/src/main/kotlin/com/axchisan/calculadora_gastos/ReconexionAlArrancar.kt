@@ -22,8 +22,14 @@ class ReconexionAlArrancar : BroadcastReceiver() {
             "enabled_notification_listeners",
         ) ?: return
 
-        if (autorizados.contains(contexto.packageName)) {
-            EscuchaDeNotificaciones.pedirReconexion(contexto)
+        if (!autorizados.contains(contexto.packageName)) return
+
+        EscuchaDeNotificaciones.pedirReconexion(contexto)
+
+        // Y se recupera el vigilante si el usuario lo tenía encendido: un reinicio no debería
+        // apagar en silencio algo que se dejó activado a propósito.
+        if (ServicioVigilante.estaEncendido(contexto)) {
+            ServicioVigilante.encender(contexto)
         }
     }
 

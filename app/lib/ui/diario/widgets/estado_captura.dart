@@ -110,6 +110,9 @@ class _Detalle extends ConsumerWidget {
                       'y dejar de entregarle notificaciones.',
           ),
 
+          const SizedBox(height: 6),
+          _Vigilante(encendido: estado.vigilante),
+
           if (estado.capturas > 0) ...[
             const SizedBox(height: 8),
             Text(
@@ -172,6 +175,48 @@ class _Detalle extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Interruptor del servicio que mantiene despierta la detección.
+///
+/// Se ofrece como una elección y no se enciende solo porque tiene un precio visible: una
+/// notificación permanente. A cambio es lo único que Android garantiza que no se mata sin más,
+/// y sin él la detección funciona a ratos —justo el comportamiento que hace desconfiar.
+class _Vigilante extends ConsumerWidget {
+  const _Vigilante({required this.encendido});
+
+  final bool encendido;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tema = Theme.of(context);
+
+    return SwitchListTile(
+      contentPadding: EdgeInsets.zero,
+      dense: true,
+      value: encendido,
+      title: Text(
+        'Mantener la detección siempre despierta',
+        style: tema.textTheme.bodyMedium,
+      ),
+      subtitle: Text(
+        encendido
+            ? 'Deja una notificación fija que puedes ocultar. Es lo que evita que el '
+                  'sistema apague la detección cuando la app está cerrada.'
+            : 'Sin esto, el sistema puede apagar la detección con la app cerrada y las '
+                  'compras solo se recogen al volver a abrirla.',
+        style: tema.textTheme.bodySmall?.copyWith(
+          color: tema.colorScheme.onSurfaceVariant,
+        ),
+      ),
+      onChanged: (valor) async {
+        await ref
+            .read(capturasAndroidProvider)
+            .cambiarVigilante(encendido: valor);
+        ref.invalidate(estadoCapturaProvider);
+      },
     );
   }
 }

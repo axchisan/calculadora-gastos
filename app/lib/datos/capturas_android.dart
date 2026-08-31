@@ -13,6 +13,7 @@ class EstadoCaptura {
     required this.permiso,
     required this.avisosPermitidos,
     required this.bateriaLibre,
+    required this.vigilante,
     required this.capturas,
     this.conectadoDesde,
   });
@@ -25,6 +26,9 @@ class EstadoCaptura {
 
   /// El sistema no restringe a la aplicación en segundo plano.
   final bool bateriaLibre;
+
+  /// Si está encendido el servicio que mantiene despierta la detección.
+  final bool vigilante;
 
   /// Cuántas capturas hay guardadas sin resolver.
   final int capturas;
@@ -42,6 +46,7 @@ class EstadoCaptura {
     permiso: j['permiso'] as bool? ?? false,
     avisosPermitidos: j['avisosPermitidos'] as bool? ?? false,
     bateriaLibre: j['bateriaLibre'] as bool? ?? false,
+    vigilante: j['vigilante'] as bool? ?? false,
     capturas: (j['capturas'] as num?)?.toInt() ?? 0,
     conectadoDesde: j['conectadoDesde'] == null
         ? null
@@ -149,6 +154,16 @@ class CapturasAndroid {
       return crudo == null ? null : EstadoCaptura.deJson(crudo);
     } on PlatformException {
       return null;
+    }
+  }
+
+  /// Enciende o apaga el servicio que mantiene despierta la detección.
+  Future<void> cambiarVigilante({required bool encendido}) async {
+    if (!disponible) return;
+    try {
+      await _canal.invokeMethod<void>('vigilante', encendido);
+    } on PlatformException {
+      // Sin permiso de avisos el servicio en primer plano no puede arrancar.
     }
   }
 

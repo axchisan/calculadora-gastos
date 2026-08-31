@@ -40,7 +40,13 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
             .putLong(CLAVE_CONECTADO, System.currentTimeMillis())
             .apply()
 
-        revisarLoQueYaEstaEnLaBandeja()
+        // El repaso se aplaza un momento: recién conectado, el sistema todavía puede devolver
+        // la bandeja vacía o negar el acceso, y entonces se perdía justo lo que se quería
+        // recuperar. Un segundo basta y nadie lo nota.
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+            { revisarLoQueYaEstaEnLaBandeja() },
+            ESPERA_ANTES_DEL_REPASO,
+        )
     }
 
     /**
@@ -225,6 +231,9 @@ class EscuchaDeNotificaciones : NotificationListenerService() {
         const val EXTRA_BANDEJA = "abrir_bandeja"
 
         private const val CLAVE_ULTIMO_AVISO = "ultimo_aviso"
+
+        /** Lo que se espera tras conectar antes de mirar la bandeja. */
+        private const val ESPERA_ANTES_DEL_REPASO = 1_000L
         private const val CANAL_AVISOS = "pagos_detectados"
         private const val MAXIMO = 200
 
