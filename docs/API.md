@@ -277,6 +277,7 @@ el calendario y el segundo desde el módulo de deudas. Marcarlos como pagados s�
 | `GET` | `/api/meses/{mesId}/transporte/configuracion` | Tarifa, días laborales y de karate |
 | `GET` | `/api/meses/{mesId}/transporte/escenarios` | Proyecciones optimista, esperada y pesimista |
 | `PATCH` | `/api/meses/{mesId}/transporte/configuracion` | Cambia los parámetros y recalcula |
+| `PATCH` | `/api/meses/{mesId}/transporte/presupuesto` | Fija a mano lo que costará el mes; con `null` vuelve a mandar el calendario |
 | `POST` | `/api/meses/{mesId}/transporte/regenerar` | Descarta los ajustes y propone de nuevo |
 | `PATCH` | `.../dias/{diaId}/tipo` | Reclasifica un día |
 | `PATCH` | `.../dias/{diaId}/pasajes` | Fija los pasajes a mano |

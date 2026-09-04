@@ -55,6 +55,17 @@ public class ConfigTransporteMes {
     @Column(name = "comision_recarga", nullable = false)
     private BigDecimal comisionRecarga = BigDecimal.ZERO;
 
+    /**
+     * Lo que va a costar el transporte este mes, puesto a mano.
+     *
+     * <p>Nulo significa que manda el calendario. Se fija cuando no hay rutina que proyectar —un
+     * mes sin empleo, unas vacaciones— y lo que se sabe no es cuántos pasajes se van a gastar
+     * sino cuánto se va a recargar. Sin esto había que inventar una rutina de días de oficina
+     * para que saliera la cifra correcta.
+     */
+    @Column(name = "presupuesto_manual")
+    private BigDecimal presupuestoManual;
+
     @Column(name = "pasajes_dia_oficina", nullable = false)
     private short pasajesDiaOficina = 2;
 
@@ -158,6 +169,23 @@ public class ConfigTransporteMes {
             throw new IllegalArgumentException("La comisión no puede ser negativa");
         }
         this.comisionRecarga = comisionRecarga == null ? BigDecimal.ZERO : comisionRecarga;
+    }
+
+    public BigDecimal getPresupuestoManual() {
+        return presupuestoManual;
+    }
+
+    /** Con {@code null} vuelve a mandar el calendario. */
+    public void setPresupuestoManual(BigDecimal presupuestoManual) {
+        if (presupuestoManual != null && presupuestoManual.signum() < 0) {
+            throw new IllegalArgumentException("El presupuesto no puede ser negativo");
+        }
+        this.presupuestoManual = presupuestoManual;
+    }
+
+    /** Lo que debe costar el mes: lo fijado a mano si lo hay, y si no lo que salga del cálculo. */
+    public BigDecimal costoDelMes(BigDecimal calculado) {
+        return presupuestoManual != null ? presupuestoManual : calculado;
     }
 
     public short getPasajesDiaOficina() {

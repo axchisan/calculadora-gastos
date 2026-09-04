@@ -109,6 +109,10 @@ class ControladorTransporte extends StateNotifier<AsyncValue<DatosTransporte>> {
     (id) => _repositorio.actualizarConfiguracion(id, comisionRecarga: valor),
   );
 
+  /// Fija a mano lo que va a costar el mes, o vuelve al calendario con nulo.
+  Future<void> fijarPresupuesto(double? valor) =>
+      _aplicar((id) => _repositorio.fijarPresupuesto(id, valor));
+
   Future<void> cambiarDiasKarate(Set<int> dias) => _aplicar(
     (id) => _repositorio.actualizarConfiguracion(id, diasKarate: dias),
   );
