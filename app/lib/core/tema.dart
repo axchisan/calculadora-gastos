@@ -70,7 +70,13 @@ class Tema {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size.fromHeight(52),
+          // Solo la altura, cómoda para el pulgar. Aquí estuvo 'Size.fromHeight(52)', que además
+          // fija el ancho mínimo en infinito: dentro de una fila el botón desbordaba, y como las
+          // tarjetas recortan su contenido, desaparecía sin dejar rastro. En publicación no se
+          // ven las rayas de desbordamiento, así que el botón de confirmar un pago detectado
+          // llevaba semanas invisible aunque seguía estando ahí y respondiendo al toque.
+          // El ancho lo pone quien coloca el botón: una columna estirada o un Expanded.
+          minimumSize: const Size(0, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
           ),

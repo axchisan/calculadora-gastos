@@ -135,9 +135,17 @@ class _TarjetaPago extends ConsumerWidget {
                   onPressed: () => _descartar(ref),
                   child: const Text('Descartar'),
                 ),
-                FilledButton.tonal(
+                const SizedBox(width: 8),
+                // Confirmar es lo que se viene a hacer aquí, así que va en botón lleno y no
+                // tonal: sobre una tarjeta ya teñida de color primario, el tonal se confunde
+                // con el fondo.
+                FilledButton(
                   onPressed: () => _registrar(context, ref),
-                  child: const Text('Apuntar'),
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 40),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                  ),
+                  child: const Text('Confirmar'),
                 ),
               ],
             ),
