@@ -56,6 +56,18 @@ que el icono del teléfono salga igual que el del Mac, el generador hace dos cos
 La comprobación es directa: componer `icono_fondo.png` con `icono_adaptativo.png`, recortar el
 66% central y comparar contra `icono.png`; deben salir el mismo dibujo.
 
+## Compilar el backend
+
+Gradle se descarga solo el JDK 21 que pide el proyecto, así que no hace falta tenerlo instalado.
+Lo que sí importa es sobre qué Java corre el propio Gradle: **la 8.14 no sabe leer versiones de
+cuatro componentes** como `25.0.4.1` y falla con ese número por todo mensaje, sin decir de dónde
+sale. Si aparece, basta con arrancarlo sobre un Java que sepa interpretar:
+
+```bash
+cd backend
+JAVA_HOME=$(/usr/libexec/java_home -v 17) ./gradlew test
+```
+
 ## Requisitos del entorno
 
 | Herramienta | Para qué | Instalación |

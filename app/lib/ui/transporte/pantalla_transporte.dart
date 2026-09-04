@@ -320,6 +320,36 @@ class _Ajustes extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
+            // Va la primera porque decide si el resto de los ajustes pintan algo: con el
+            // presupuesto fijado, el calendario deja de mandar sobre lo que llega al mes.
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(
+                config.tienePresupuestoFijado
+                    ? Icons.push_pin
+                    : Icons.push_pin_outlined,
+              ),
+              title: const Text('Presupuesto del mes'),
+              subtitle: Text(
+                config.tienePresupuestoFijado
+                    ? 'Fijado a mano; el calendario no lo cambia'
+                    : 'Sale del calendario',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              trailing: Text(
+                Formato.dinero(
+                  config.presupuestoManual ?? datos.resumen.costoTotal,
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              onTap: () => _fijarPresupuesto(
+                context,
+                ref,
+                config.presupuestoManual,
+                datos.resumen.costoTotal,
+              ),
+            ),
+
             ListTile(
               contentPadding: EdgeInsets.zero,
               leading: const Icon(Icons.confirmation_number_outlined),
@@ -437,6 +467,83 @@ class _Ajustes extends ConsumerWidget {
   ///
   /// Es fija por recarga, así que recargar de a poco sale más caro. Apuntarla cada vez es lo que
   /// hace visible ese sobrecoste, que de otro modo se pierde.
+  /// Fija a mano lo que va a costar el mes, o devuelve el mando al calendario.
+  Future<void> _fijarPresupuesto(
+    BuildContext context,
+    WidgetRef ref,
+    double? fijado,
+    double calculado,
+  ) async {
+    final controlador = TextEditingController(
+      text: Dinero.paraEditar(fijado ?? calculado),
+    );
+
+    final resultado = await showDialog<({double? valor})>(
+      context: context,
+      builder: (contexto) => AlertDialog(
+        title: const Text('Presupuesto del mes'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TextField(
+              controller: controlador,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              inputFormatters: const [FormatoDeImporte()],
+              decoration: const InputDecoration(prefixText: r'$ '),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Lo pones tú y el calendario deja de cambiarlo. Sirve para los meses sin '
+              'rutina que proyectar, cuando sabes cuánto vas a recargar pero no cuántos '
+              'días vas a salir.\n\nPor calendario saldrían '
+              '${Formato.dinero(calculado)}.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(contexto),
+            child: const Text('Cancelar'),
+          ),
+          if (fijado != null)
+            TextButton(
+              onPressed: () => Navigator.pop(contexto, (valor: null)),
+              child: const Text('Volver al calendario'),
+            ),
+          FilledButton(
+            onPressed: () {
+              final valor = Dinero.interpretar(controlador.text);
+              if (valor != null && valor >= 0) {
+                Navigator.pop(contexto, (valor: valor));
+              }
+            },
+            child: const Text('Fijar'),
+          ),
+        ],
+      ),
+    );
+
+    if (resultado == null) return;
+    try {
+      await ref
+          .read(transporteProvider.notifier)
+          .fijarPresupuesto(resultado.valor);
+    } on ErrorApi catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+
   Future<void> _cambiarComision(
     BuildContext context,
     WidgetRef ref,

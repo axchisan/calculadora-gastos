@@ -24,17 +24,29 @@ public final class DtosTransporte {
     }
 
     public record ConfigDto(BigDecimal valorPasaje, BigDecimal comisionRecarga,
+                            BigDecimal presupuestoManual,
                             int pasajesDiaOficina, int pasajesExtraKarate,
                             int pasajesKarateDesdeCasa, Set<DayOfWeek> diasLaborales,
                             Set<DayOfWeek> diasKarate, int diasRemotosPorSemana) {
 
         public static ConfigDto de(ConfigTransporteMes config) {
             return new ConfigDto(config.getValorPasaje(), config.getComisionRecarga(),
+                    config.getPresupuestoManual(),
                     config.getPasajesDiaOficina(),
                     config.getPasajesExtraKarate(), config.getPasajesKarateDesdeCasa(),
                     config.getDiasLaborales(), config.getDiasKarate(),
                     config.getDiasRemotosPorSemana());
         }
+    }
+
+    /**
+     * Presupuesto puesto a mano.
+     *
+     * @param presupuesto lo que va a costar el mes, o nulo para volver al cálculo por calendario
+     */
+    public record FijarPresupuestoRequest(
+            @PositiveOrZero(message = "El presupuesto no puede ser negativo")
+            BigDecimal presupuesto) {
     }
 
     /**

@@ -12,6 +12,7 @@ class ConfigTransporte {
     required this.diasLaborales,
     required this.diasKarate,
     required this.diasRemotosPorSemana,
+    this.presupuestoManual,
   });
 
   final double valorPasaje;
@@ -33,6 +34,15 @@ class ConfigTransporte {
 
   final int diasRemotosPorSemana;
 
+  /// Lo que va a costar el mes, puesto a mano.
+  ///
+  /// Nulo significa que manda el calendario. Se fija cuando no hay rutina que proyectar —un mes
+  /// sin empleo, unas vacaciones— y lo que se sabe no es cuántos pasajes se van a gastar sino
+  /// cuánto se va a recargar.
+  final double? presupuestoManual;
+
+  bool get tienePresupuestoFijado => presupuestoManual != null;
+
   static ConfigTransporte deJson(Map<String, dynamic> j) => ConfigTransporte(
     valorPasaje: (j['valorPasaje'] as num).toDouble(),
     comisionRecarga: (j['comisionRecarga'] as num?)?.toDouble() ?? 0,
@@ -42,6 +52,7 @@ class ConfigTransporte {
     diasLaborales: _aDias(j['diasLaborales']),
     diasKarate: _aDias(j['diasKarate']),
     diasRemotosPorSemana: j['diasRemotosPorSemana'] as int,
+    presupuestoManual: (j['presupuestoManual'] as num?)?.toDouble(),
   );
 
   /// La API devuelve los días como nombres del enum de Java (`MONDAY`), no como números.
@@ -222,6 +233,21 @@ class RepositorioTransporte {
         'diasRemotosPorSemana': ?diasRemotosPorSemana,
         'regenerarClasificacion': regenerarClasificacion,
       },
+    );
+    return ResumenTransporte.deJson(datos);
+  }
+
+  /// Fija a mano lo que va a costar el mes, o vuelve al cálculo por calendario con nulo.
+  ///
+  /// El calendario se sigue calculando por debajo: lo fijado solo sustituye a la cifra que llega
+  /// al presupuesto, así que volver atrás no cuesta haber perdido la rutina.
+  Future<ResumenTransporte> fijarPresupuesto(
+    String mesId,
+    double? presupuesto,
+  ) async {
+    final datos = await _api.modificar<Map<String, dynamic>>(
+      '/api/meses/$mesId/transporte/presupuesto',
+      cuerpo: {'presupuesto': presupuesto},
     );
     return ResumenTransporte.deJson(datos);
   }

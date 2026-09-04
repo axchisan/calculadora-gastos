@@ -185,6 +185,24 @@ public class ServicioTransporteMes {
         return recalcular(mes, config);
     }
 
+    /**
+     * Fija a mano lo que va a costar el transporte del mes, o vuelve al cálculo por calendario.
+     *
+     * <p>El calendario sigue ahí y se sigue calculando: lo fijado solo sustituye a la cifra que
+     * llega al presupuesto. Así se puede volver atrás sin haber perdido la rutina.
+     *
+     * @param presupuesto lo que se va a gastar, o {@code null} para que mande el calendario
+     */
+    @Transactional
+    public ResumenTransporte fijarPresupuesto(UUID usuarioId, UUID mesId, BigDecimal presupuesto) {
+        MesPresupuestal mes = mesDelUsuario(usuarioId, mesId);
+        ServicioMeses.verificarAbierto(mes);
+        ConfigTransporteMes config = configDelMes(mes);
+        config.setPresupuestoManual(presupuesto);
+        configuraciones.save(config);
+        return recalcular(mes, config);
+    }
+
     /** Reclasifica un día concreto: marcarlo como remoto, vacaciones, etc. */
     @Transactional
     public ResumenTransporte cambiarTipoDia(UUID usuarioId, UUID mesId, UUID diaId, TipoDia tipo) {
@@ -231,7 +249,7 @@ public class ServicioTransporteMes {
         for (int i = 0; i < filas.size() && i < resumen.dias().size(); i++) {
             filas.get(i).aplicar(resumen.dias().get(i));
         }
-        sincronizarGasto(mes, resumen.costoTotal());
+        sincronizarGasto(mes, config.costoDelMes(resumen.costoTotal()));
         return resumen;
     }
 
@@ -245,7 +263,7 @@ public class ServicioTransporteMes {
 
         ResumenTransporte resumen = calculadora.calcular(
                 periodo, config.aConfiguracionDeCalculo(), propuesta);
-        sincronizarGasto(mes, resumen.costoTotal());
+        sincronizarGasto(mes, config.costoDelMes(resumen.costoTotal()));
     }
 
     /**

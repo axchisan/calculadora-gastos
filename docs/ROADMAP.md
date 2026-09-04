@@ -67,6 +67,8 @@ pantalla.
 - [x] Créditos con cuadro de amortización y simulación de abonos extraordinarios
 - [x] Importes con centavos y compras fechadas en el mes anterior
 - [x] Separadores en vivo y lectura de la coma decimal en todos los formularios
+- [x] Ingresos extra del mes, separados del sueldo y distinguiendo cobrado de por cobrar
+- [x] Presupuesto de transporte fijado a mano, para los meses sin rutina que proyectar
 
 ## Fase 5 — Gráficas
 
@@ -114,7 +116,7 @@ Ver [APLICACIONES.md](APLICACIONES.md).
 
 | Herramienta | Estado |
 |---|---|
-| Java 21 | ✅ instalado (21.0.12) |
+| Java 21 | ✅ lo descarga Gradle solo (toolchain) |
 | Flutter | ✅ instalado (3.44.8, Dart 3.12.2) |
 | AWS CLI | ✅ configurado (cuenta 612216903994) |
 | GitHub CLI | ✅ autenticado (axchisan) |

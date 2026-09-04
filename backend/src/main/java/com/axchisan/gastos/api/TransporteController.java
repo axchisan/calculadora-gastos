@@ -5,6 +5,7 @@ import com.axchisan.gastos.api.dto.DtosTransporte.CambiarTipoDiaRequest;
 import com.axchisan.gastos.api.dto.DtosTransporte.ConfigDto;
 import com.axchisan.gastos.api.dto.DtosTransporte.ConfirmarDiaRequest;
 import com.axchisan.gastos.api.dto.DtosTransporte.EscenariosDto;
+import com.axchisan.gastos.api.dto.DtosTransporte.FijarPresupuestoRequest;
 import com.axchisan.gastos.api.dto.DtosTransporte.FijarPasajesRequest;
 import com.axchisan.gastos.api.dto.DtosTransporte.ResumenDto;
 import com.axchisan.gastos.seguridad.UsuarioActual;
@@ -70,6 +71,19 @@ public class TransporteController {
                 peticion.pasajesExtraKarate(), peticion.pasajesKarateDesdeCasa(),
                 peticion.diasLaborales(), peticion.diasKarate(), peticion.diasRemotosPorSemana(),
                 peticion.debeRegenerar());
+        return ResumenDto.de(resumen, transporte.dias(usuarioId, mesId));
+    }
+
+    @PatchMapping("/presupuesto")
+    @Operation(summary = "Fija a mano lo que costará el mes, o vuelve al cálculo por calendario",
+            description = "Con el presupuesto nulo manda otra vez el calendario. Sirve para los "
+                    + "meses sin rutina que proyectar, en los que se sabe cuánto se va a recargar "
+                    + "pero no cuántos días se va a salir.")
+    public ResumenDto fijarPresupuesto(@PathVariable UUID mesId,
+                                       @Valid @RequestBody FijarPresupuestoRequest peticion) {
+        UUID usuarioId = UsuarioActual.id();
+        ResumenTransporte resumen = transporte.fijarPresupuesto(
+                usuarioId, mesId, peticion.presupuesto());
         return ResumenDto.de(resumen, transporte.dias(usuarioId, mesId));
     }
 
