@@ -218,6 +218,35 @@ class Mes {
   );
 }
 
+/// Dinero que entra durante el mes al margen del sueldo.
+///
+/// Una prima, un trabajo suelto, lo que devuelve alguien de una compra compartida. Se distingue
+/// entre cobrado y por cobrar porque no es lo mismo tener el dinero que esperarlo: lo cobrado
+/// sube el disponible de hoy, lo pendiente solo la proyección del cierre.
+class IngresoExtra {
+  const IngresoExtra({
+    required this.id,
+    required this.concepto,
+    required this.monto,
+    required this.fecha,
+    required this.recibido,
+  });
+
+  final String id;
+  final String concepto;
+  final double monto;
+  final DateTime fecha;
+  final bool recibido;
+
+  static IngresoExtra deJson(Map<String, dynamic> j) => IngresoExtra(
+    id: j['id'] as String,
+    concepto: j['concepto'] as String,
+    monto: (j['monto'] as num).toDouble(),
+    fecha: DateTime.parse(j['fecha'] as String),
+    recibido: j['recibido'] as bool,
+  );
+}
+
 class Gasto {
   const Gasto({
     required this.id,

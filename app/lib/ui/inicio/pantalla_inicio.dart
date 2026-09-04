@@ -12,6 +12,7 @@ import '../../dominio/modelos.dart';
 import '../../estado/mes.dart';
 import '../../estado/modo_vista.dart';
 import 'widgets/editor_ingreso.dart';
+import 'widgets/ingresos_extra.dart';
 import 'widgets/lista_gastos.dart';
 import 'widgets/tarjeta_saldo.dart';
 
@@ -295,6 +296,8 @@ class _Contenido extends ConsumerWidget {
                 alAlternarModo: () =>
                     ref.read(modoVistaProvider.notifier).alternar(),
               ),
+              const SizedBox(height: 20),
+              IngresosExtra(datos: datos),
               const SizedBox(height: 20),
               ListaGastos(datos: datos),
             ],

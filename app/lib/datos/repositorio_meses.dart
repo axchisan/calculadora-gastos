@@ -67,6 +67,50 @@ class RepositorioMeses {
     return Mes.deJson(datos);
   }
 
+  // --- ingresos extra ---
+
+  Future<List<IngresoExtra>> ingresos(String mesId) async {
+    final datos = await _api.obtener<List<dynamic>>(
+      '/api/meses/$mesId/ingresos',
+    );
+    return datos
+        .map((e) => IngresoExtra.deJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  Future<IngresoExtra> crearIngreso(
+    String mesId, {
+    required String concepto,
+    required double monto,
+    required DateTime fecha,
+    required bool recibido,
+  }) async {
+    final datos = await _api.publicar<Map<String, dynamic>>(
+      '/api/meses/$mesId/ingresos',
+      cuerpo: {
+        'concepto': concepto,
+        'monto': monto,
+        'fecha': fecha.toIso8601String().split('T').first,
+        'recibido': recibido,
+      },
+    );
+    return IngresoExtra.deJson(datos);
+  }
+
+  Future<IngresoExtra> marcarIngresoRecibido(
+    String ingresoId,
+    bool recibido,
+  ) async {
+    // El endpoint lo espera como parámetro de consulta, no en el cuerpo.
+    final datos = await _api.modificar<Map<String, dynamic>>(
+      '/api/meses/ingresos/$ingresoId/recibido?recibido=$recibido',
+    );
+    return IngresoExtra.deJson(datos);
+  }
+
+  Future<void> eliminarIngreso(String ingresoId) =>
+      _api.eliminar('/api/meses/ingresos/$ingresoId');
+
   /// Añade al mes los gastos fijos que le falten.
   ///
   /// Las plantillas se copian al crear el mes, así que una creada después no aparece en los
