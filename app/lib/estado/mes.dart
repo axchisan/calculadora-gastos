@@ -34,12 +34,27 @@ final recordarPeriodoProvider = Provider<void>((ref) {
   });
 });
 
-/// Contenido de un mes: el resumen y sus gastos, cargados juntos.
+/// Contenido de un mes: el resumen, sus gastos y los ingresos extra, cargados juntos.
 class DatosMes {
-  const DatosMes({required this.resumen, required this.gastos});
+  const DatosMes({
+    required this.resumen,
+    required this.gastos,
+    required this.ingresos,
+  });
 
   final ResumenMensual resumen;
   final List<Gasto> gastos;
+
+  /// Lo que ha entrado este mes aparte del sueldo.
+  final List<IngresoExtra> ingresos;
+
+  /// Ingresos extra ya cobrados: los únicos que suben el disponible de hoy.
+  double get extrasCobrados =>
+      ingresos.where((i) => i.recibido).fold(0, (suma, i) => suma + i.monto);
+
+  /// Los que aún se esperan. Solo cuentan para la proyección del cierre.
+  double get extrasPendientes =>
+      ingresos.where((i) => !i.recibido).fold(0, (suma, i) => suma + i.monto);
 
   /// Gastos que aún no están saldados, primero los más cercanos a vencer.
   List<Gasto> get pendientes {
@@ -135,6 +150,35 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
     await refrescar();
   }
 
+  /// Apunta dinero que ha entrado aparte del sueldo.
+  Future<void> crearIngresoExtra({
+    required String concepto,
+    required double monto,
+    required DateTime fecha,
+    required bool recibido,
+  }) async {
+    final id = _mesId;
+    if (id == null) return;
+    await _repositorio.crearIngreso(
+      id,
+      concepto: concepto,
+      monto: monto,
+      fecha: fecha,
+      recibido: recibido,
+    );
+    await refrescar();
+  }
+
+  Future<void> marcarIngresoRecibido(String ingresoId, bool recibido) async {
+    await _repositorio.marcarIngresoRecibido(ingresoId, recibido);
+    await refrescar();
+  }
+
+  Future<void> eliminarIngresoExtra(String ingresoId) async {
+    await _repositorio.eliminarIngreso(ingresoId);
+    await refrescar();
+  }
+
   Future<void> actualizarIngreso(double ingreso) async {
     final id = _mesId;
     if (id == null) return;
@@ -200,11 +244,12 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
   Future<DatosMes> _cargarDatos(String mesId) async {
     // Las dos peticiones son independientes, así que se lanzan a la vez: con el arranque en
     // frío de Lambda, encadenarlas duplicaría la espera.
-    final (resumen, gastos) = await (
+    final (resumen, gastos, ingresos) = await (
       _repositorio.resumen(mesId),
       _repositorio.gastos(mesId),
+      _repositorio.ingresos(mesId),
     ).wait;
-    return DatosMes(resumen: resumen, gastos: gastos);
+    return DatosMes(resumen: resumen, gastos: gastos, ingresos: ingresos);
   }
 }
 
