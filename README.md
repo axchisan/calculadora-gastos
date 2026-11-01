@@ -7,6 +7,14 @@ tiene en cuenta el calendario de festivos de Colombia.
 Disponible en **web**, **Android** y **macOS**, con los datos sincronizados entre todos los
 dispositivos.
 
+| El mes | En qué se va el dinero |
+|---|---|
+| ![Resumen del mes: disponible hoy, pagado, lo que falta, ingresos extra](docs/capturas/mes.jpg) | ![Gráfica de gastos por categoría](docs/capturas/graficas.jpg) |
+| **Deudas** | **Ahorro** |
+| ![Deudas con su avance de pago e intereses del mes](docs/capturas/deudas.jpg) | ![Metas de ahorro con el reparto sugerido del sobrante](docs/capturas/ahorro.jpg) |
+
+<sub>Capturas con una cuenta de demostración y datos inventados.</sub>
+
 ## Qué resuelve
 
 - **Presupuesto mensual**: registrar el sueldo del mes y los gastos fijos, ver cuánto queda
