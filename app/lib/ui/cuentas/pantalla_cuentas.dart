@@ -290,9 +290,7 @@ class _FilaCuenta extends ConsumerWidget {
   }
 
   Future<void> _anotarSaldo(BuildContext context, WidgetRef ref) async {
-    final campo = TextEditingController(
-      text: Dinero.paraEditar(cuenta.saldo),
-    );
+    final campo = TextEditingController(text: Dinero.paraEditar(cuenta.saldo));
     final valor = await showDialog<double>(
       context: context,
       builder: (contexto) => AlertDialog(

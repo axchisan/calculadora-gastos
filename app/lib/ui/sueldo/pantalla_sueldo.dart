@@ -156,7 +156,10 @@ class _SinSueldo extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            FilledButton(onPressed: alConfigurar, child: const Text('Configurar')),
+            FilledButton(
+              onPressed: alConfigurar,
+              child: const Text('Configurar'),
+            ),
           ],
         ),
       ),

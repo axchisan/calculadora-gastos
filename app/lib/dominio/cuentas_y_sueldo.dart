@@ -162,8 +162,7 @@ class FuenteIngreso {
 
   /// Lo que llega de un mes completo, en pesos, con los costos del medio actual.
   double get mesCompletoEnPesos {
-    final neto =
-        montoMensual * (1 - comisionPorcentaje / 100) - comisionFija;
+    final neto = montoMensual * (1 - comisionPorcentaje / 100) - comisionFija;
     final pesos =
         neto * trm * (1 - descuentoCambioPorcentaje / 100) - costoRetiro;
     return pesos < 0 ? 0 : pesos.floorToDouble();
