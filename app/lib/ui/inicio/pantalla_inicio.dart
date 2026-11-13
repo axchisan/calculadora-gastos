@@ -11,6 +11,7 @@ import '../../datos/repositorio_meses.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/mes.dart';
 import '../../estado/modo_vista.dart';
+import '../cuentas/pantalla_cuentas.dart';
 import 'widgets/editor_ingreso.dart';
 import 'widgets/ingresos_extra.dart';
 import 'widgets/lista_gastos.dart';
@@ -60,6 +61,12 @@ class PantallaInicio extends ConsumerWidget {
             itemBuilder: (_) {
               final cerrado = datos.valueOrNull?.resumen.cerrado ?? false;
               return [
+                const PopupMenuItem(
+                  value: 'cuentas',
+                  child: Text('Mis cuentas y efectivo'),
+                ),
+                const PopupMenuItem(value: 'sueldo', child: Text('Mi sueldo')),
+                const PopupMenuDivider(),
                 const PopupMenuItem(
                   value: 'aplicar',
                   child: Text('Traer mis gastos fijos'),
@@ -113,6 +120,10 @@ class PantallaInicio extends ConsumerWidget {
     switch (opcion) {
       case 'cuenta':
         context.push(Rutas.cuenta);
+      case 'cuentas':
+        context.push(Rutas.cuentas);
+      case 'sueldo':
+        context.push(Rutas.sueldo);
       case 'plantillas':
         context.push(Rutas.plantillas);
       case 'aplicar':
@@ -296,6 +307,8 @@ class _Contenido extends ConsumerWidget {
                 alAlternarModo: () =>
                     ref.read(modoVistaProvider.notifier).alternar(),
               ),
+              const SizedBox(height: 12),
+              TarjetaCuadre(alTocar: () => context.push(Rutas.cuentas)),
               const SizedBox(height: 20),
               IngresosExtra(datos: datos),
               const SizedBox(height: 20),

@@ -1,0 +1,30 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../datos/repositorio_cuentas.dart';
+import '../dominio/cuentas_y_sueldo.dart';
+import 'proveedores.dart';
+
+final repositorioCuentasProvider = Provider<RepositorioCuentas>(
+  (ref) => RepositorioCuentas(ref.watch(clienteApiProvider)),
+);
+
+/// Las cuentas con su saldo real.
+final cuentasProvider = FutureProvider<List<Cuenta>>(
+  (ref) => ref.watch(repositorioCuentasProvider).listar(),
+);
+
+/// Suma de los saldos de las cuentas activas: el dinero que de verdad hay hoy.
+final dineroRealProvider = Provider<AsyncValue<double>>((ref) {
+  return ref
+      .watch(cuentasProvider)
+      .whenData(
+        (cuentas) => cuentas
+            .where((c) => c.activa)
+            .fold<double>(0, (suma, c) => suma + c.saldo),
+      );
+});
+
+/// Ingresos en otra moneda, con sus próximos pagos.
+final fuentesIngresoProvider = FutureProvider<List<FuenteIngreso>>(
+  (ref) => ref.watch(repositorioCuentasProvider).fuentes(),
+);

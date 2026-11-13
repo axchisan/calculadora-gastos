@@ -15,6 +15,8 @@ import 'ui/graficas/pantalla_graficas.dart';
 import 'ui/inicio/pantalla_inicio.dart';
 import 'ui/navegacion.dart';
 import 'ui/plantillas/pantalla_plantillas.dart';
+import 'ui/cuentas/pantalla_cuentas.dart';
+import 'ui/sueldo/pantalla_sueldo.dart';
 import 'ui/transporte/pantalla_transporte.dart';
 
 /// Rutas de la aplicación.
@@ -29,6 +31,8 @@ class Rutas {
   static const String graficas = '/graficas';
   static const String cuenta = '/cuenta';
   static const String plantillas = '/plantillas';
+  static const String cuentas = '/cuentas';
+  static const String sueldo = '/sueldo';
   static const String acceso = '/acceso';
   static const String cargando = '/cargando';
 }
@@ -66,6 +70,8 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
         path: Rutas.plantillas,
         builder: (_, _) => const PantallaPlantillas(),
       ),
+      GoRoute(path: Rutas.cuentas, builder: (_, _) => const PantallaCuentas()),
+      GoRoute(path: Rutas.sueldo, builder: (_, _) => const PantallaSueldo()),
 
       ShellRoute(
         builder: (_, _, hijo) => Navegacion(hijo: hijo),
