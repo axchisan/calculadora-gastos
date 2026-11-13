@@ -24,7 +24,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Fijada a la versión con la que se desarrolla. Con «la última estable», Flutter 3.50
+          # marcó como obsoleto material.dart en todos los archivos y el análisis empezó a fallar
+          # sin que el código hubiera cambiado.
           channel: stable
+          flutter-version: 3.44.8
           cache: true
 
       - name: Descargar dependencias
@@ -61,7 +65,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Fijada a la versión con la que se desarrolla. Con «la última estable», Flutter 3.50
+          # marcó como obsoleto material.dart en todos los archivos y el análisis empezó a fallar
+          # sin que el código hubiera cambiado.
           channel: stable
+          flutter-version: 3.44.8
           cache: true
 
       - name: Compilar para web
