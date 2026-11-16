@@ -70,6 +70,9 @@ public class FuenteIngreso {
     @Column(name = "trm_fecha", nullable = false)
     private LocalDate trmFecha;
 
+    @Column(name = "trm_automatica", nullable = false)
+    private boolean trmAutomatica = true;
+
     @Column(name = "comision_porcentaje", nullable = false, precision = 5, scale = 2)
     private BigDecimal comisionPorcentaje = BigDecimal.ZERO;
 
@@ -239,6 +242,14 @@ public class FuenteIngreso {
 
     public LocalDate getTrmFecha() {
         return trmFecha;
+    }
+
+    public boolean isTrmAutomatica() {
+        return trmAutomatica;
+    }
+
+    public void setTrmAutomatica(boolean trmAutomatica) {
+        this.trmAutomatica = trmAutomatica;
     }
 
     public BigDecimal getComisionPorcentaje() {

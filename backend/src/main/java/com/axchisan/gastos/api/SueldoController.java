@@ -4,6 +4,10 @@ import com.axchisan.gastos.api.dto.DtosSueldo.ActualizarFuenteRequest;
 import com.axchisan.gastos.api.dto.DtosSueldo.CrearFuenteRequest;
 import com.axchisan.gastos.api.dto.DtosSueldo.FuenteDto;
 import com.axchisan.gastos.api.dto.DtosSueldo.MesAplicadoDto;
+import com.axchisan.gastos.api.dto.DtosSueldo.PagoDto;
+import com.axchisan.gastos.api.dto.DtosSueldo.RecibidoDto;
+import com.axchisan.gastos.api.dto.DtosSueldo.RegistrarPagoRequest;
+import com.axchisan.gastos.api.dto.DtosSueldo.TrmDto;
 import com.axchisan.gastos.dominio.FuenteIngreso;
 import com.axchisan.gastos.seguridad.UsuarioActual;
 import com.axchisan.gastos.servicio.ServicioSueldo;
@@ -41,10 +45,19 @@ public class SueldoController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista los ingresos en otra moneda con sus próximos pagos")
+    @Operation(summary = "Lista los ingresos en otra moneda, con la TRM de hoy y sus próximos pagos")
     public List<FuenteDto> listar() {
         UUID usuarioId = UsuarioActual.id();
-        return sueldo.listar(usuarioId).stream().map(f -> conPagos(usuarioId, f)).toList();
+        sueldo.refrescarTrm(usuarioId);
+        return sueldo.listar(usuarioId).stream().map(f -> completa(usuarioId, f)).toList();
+    }
+
+    @GetMapping("/trm")
+    @Operation(summary = "La TRM oficial vigente hoy")
+    public ResponseEntity<TrmDto> trm() {
+        return sueldo.trmDeHoy()
+                .map(t -> ResponseEntity.ok(TrmDto.de(t)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).build());
     }
 
     @PostMapping
@@ -52,7 +65,7 @@ public class SueldoController {
     public ResponseEntity<FuenteDto> crear(@Valid @RequestBody CrearFuenteRequest peticion) {
         UUID usuarioId = UsuarioActual.id();
         FuenteIngreso fuente = sueldo.crear(usuarioId, peticion.comoCambios());
-        return ResponseEntity.status(HttpStatus.CREATED).body(conPagos(usuarioId, fuente));
+        return ResponseEntity.status(HttpStatus.CREATED).body(completa(usuarioId, fuente));
     }
 
     @PatchMapping("/{fuenteId}")
@@ -60,7 +73,8 @@ public class SueldoController {
     public FuenteDto actualizar(@PathVariable UUID fuenteId,
                                 @Valid @RequestBody ActualizarFuenteRequest peticion) {
         UUID usuarioId = UsuarioActual.id();
-        return conPagos(usuarioId, sueldo.actualizar(usuarioId, fuenteId, peticion.comoCambios()));
+        return completa(usuarioId,
+                sueldo.actualizar(usuarioId, fuenteId, peticion.comoCambios()));
     }
 
     @DeleteMapping("/{fuenteId}")
@@ -72,13 +86,30 @@ public class SueldoController {
 
     @GetMapping("/{fuenteId}/proyeccion")
     @Operation(summary = "Los próximos pagos, con el periodo que cubren y su valor en pesos")
-    public List<com.axchisan.gastos.api.dto.DtosSueldo.PagoDto> proyeccion(
-            @PathVariable UUID fuenteId,
-            @RequestParam(required = false) YearMonth desde,
-            @RequestParam(defaultValue = "6") int pagos) {
+    public List<PagoDto> proyeccion(@PathVariable UUID fuenteId,
+                                    @RequestParam(required = false) YearMonth desde,
+                                    @RequestParam(defaultValue = "6") int pagos) {
         return sueldo.proyeccion(UsuarioActual.id(), fuenteId, desde, pagos).stream()
-                .map(com.axchisan.gastos.api.dto.DtosSueldo.PagoDto::de)
+                .map(PagoDto::de)
                 .toList();
+    }
+
+    @PostMapping("/{fuenteId}/pagos")
+    @Operation(summary = "Anota lo que llegó de un pago y lo pone como sueldo de su mes")
+    public ResponseEntity<RecibidoDto> registrarPago(
+            @PathVariable UUID fuenteId, @Valid @RequestBody RegistrarPagoRequest peticion) {
+        var pago = sueldo.registrarPago(UsuarioActual.id(), fuenteId,
+                YearMonth.parse(peticion.mesDePago()), peticion.montoPesos(), peticion.fecha(),
+                peticion.montoOriginal());
+        return ResponseEntity.status(HttpStatus.CREATED).body(RecibidoDto.de(pago));
+    }
+
+    @DeleteMapping("/{fuenteId}/pagos/{mesDePago}")
+    @Operation(summary = "Borra lo anotado de un pago (no toca el sueldo del mes)")
+    public ResponseEntity<Void> eliminarPago(@PathVariable UUID fuenteId,
+                                             @PathVariable String mesDePago) {
+        sueldo.eliminarPago(UsuarioActual.id(), fuenteId, YearMonth.parse(mesDePago));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{fuenteId}/llevar-al-presupuesto")
@@ -93,8 +124,9 @@ public class SueldoController {
                 .toList();
     }
 
-    private FuenteDto conPagos(UUID usuarioId, FuenteIngreso fuente) {
+    private FuenteDto completa(UUID usuarioId, FuenteIngreso fuente) {
         return FuenteDto.de(fuente,
-                sueldo.proyeccion(usuarioId, fuente.getId(), null, PAGOS_EN_LISTADO));
+                sueldo.proyeccion(usuarioId, fuente.getId(), null, PAGOS_EN_LISTADO),
+                sueldo.pagosRecibidos(usuarioId, fuente.getId()));
     }
 }

@@ -91,6 +91,7 @@ class RepositorioCuentas {
     double? costoRetiro,
     DateTime? fechaFin,
     bool quitarFechaFin = false,
+    bool? trmAutomatica,
   }) async {
     final datos = await _api.modificar<Map<String, dynamic>>(
       '/api/sueldo/$id',
@@ -108,6 +109,7 @@ class RepositorioCuentas {
         'costoRetiro': ?costoRetiro,
         if (fechaFin != null) 'fechaFin': _fecha(fechaFin),
         if (quitarFechaFin) 'quitarFechaFin': true,
+        'trmAutomatica': ?trmAutomatica,
       },
     );
     return FuenteIngreso.deJson(datos);
@@ -121,6 +123,26 @@ class RepositorioCuentas {
     return datos
         .map((e) => PagoProyectado.deJson(e as Map<String, dynamic>))
         .toList();
+  }
+
+  /// Anota lo que de verdad llegó de un pago; el servidor lo pone como sueldo de su mes.
+  Future<PagoRecibido> registrarPago(
+    String id, {
+    required DateTime mesDePago,
+    required double montoPesos,
+    required DateTime fecha,
+  }) async {
+    final datos = await _api.publicar<Map<String, dynamic>>(
+      '/api/sueldo/$id/pagos',
+      cuerpo: {
+        'mesDePago':
+            '${mesDePago.year.toString().padLeft(4, '0')}-'
+            '${mesDePago.month.toString().padLeft(2, '0')}',
+        'montoPesos': montoPesos,
+        'fecha': _fecha(fecha),
+      },
+    );
+    return PagoRecibido.deJson(datos);
   }
 
   /// Pone cada pago proyectado como sueldo base de su mes. Devuelve cuántos meses tocó.

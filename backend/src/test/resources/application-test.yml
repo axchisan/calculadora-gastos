@@ -34,6 +34,9 @@ spring:
     clean-disabled: false
 
 app:
+  # Las pruebas no salen a internet: la TRM la fija cada prueba.
+  trm:
+    habilitada: false
   registro:
     # Las pruebas necesitan crear varias cuentas, sobre todo las que verifican que un usuario no
     # accede a los datos de otro. El cierre del registro se comprueba aparte, en
