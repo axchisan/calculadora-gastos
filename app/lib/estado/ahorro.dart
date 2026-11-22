@@ -133,9 +133,11 @@ final ahorroProvider =
         mesProvider.select((m) => m.valueOrNull?.resumen.mesId),
       );
 
-      return ControladorAhorro(
+      final controlador = ControladorAhorro(
         ref.watch(repositorioAhorroProvider),
         mesId,
         () => ref.read(mesProvider.notifier).refrescar(),
       );
+      ref.alActualizarse(['/api/ahorro'], controlador.refrescar);
+      return controlador;
     });

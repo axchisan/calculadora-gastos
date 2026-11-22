@@ -6,8 +6,7 @@ import '../dominio/modelos.dart';
 import 'proveedores.dart';
 
 final repositorioMesesProvider = Provider<RepositorioMeses>(
-  (ref) =>
-      RepositorioMeses(ref.watch(clienteApiProvider), ref.watch(cacheProvider)),
+  (ref) => RepositorioMeses(ref.watch(clienteApiProvider)),
 );
 
 /// Periodo que se está viendo.
@@ -255,10 +254,12 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
 
 final mesProvider = StateNotifierProvider<ControladorMes, AsyncValue<DatosMes>>(
   (ref) {
-    return ControladorMes(
+    final controlador = ControladorMes(
       ref.watch(repositorioMesesProvider),
       ref.watch(periodoProvider),
     );
+    ref.alActualizarse(['/api/meses'], controlador.refrescar);
+    return controlador;
   },
 );
 

@@ -159,9 +159,11 @@ final deudasProvider =
     StateNotifierProvider<ControladorDeudas, AsyncValue<DatosDeudas>>((ref) {
       final verTodas = ref.watch(verTodasLasDeudasProvider);
 
-      return ControladorDeudas(
+      final controlador = ControladorDeudas(
         ref.watch(repositorioDeudasProvider),
         verTodas ? null : ref.watch(periodoProvider),
         () => ref.read(mesProvider.notifier).refrescar(),
       );
+      ref.alActualizarse(['/api/deudas'], controlador.refrescar);
+      return controlador;
     });

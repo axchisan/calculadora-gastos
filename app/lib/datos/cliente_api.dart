@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
 
 import '../core/configuracion.dart';
 import 'almacen_sesion.dart';
+import 'cache_local.dart';
 
 /// Error de la API con el mensaje que se puede mostrar al usuario.
 class ErrorApi implements Exception {
@@ -46,8 +48,15 @@ class ClienteApi {
   // El almacén va como parámetro posicional y no nombrado porque Dart no admite parámetros
   // nombrados que empiecen por guion bajo, y solo así puede inicializarse el campo privado
   // directamente desde el constructor.
-  ClienteApi(this._almacen, {Dio? dio, this.alPerderSesion})
-    : _dio = dio ?? Dio() {
+  ClienteApi(
+    this._almacen, {
+    Dio? dio,
+    this.alPerderSesion,
+    CacheLocal? cache,
+    DateTime Function()? reloj,
+  }) : _dio = dio ?? Dio(),
+       _cache = cache, // ignore: prefer_initializing_formals
+       _ahora = reloj ?? DateTime.now {
     _dio.options
       ..baseUrl = Configuracion.urlApi
       ..connectTimeout = Configuracion.esperaConexion
@@ -63,6 +72,31 @@ class ClienteApi {
 
   final Dio _dio;
   final AlmacenSesion _almacen;
+
+  /// Copia local de las lecturas. Sin ella, el cliente se comporta como antes: todo al servidor.
+  final CacheLocal? _cache;
+  final DateTime Function() _ahora;
+
+  /// Rutas cuya versión guardada acaba de cambiar tras pedirla de nuevo al servidor. `*`
+  /// significa «todo»: se emite al recuperar la conexión.
+  final StreamController<String> _actualizaciones =
+      StreamController<String>.broadcast();
+
+  final StreamController<EstadoRed> _cambiosDeRed =
+      StreamController<EstadoRed>.broadcast();
+
+  EstadoRed _red = const EstadoRed.enLinea();
+
+  /// Momento del último cambio hecho desde esta app. Lo guardado antes de él puede no reflejarlo.
+  DateTime? _ultimoCambio;
+
+  /// Cuándo se revalidó cada lectura, para no repetir la misma petición en ráfaga.
+  final Map<String, DateTime> _revalidadoEn = {};
+  final Set<String> _revalidando = {};
+  Timer? _vigiaDeRed;
+
+  /// Tras revalidar una lectura, no se vuelve a pedir durante este tiempo aunque se lea otra vez.
+  static const Duration _respiroEntreRevalidaciones = Duration(seconds: 20);
 
   /// Se invoca cuando la sesión ya no puede renovarse, para que la app lleve al login.
   final void Function()? alPerderSesion;
@@ -95,20 +129,158 @@ class ClienteApi {
 
   // --- verbos ---
 
-  Future<T> obtener<T>(String ruta, {Map<String, dynamic>? parametros}) =>
-      _peticion<T>(() => _dio.get(ruta, queryParameters: parametros));
+  /// Lee del servidor, con la copia local como respaldo y como adelanto.
+  ///
+  /// - Sin nada guardado: va al servidor y guarda la respuesta.
+  /// - Con algo guardado de antes del último cambio hecho en la app: va primero al servidor,
+  ///   para no enseñar datos anteriores a ese cambio, y usa lo guardado solo si no hay red.
+  /// - En cualquier otro caso devuelve lo guardado al instante y pide la versión nueva por
+  ///   detrás. Si llega distinta, la guarda y avisa por [actualizaciones] para que la pantalla
+  ///   se repinte.
+  ///
+  /// Así cada pestaña abre al momento, también sin conexión y aunque Lambda arranque en frío.
+  Future<T> obtener<T>(String ruta, {Map<String, dynamic>? parametros}) async {
+    final cache = _cache;
+    final usuario = _sesion?.usuarioId;
+    if (cache == null || usuario == null) {
+      return _peticion<T>(() => _dio.get(ruta, queryParameters: parametros));
+    }
+
+    final rutaCompleta = _rutaCompleta(ruta, parametros);
+    final clave = 'api|$usuario|$rutaCompleta';
+    final guardado = cache.leer(clave);
+
+    Future<T> pedir() => _peticion<T>(
+      () => _dio.get(
+        ruta,
+        queryParameters: parametros,
+        options: Options(extra: {_lecturaRapida: guardado != null}),
+      ),
+    );
+
+    if (guardado == null) {
+      final respuesta = await pedir();
+      await cache.guardar(clave, respuesta as Object, guardadoEn: _ahora());
+      _revalidadoEn[clave] = _ahora();
+      return respuesta;
+    }
+
+    final cambio = _ultimoCambio;
+    if (cambio != null && guardado.guardadoEn.isBefore(cambio)) {
+      try {
+        final respuesta = await pedir();
+        await cache.guardar(clave, respuesta as Object, guardadoEn: _ahora());
+        _revalidadoEn[clave] = _ahora();
+        return respuesta;
+      } on ErrorApi catch (e) {
+        if (!e.esDeConexion) rethrow;
+        return guardado.datos as T;
+      }
+    }
+
+    unawaited(_revalidar(clave, rutaCompleta, guardado, pedir));
+    return guardado.datos as T;
+  }
+
+  Future<void> _revalidar<T>(
+    String clave,
+    String ruta,
+    ContenidoCache guardado,
+    Future<T> Function() pedir,
+  ) async {
+    final ultima = _revalidadoEn[clave];
+    if (_revalidando.contains(clave) ||
+        (ultima != null &&
+            _ahora().difference(ultima) < _respiroEntreRevalidaciones)) {
+      return;
+    }
+    _revalidando.add(clave);
+    try {
+      final respuesta = await pedir();
+      _revalidadoEn[clave] = _ahora();
+      final cambio = jsonEncode(respuesta) != jsonEncode(guardado.datos);
+      await _cache?.guardar(clave, respuesta as Object, guardadoEn: _ahora());
+      if (cambio) _actualizaciones.add(ruta);
+    } on ErrorApi catch (e) {
+      // Sin red, lo guardado sigue valiendo. Cualquier otra respuesta (lo pedido ya no existe,
+      // no hay permiso) invalida la copia: la siguiente lectura irá al servidor y mostrará el
+      // problema real en vez de esconderlo tras datos viejos.
+      if (!e.esDeConexion) {
+        await _cache?.borrar(clave);
+        _actualizaciones.add(ruta);
+      }
+    } on SesionExpirada {
+      // La pérdida de sesión ya se gestiona en la petición.
+    } finally {
+      _revalidando.remove(clave);
+    }
+  }
+
+  /// Rutas leídas cuya versión guardada cambió; `*` cuando hay que revisar todo.
+  Stream<String> get actualizaciones => _actualizaciones.stream;
+
+  /// Si hay conexión con el servidor y desde cuándo no la hay.
+  EstadoRed get red => _red;
+  Stream<EstadoRed> get cambiosDeRed => _cambiosDeRed.stream;
+
+  /// Vuelve a pedir todo lo guardado: al volver la app a primer plano o al tirar para refrescar.
+  void revisarTodo() {
+    _revalidadoEn.clear();
+    _actualizaciones.add('*');
+  }
 
   Future<T> publicar<T>(String ruta, {Object? cuerpo}) =>
-      _peticion<T>(() => _dio.post(ruta, data: cuerpo));
+      _cambiar<T>(() => _dio.post(ruta, data: cuerpo));
 
   Future<T> modificar<T>(String ruta, {Object? cuerpo}) =>
-      _peticion<T>(() => _dio.patch(ruta, data: cuerpo));
+      _cambiar<T>(() => _dio.patch(ruta, data: cuerpo));
 
   Future<T> reemplazar<T>(String ruta, {Object? cuerpo}) =>
-      _peticion<T>(() => _dio.put(ruta, data: cuerpo));
+      _cambiar<T>(() => _dio.put(ruta, data: cuerpo));
 
-  Future<void> eliminar(String ruta) =>
-      _peticion<void>(() => _dio.delete(ruta));
+  Future<void> eliminar(String ruta) => _cambiar<void>(() => _dio.delete(ruta));
+
+  /// Un cambio deja desfasado lo guardado: a partir de aquí, cada lectura irá primero al
+  /// servidor hasta que se renueve.
+  Future<T> _cambiar<T>(Future<Response<dynamic>> Function() enviar) async {
+    final resultado = await _peticion<T>(enviar);
+    _ultimoCambio = _ahora();
+    _revalidadoEn.clear();
+    return resultado;
+  }
+
+  static const String _lecturaRapida = 'lecturaRapida';
+
+  static String _rutaCompleta(String ruta, Map<String, dynamic>? parametros) {
+    if (parametros == null || parametros.isEmpty) return ruta;
+    final orden = parametros.keys.toList()..sort();
+    return '$ruta?${orden.map((k) => '$k=${parametros[k]}').join('&')}';
+  }
+
+  void _marcarEnLinea() {
+    _vigiaDeRed?.cancel();
+    _vigiaDeRed = null;
+    if (_red.enLinea) return;
+    _red = const EstadoRed.enLinea();
+    _cambiosDeRed.add(_red);
+    // Al volver la conexión se revisa todo lo que se estaba mostrando desde la copia local.
+    revisarTodo();
+  }
+
+  void _marcarSinConexion() {
+    if (!_red.enLinea) return;
+    _red = EstadoRed.sinConexion(desde: _ahora());
+    _cambiosDeRed.add(_red);
+    // Mientras no haya red, se comprueba cada poco si volvió, sin esperar a que el usuario
+    // toque algo.
+    _vigiaDeRed ??= Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => _dio
+          .get<dynamic>('/api/salud')
+          .then((_) => _marcarEnLinea())
+          .catchError((_) => null),
+    );
+  }
 
   // --- interno ---
 
@@ -116,8 +288,11 @@ class ClienteApi {
     late Response<dynamic> respuesta;
     try {
       respuesta = await enviar();
+      _marcarEnLinea();
     } on DioException catch (e) {
-      throw _traducirFalloDeRed(e);
+      final error = _traducirFalloDeRed(e);
+      if (error.esDeConexion) _marcarSinConexion();
+      throw error;
     }
 
     // Un 401 puede significar simplemente que el token caducó: se renueva y se reintenta una
@@ -145,6 +320,12 @@ class ClienteApi {
   }
 
   void _alEnviar(RequestOptions opciones, RequestInterceptorHandler siguiente) {
+    // Con una copia local que enseñar, no tiene sentido esperar 15 s a una red que no está.
+    if (opciones.extra[_lecturaRapida] == true) {
+      opciones
+        ..connectTimeout = const Duration(seconds: 5)
+        ..receiveTimeout = const Duration(seconds: 12);
+    }
     final token = _sesion?.accessToken;
     if (token != null && !opciones.path.startsWith('/api/auth/')) {
       opciones.headers['Authorization'] = 'Bearer $token';
@@ -222,4 +403,16 @@ class ClienteApi {
     };
     return ErrorApi(codigo: 'sin_conexion', mensaje: mensaje);
   }
+}
+
+/// Si hay conexión con el servidor.
+class EstadoRed {
+  const EstadoRed.enLinea() : enLinea = true, sinConexionDesde = null;
+
+  const EstadoRed.sinConexion({required DateTime desde})
+    : enLinea = false,
+      sinConexionDesde = desde;
+
+  final bool enLinea;
+  final DateTime? sinConexionDesde;
 }

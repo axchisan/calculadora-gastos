@@ -58,8 +58,8 @@ commit y despliegue.
 |---|---|---|---|
 | **0. Red de seguridad** | Borrado diferido con «Deshacer» en ingresos, gastos, compras y deudas (`ui/comun/deshacer.dart`). | — | Hecha, sin publicar |
 | **1. Propuesta visual** | Prototipo navegable de las cuatro pestañas con datos reales, en claro y oscuro. | — | Aprobada el 22 nov |
-| **2. Sistema de diseño** | Tokens (color, tipografía Manrope con cifras tabulares, espaciado), tema claro por defecto con selector Claro / Oscuro / Sistema, componentes base: importe, sección, fila de movimiento, chip, estado vacío, hoja inferior, aviso. | — | Siguiente |
-| **3. Datos locales y sin conexión** | Ver el apartado 5. Va antes de las pantallas para que las nuevas se construyan ya sobre datos locales. | Revalidación barata y endpoint de inicio | Pendiente |
+| **2. Sistema de diseño** | Tokens (color, tipografía Manrope con cifras tabulares, espaciado), tema claro por defecto con selector Claro / Oscuro / Sistema, componentes base: importe, sección, fila de movimiento, chip, estado vacío, hoja inferior, aviso. | — | Hecha, sin publicar |
+| **3. Datos locales y sin conexión** | Ver el apartado 5. Va antes de las pantallas para que las nuevas se construyan ya sobre datos locales. 3a: lectura local de todo, precarga y aviso sin conexión. 3b: cola de pendientes. 3c: ETag y `/api/inicio`. | Revalidación barata, endpoint de inicio, identificadores del cliente | 3a hecha, sin publicar |
 | **4. Navegación e Inicio** | Cuatro pestañas, Ajustes y el nuevo Inicio con «Próximos pagos». | Endpoint de próximos vencimientos | Pendiente |
 | **5. Movimientos** | Línea de tiempo unificada, filtros, «+» único, notas en ingresos, tipos de ingreso, categoría Mascota. Apuntar sin conexión. | Notas y tipo de ingreso (migración) | Pendiente |
 | **6. Deudas** | Total consolidado, proyección mes a mes, tarjeta de crédito como deuda, cuadro de cuotas compacto, «Te deben». | Arreglar la deuda total del resumen; proyección; saldo de tarjeta; cuentas por cobrar | Pendiente |
@@ -88,10 +88,12 @@ lo del día sin red; que nunca haya duda de si lo que se ve está al día.
   Los controladores siguen el patrón *stale-while-revalidate*: pintan lo guardado en el primer
   fotograma y piden la versión nueva por detrás. Si llega distinta, la pantalla se actualiza
   sin parpadear.
-- **Almacén**: `hive_ce`, base clave-valor en Dart puro. Es rápida, funciona igual en Android,
-  macOS y web (IndexedDB) y no tiene el problema de `SharedPreferences`, que carga todo en
-  memoria al abrir y no está pensado para documentos grandes. Esquema versionado: si cambia el
-  formato de un modelo, se descarta lo guardado en lugar de fallar al leerlo.
+- **Almacén**: se mantiene `SharedPreferences` detrás de `CacheLocal`. Todas las lecturas de un
+  usuario ocupan del orden de cientos de KB, muy por debajo de lo que justifica otra base
+  local, y así no hay migración ni dependencia nueva. Si el volumen crece (por ejemplo, años de
+  historial), `CacheLocal` es el único punto que cambiar, y entonces `hive_ce` es la opción
+  (Dart puro, IndexedDB en la web). Cada lectura se guarda por usuario y ruta completa; un
+  formato ilegible se descarta en lugar de fallar.
 - **Precarga al abrir**: en paralelo se piden el mes actual, las compras, las deudas, los
   créditos, las cuentas y el sueldo, de modo que todas las pestañas están listas antes de
   tocarlas. También al volver a primer plano, si pasaron más de unos minutos.
@@ -100,9 +102,11 @@ lo del día sin red; que nunca haya duda de si lo que se ve está al día.
 
 ### 5.2 Sin conexión: detectarlo rápido
 
-- `connectivity_plus` para saber al instante si no hay red y no intentar peticiones condenadas.
-- Con datos guardados, las lecturas usan un tiempo de espera corto (unos 4 s) antes de quedarse
-  con lo guardado. Sin datos guardados se mantiene la espera larga, por el arranque en frío.
+- Sin dependencia nueva: en modo avión la petición falla al instante, y con red mala las
+  lecturas que tienen copia local esperan como mucho 5 s para conectar (antes 15 s). Sin copia
+  local se mantiene la espera larga, por el arranque en frío.
+- Al perder la red se comprueba `/api/salud` cada 20 s; al volver, se revisa todo lo mostrado.
+  También se revisa todo al volver a la app tras más de 2 minutos fuera.
 
 ### 5.3 Escritura sin conexión: cola de pendientes
 

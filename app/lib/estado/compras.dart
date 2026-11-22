@@ -11,9 +11,10 @@ final repositorioComprasProvider = Provider<RepositorioCompras>(
 );
 
 /// Las tarjetas del usuario. Cambian muy poco, así que se cargan una vez y se reutilizan.
-final tarjetasProvider = FutureProvider<List<Tarjeta>>(
-  (ref) => ref.watch(repositorioComprasProvider).tarjetas(),
-);
+final tarjetasProvider = FutureProvider<List<Tarjeta>>((ref) {
+  ref.alActualizarse(['/api/tarjetas'], ref.invalidateSelf);
+  return ref.watch(repositorioComprasProvider).tarjetas();
+});
 
 /// Solo las de crédito activas, que son las que hacen falta al elegir el medio de pago.
 final tarjetasDeCreditoProvider = Provider<List<Tarjeta>>((ref) {
@@ -28,6 +29,7 @@ final tarjetasDeCreditoProvider = Provider<List<Tarjeta>>((ref) {
 
 /// Cortes de tarjeta que vencen en el periodo que se está viendo.
 final cortesDelPeriodoProvider = FutureProvider<List<CorteTarjeta>>((ref) {
+  ref.alActualizarse(['/api/cortes'], ref.invalidateSelf);
   return ref
       .watch(repositorioComprasProvider)
       .cortes(ref.watch(periodoProvider));
@@ -135,11 +137,13 @@ final comprasProvider =
     StateNotifierProvider<ControladorCompras, AsyncValue<ComprasDelMes>>((ref) {
       // Se observa el identificador del mes para reaccionar cuando termina de crearse: hasta
       // entonces no hay nada a lo que colgar las compras.
-      return ControladorCompras(
+      final controlador = ControladorCompras(
         ref.watch(repositorioComprasProvider),
         ref.watch(mesIdProvider),
         () => ref.read(mesProvider.notifier).refrescar(),
       );
+      ref.alActualizarse(['/api/meses'], controlador.refrescar);
+      return controlador;
     });
 
 /// Alta, cambios y bajas de tarjetas.

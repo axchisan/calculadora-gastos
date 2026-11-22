@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../dominio/modelos.dart';
 import 'mes.dart';
+import 'proveedores.dart';
 
 /// Serie histórica de los últimos meses, para las gráficas de evolución.
 ///
@@ -10,6 +11,7 @@ import 'mes.dart';
 final evolucionProvider = FutureProvider<List<ResumenMensual>>((ref) async {
   // Depender del mes hace que la serie se refresque al registrar cualquier cambio.
   ref.watch(mesProvider);
+  ref.alActualizarse(['/api/meses/evolucion'], ref.invalidateSelf);
 
   final desde = DateTime.now().subtract(const Duration(days: 365));
   return ref

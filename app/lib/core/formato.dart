@@ -94,6 +94,9 @@ class Formato {
   static String porcentaje(num valor) =>
       '${_numero.format(valor.toDouble().roundToDouble() == valor ? valor : double.parse(valor.toStringAsFixed(1)))}%';
 
+  /// `16:32`
+  static String hora(DateTime valor) => _hora.format(valor);
+
   /// `10:16 del 21 ago`
   static String horaYFecha(DateTime valor) =>
       '${_hora.format(valor)} del ${fechaCorta(valor)}';

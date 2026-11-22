@@ -7,7 +7,6 @@ import '../../core/dinero.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
-import '../../datos/repositorio_meses.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/mes.dart';
 import '../../estado/modo_vista.dart';
@@ -295,10 +294,6 @@ class _Contenido extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             children: [
-              if (RepositorioMeses.ultimaLecturaDesdeCache) ...[
-                const _AvisoSinConexion(),
-                const SizedBox(height: 12),
-              ],
               TarjetaSaldo(
                 resumen: datos.resumen,
                 modo: ref.watch(modoVistaProvider),
@@ -316,35 +311,6 @@ class _Contenido extends ConsumerWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-/// Se muestra cuando lo que hay en pantalla proviene del caché por falta de conexión.
-class _AvisoSinConexion extends StatelessWidget {
-  const _AvisoSinConexion();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Tema.pendiente.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.cloud_off_outlined, size: 18, color: Tema.pendiente),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'Sin conexión. Ves los últimos datos guardados; los cambios no se guardarán '
-              'hasta recuperarla.',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ),
-        ],
       ),
     );
   }

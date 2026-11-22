@@ -9,9 +9,10 @@ final repositorioCuentasProvider = Provider<RepositorioCuentas>(
 );
 
 /// Las cuentas con su saldo real.
-final cuentasProvider = FutureProvider<List<Cuenta>>(
-  (ref) => ref.watch(repositorioCuentasProvider).listar(),
-);
+final cuentasProvider = FutureProvider<List<Cuenta>>((ref) {
+  ref.alActualizarse(['/api/cuentas'], ref.invalidateSelf);
+  return ref.watch(repositorioCuentasProvider).listar();
+});
 
 /// Suma de los saldos de las cuentas activas: el dinero que de verdad hay hoy.
 final dineroRealProvider = Provider<AsyncValue<double>>((ref) {
@@ -25,6 +26,7 @@ final dineroRealProvider = Provider<AsyncValue<double>>((ref) {
 });
 
 /// Ingresos en otra moneda, con sus próximos pagos.
-final fuentesIngresoProvider = FutureProvider<List<FuenteIngreso>>(
-  (ref) => ref.watch(repositorioCuentasProvider).fuentes(),
-);
+final fuentesIngresoProvider = FutureProvider<List<FuenteIngreso>>((ref) {
+  ref.alActualizarse(['/api/sueldo'], ref.invalidateSelf);
+  return ref.watch(repositorioCuentasProvider).fuentes();
+});

@@ -65,11 +65,17 @@ class CacheLocal {
   /// El tema elegido, o null si nunca se eligió.
   String? leerTema() => _prefs.getString(_claveTema);
 
-  Future<void> guardar(String clave, Object datos) async {
+  /// Guarda [datos] bajo [clave]. [guardadoEn] permite usar el mismo reloj que quien compara
+  /// después las fechas.
+  Future<void> guardar(
+    String clave,
+    Object datos, {
+    DateTime? guardadoEn,
+  }) async {
     await _prefs.setString(
       '$_prefijo$clave',
       jsonEncode({
-        'guardadoEn': DateTime.now().toIso8601String(),
+        'guardadoEn': (guardadoEn ?? DateTime.now()).toIso8601String(),
         'datos': datos,
       }),
     );
@@ -92,6 +98,9 @@ class CacheLocal {
       return null;
     }
   }
+
+  /// Olvida una sola lectura guardada.
+  Future<void> borrar(String clave) => _prefs.remove('$_prefijo$clave');
 
   /// Borra todo el caché. Se invoca al cerrar sesión para no dejar datos del usuario anterior.
   Future<void> limpiar() async {

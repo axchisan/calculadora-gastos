@@ -9,14 +9,19 @@ final repositorioCreditosProvider = Provider<RepositorioCreditos>(
 );
 
 /// Los créditos del usuario con su estado.
-final creditosProvider = FutureProvider<List<Credito>>(
-  (ref) => ref.watch(repositorioCreditosProvider).listar(),
-);
+final creditosProvider = FutureProvider<List<Credito>>((ref) {
+  ref.alActualizarse(['/api/creditos'], ref.invalidateSelf);
+  return ref.watch(repositorioCreditosProvider).listar();
+});
 
 /// El cuadro completo de un crédito.
-final cuadroProvider = FutureProvider.family<List<CuotaCredito>, String>(
-  (ref, creditoId) => ref.watch(repositorioCreditosProvider).cuotas(creditoId),
-);
+final cuadroProvider = FutureProvider.family<List<CuotaCredito>, String>((
+  ref,
+  creditoId,
+) {
+  ref.alActualizarse(['/api/creditos/$creditoId'], ref.invalidateSelf);
+  return ref.watch(repositorioCreditosProvider).cuotas(creditoId);
+});
 
 /// Lo que se le pide al simulador: cuánto se abona y qué se hace con el ahorro.
 class PeticionDeSimulacion {

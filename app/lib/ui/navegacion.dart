@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../core/tema.dart';
+import '../estado/proveedores.dart';
+import '../estado/red.dart';
+import 'comun/aviso_red.dart';
 
 /// Secciones principales de la aplicación.
 enum Seccion {
@@ -39,14 +43,51 @@ enum Seccion {
 ///
 /// En el móvil la mano llega antes a la parte de abajo; en escritorio, una barra inferior a
 /// lo ancho de la pantalla obligaría a recorrer una distancia absurda con el cursor.
-class Navegacion extends StatelessWidget {
+class Navegacion extends ConsumerStatefulWidget {
   const Navegacion({required this.hijo, super.key});
 
   final Widget hijo;
 
   @override
+  ConsumerState<Navegacion> createState() => _EstadoNavegacion();
+}
+
+class _EstadoNavegacion extends ConsumerState<Navegacion> {
+  late final AppLifecycleListener _ciclo;
+  DateTime _ultimaRevision = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    // Al volver a la app tras un rato fuera, lo guardado puede haber cambiado en otro
+    // dispositivo: se revisa todo por detrás mientras se enseña lo que ya había.
+    _ciclo = AppLifecycleListener(
+      onResume: () {
+        final ahora = DateTime.now();
+        if (ahora.difference(_ultimaRevision) > const Duration(minutes: 2)) {
+          _ultimaRevision = ahora;
+          ref.read(clienteApiProvider).revisarTodo();
+        }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _ciclo.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    ref.watch(precargaProvider);
     final indice = _indiceActual(context);
+    final hijo = Column(
+      children: [
+        const AvisoDeRed(),
+        Expanded(child: widget.hijo),
+      ],
+    );
 
     if (Pantalla.esMovil(context)) {
       return Scaffold(

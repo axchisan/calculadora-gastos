@@ -79,4 +79,10 @@ final plantillasProvider =
     StateNotifierProvider<
       ControladorPlantillas,
       AsyncValue<List<PlantillaGasto>>
-    >((ref) => ControladorPlantillas(ref.watch(repositorioPlantillasProvider)));
+    >((ref) {
+      final controlador = ControladorPlantillas(
+        ref.watch(repositorioPlantillasProvider),
+      );
+      ref.alActualizarse(['/api/plantillas'], controlador.refrescar);
+      return controlador;
+    });
