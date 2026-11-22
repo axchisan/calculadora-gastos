@@ -421,6 +421,44 @@ sobrante se llevan el 50% y luego el 50% del resto (el 25%), no el 100% entre la
 `/distribucion` es una **sugerencia y no mueve dinero**; para materializarla hay que registrar
 los movimientos.
 
+## Cuentas
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` · `POST` | `/api/cuentas` | Lista o registra una cuenta (`BANCO`, `BILLETERA`, `EFECTIVO`) |
+| `PATCH` · `DELETE` | `/api/cuentas/{id}` | Anota el saldo de hoy, renombra, archiva o elimina |
+
+El saldo **no** se calcula a partir de los movimientos: es la cifra que muestra el banco, anotada
+a mano, con la fecha en que se miró (`saldoAl`). La app suma las cuentas activas y la compara con
+el `disponibleHoy` del mes en curso para avisar de lo que falta por registrar.
+
+## Sueldo en otra moneda
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET` | `/api/sueldo` | Fuentes de ingreso con sus próximos pagos y los ya recibidos. Antes pone al día la TRM de las que la toman automáticamente |
+| `POST` | `/api/sueldo` | Registra una fuente. Sin `trm`, toma la oficial del día |
+| `PATCH` · `DELETE` | `/api/sueldo/{id}` | Modifica condiciones, medio, costos o TRM. Escribir `trm` la fija (`trmAutomatica: false`) |
+| `GET` | `/api/sueldo/trm` | TRM oficial vigente hoy (503 si datos.gov.co no responde) |
+| `GET` | `/api/sueldo/{id}/proyeccion?desde=aaaa-mm&pagos=6` | Próximos pagos |
+| `POST` | `/api/sueldo/{id}/pagos` | Lo que llegó: `{mesDePago, montoPesos, fecha}`. Calcula la tasa efectiva y lo pone como sueldo base del mes en que entró |
+| `DELETE` | `/api/sueldo/{id}/pagos/{aaaa-mm}` | Borra lo anotado de un pago |
+| `POST` | `/api/sueldo/{id}/llevar-al-presupuesto?desde=aaaa-mm&pagos=3` | Pone cada pago proyectado como sueldo base de su mes. No toca los meses cerrados ni los pagos ya recibidos |
+
+Reglas del cálculo (`sueldo/CalculadoraSueldo`):
+
+- Cada pago cubre el mes anterior y llega en los primeros `diasHabilesPago` días hábiles, más
+  `diasTolerancia` de margen. Se saltan fines de semana y festivos colombianos.
+- Si se empieza a mitad de mes, esos días van al pago del primer mes completo. Un mes incompleto
+  se prorratea por días del calendario: empezar el 23 de un mes de 31 días cobra 9/31 del
+  mensual.
+- Pesos = (USD − comisión % − comisión fija) × TRM × (1 − descuento de cambio %) − costo de
+  retiro, redondeado hacia abajo. Por PayPal se usan 5,4 % + 0,30 USD, un 3,5 % de cambio y
+  3.500 de retiro; por transferencia directa, nada.
+- La TRM se consulta en `datos.gov.co/resource/32sa-8pi3.json` (Superfinanciera) una vez al día,
+  eligiendo el registro cuya vigencia cubre la fecha: los viernes se publica una sola para el
+  fin de semana.
+
 ## Festivos
 
 | Método | Ruta |

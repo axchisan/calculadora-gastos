@@ -63,6 +63,7 @@ Costo operativo estimado: **~$0.01 USD/mes**. Ver [`docs/COSTOS.md`](docs/COSTOS
 - [Despliegue](docs/DESPLIEGUE.md) — infraestructura en AWS e integración continua
 - [Configuración de Neon](docs/CONFIGURACION-NEON.md) — base de datos de producción
 - [Costos](docs/COSTOS.md) — desglose de gastos en AWS
+- [Estado actual](docs/ESTADO.md) — versiones, lo último que se hizo y lo pendiente
 - [Plan de trabajo](docs/ROADMAP.md) — fases y estado actual
 - [Decisiones de arquitectura](docs/adr/) — registro de decisiones (ADR)
 

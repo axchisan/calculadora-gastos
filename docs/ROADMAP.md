@@ -69,6 +69,12 @@ pantalla.
 - [x] Separadores en vivo y lectura de la coma decimal en todos los formularios
 - [x] Ingresos extra del mes, separados del sueldo y distinguiendo cobrado de por cobrar
 - [x] Presupuesto de transporte fijado a mano, para los meses sin rutina que proyectar
+- [x] Mis cuentas: saldo real de cada banco y del efectivo, cuadrado contra el disponible
+- [x] Sueldo en dólares: pagos proyectados con prorrateo, ventana de días hábiles y PayPal
+      frente a transferencia directa
+- [x] TRM oficial automática (datos.gov.co), desglose de cada pago y registro de lo que llegó
+- [ ] Recalcular solo el sueldo base de los meses cuando cambia la TRM
+- [ ] Cuentas por cobrar (lo que otros le deben al usuario)
 
 ## Fase 5 — Gráficas
 
@@ -116,12 +122,12 @@ Ver [APLICACIONES.md](APLICACIONES.md).
 
 | Herramienta | Estado |
 |---|---|
-| Java 21 | ✅ lo descarga Gradle solo (toolchain) |
+| Java 21 | ✅ lo descarga Gradle solo (toolchain); Gradle corre con Temurin 17 |
 | Flutter | ✅ instalado (3.44.8, Dart 3.12.2) |
 | AWS CLI | ✅ configurado (cuenta 612216903994) |
 | GitHub CLI | ✅ autenticado (axchisan) |
 | Terraform | ✅ instalado (1.15.8) |
 | Android SDK | ✅ instalado (36.0.0) |
-| Xcode | ✅ instalado (26.6) |
+| Xcode | ✅ instalado (26.6); exige macOS 12 como mínimo |
 | CocoaPods | ✅ instalado |
 | PostgreSQL | ✅ instalado (17.10) |

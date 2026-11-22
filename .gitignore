@@ -93,3 +93,6 @@ desktop.ini
 logs/
 tmp/
 temp/
+
+# Notas personales para Claude: el repositorio es público
+CLAUDE.local.md
