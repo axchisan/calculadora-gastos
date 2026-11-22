@@ -17,6 +17,7 @@ class CacheLocal {
 
   static const String _prefijo = 'cache.';
   static const String _clavePeriodo = 'periodo.elegido';
+  static const String _claveTema = 'apariencia.tema';
 
   /// Pasado este tiempo, el contenido guardado se considera solo un adelanto mientras llega la
   /// respuesta real, y nunca sustituto de ella.
@@ -52,6 +53,17 @@ class CacheLocal {
 
     return DateTime(anio, mes);
   }
+
+  /// Guarda el tema elegido: `claro`, `oscuro` o `sistema`.
+  ///
+  /// Como el mes elegido, es una preferencia y no una copia del servidor: no caduca ni se borra
+  /// al cerrar sesión.
+  Future<void> guardarTema(String tema) async {
+    await _prefs.setString(_claveTema, tema);
+  }
+
+  /// El tema elegido, o null si nunca se eligió.
+  String? leerTema() => _prefs.getString(_claveTema);
 
   Future<void> guardar(String clave, Object datos) async {
     await _prefs.setString(

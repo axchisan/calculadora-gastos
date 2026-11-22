@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'core/tema.dart';
+import 'estado/apariencia.dart';
 import 'estado/autenticacion.dart';
 import 'estado/capturas.dart';
 import 'estado/mes.dart';
 import 'ui/ahorro/pantalla_ahorro.dart';
+import 'ui/catalogo/pantalla_catalogo.dart';
 import 'ui/autenticacion/pantalla_acceso.dart';
 import 'ui/cuenta/pantalla_cuenta.dart';
 import 'ui/deudas/pantalla_deudas.dart';
@@ -35,6 +37,7 @@ class Rutas {
   static const String sueldo = '/sueldo';
   static const String acceso = '/acceso';
   static const String cargando = '/cargando';
+  static const String catalogo = '/catalogo';
 }
 
 /// Enrutador que decide a dónde llevar según el estado de la sesión.
@@ -72,6 +75,11 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Rutas.cuentas, builder: (_, _) => const PantallaCuentas()),
       GoRoute(path: Rutas.sueldo, builder: (_, _) => const PantallaSueldo()),
+      if (PantallaCatalogo.habilitado)
+        GoRoute(
+          path: Rutas.catalogo,
+          builder: (_, _) => const PantallaCatalogo(),
+        ),
 
       ShellRoute(
         builder: (_, _, hijo) => Navegacion(hijo: hijo),
@@ -127,7 +135,7 @@ class AplicacionGastos extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       theme: Tema.claro(),
       darkTheme: Tema.oscuro(),
-      themeMode: ThemeMode.system,
+      themeMode: ref.watch(temaProvider),
       routerConfig: enrutador,
       // Envuelve toda la aplicación para poder saltar a la bandeja cuando se abre tocando el
       // aviso de una compra detectada, venga de un arranque en frío o de traerla al frente.

@@ -38,7 +38,6 @@ dependencies:
   # Lee la versión y el número de compilación del propio paquete instalado, para poder mostrarlos
   # dentro de la aplicación sin duplicar el número en el código.
   package_info_plus: ^9.0.1
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -58,6 +57,23 @@ flutter:
   # El icono se empaqueta para poder mostrarlo en el apartado de versión.
   assets:
     - assets/icono/icono.png
+
+  # Manrope (licencia OFL, ver assets/fuentes/OFL.txt) va empaquetada en lugar de descargarse al
+  # abrir: así la tipografía es la misma sin conexión y no hay un salto visual al cargar.
+  fonts:
+    - family: Manrope
+      fonts:
+        - asset: assets/fuentes/Manrope-Variable.ttf
+    # Iconos de Phosphor (licencia MIT, ver assets/iconos/LICENSE-Phosphor.txt).
+    - family: PhosphorRegular
+      fonts:
+        - asset: assets/iconos/Phosphor-Regular.ttf
+    - family: PhosphorBold
+      fonts:
+        - asset: assets/iconos/Phosphor-Bold.ttf
+    - family: PhosphorFill
+      fonts:
+        - asset: assets/iconos/Phosphor-Fill.ttf
 
 # Configuración del generador de iconos. Las imágenes de partida las produce
 # tools/generar_icono.py; no se editan a mano.

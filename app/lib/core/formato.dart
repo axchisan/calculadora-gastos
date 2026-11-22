@@ -50,6 +50,25 @@ class Formato {
       ? _monedaConCentavos.format(valor)
       : _moneda.format(valor);
 
+  /// `$48.250`: pesos redondeados, sin centavos.
+  ///
+  /// Es el formato de las listas y los resúmenes del rediseño v2. Para decidir, los centavos no
+  /// aportan nada y llenan la pantalla de cifras; quedan para el detalle y los formularios, donde
+  /// se usa [dinero]. Una cifra menor de un peso conserva sus centavos (`$0,78`) para no fingir
+  /// que es cero.
+  static String pesos(num valor) {
+    if (valor != 0 && valor.abs() < 1) {
+      final texto = _monedaConCentavos.format(valor.abs());
+      return valor < 0 ? '−$texto' : texto;
+    }
+    final texto = _moneda.format(valor.abs().round());
+    return valor < 0 ? '−$texto' : texto;
+  }
+
+  /// Como [pesos], con `+` delante de lo que entra.
+  static String pesosConSigno(num valor) =>
+      valor > 0 ? '+${pesos(valor)}' : pesos(valor);
+
   /// Fuerza los centavos aunque sean cero. Para columnas donde deben cuadrar verticalmente.
   static String dineroExacto(num valor) => _monedaConCentavos.format(valor);
 
