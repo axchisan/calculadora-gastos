@@ -10,6 +10,7 @@ import '../../../dominio/modelos.dart';
 import '../../../estado/deudas.dart';
 import '../../../estado/mes.dart';
 import 'formulario_deuda.dart';
+import '../../comun/deshacer.dart';
 
 /// Detalle de una deuda con su historial de abonos.
 class DetalleDeuda extends ConsumerStatefulWidget {
@@ -304,34 +305,21 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
     });
   }
 
-  Future<void> _eliminarDeuda(BuildContext context) async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (contexto) => AlertDialog(
-        title: const Text('Eliminar la deuda'),
-        content: const Text(
-          'Se borra junto con todo su historial de abonos. No se puede deshacer.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(contexto, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Tema.negativo),
-            onPressed: () => Navigator.pop(contexto, true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
+  /// Cierra el detalle y borra la deuda con opción de deshacer.
+  ///
+  /// Antes pedía confirmación y advertía que no había vuelta atrás. Ahora la deuda, con todo su
+  /// historial de abonos, sigue intacta en el servidor hasta que vence el aviso.
+  void _eliminarDeuda(BuildContext context) {
+    final deudas = ref.read(deudasProvider.notifier);
+    final deuda = widget.deuda;
+    Navigator.pop(context);
+    borrarConDeshacer(
+      context,
+      ref,
+      id: deuda.id,
+      mensaje: 'Borraste la deuda con ${deuda.acreedor}',
+      borrar: () => deudas.eliminar(deuda.id),
     );
-
-    if (!(confirmado ?? false) || !context.mounted) return;
-
-    await _ejecutar(context, () async {
-      await ref.read(deudasProvider.notifier).eliminar(widget.deuda.id);
-      if (context.mounted) Navigator.pop(context);
-    });
   }
 
   Future<void> _ejecutar(

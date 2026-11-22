@@ -7,6 +7,7 @@ import '../../../core/tema.dart';
 import '../../../datos/cliente_api.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/mes.dart';
+import '../../comun/deshacer.dart';
 
 /// Lo que entra durante el mes aparte del sueldo.
 ///
@@ -23,6 +24,10 @@ class IngresosExtra extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tema = Theme.of(context);
     final cerrado = datos.resumen.cerrado;
+    final ingresos = datos.ingresos.sinOcultos(
+      ref.watch(ocultosProvider),
+      (i) => i.id,
+    );
 
     return Card(
       child: Padding(
@@ -65,7 +70,7 @@ class IngresosExtra extends ConsumerWidget {
               )
             else ...[
               const SizedBox(height: 4),
-              for (final ingreso in datos.ingresos)
+              for (final ingreso in ingresos)
                 _Fila(ingreso: ingreso, bloqueado: cerrado),
               if (datos.extrasPendientes > 0)
                 Padding(
@@ -142,9 +147,17 @@ class _Fila extends ConsumerWidget {
         color: Tema.negativo.withValues(alpha: 0.15),
         child: const Icon(Icons.delete_outline, color: Tema.negativo),
       ),
-      confirmDismiss: (_) async {
-        await ref.read(mesProvider.notifier).eliminarIngresoExtra(ingreso.id);
-        return false;
+      // Deslizar sigue borrando, pero ya no en el acto: el ingreso se esconde y se ofrece
+      // deshacer durante unos segundos.
+      onDismissed: (_) {
+        final mes = ref.read(mesProvider.notifier);
+        borrarConDeshacer(
+          context,
+          ref,
+          id: ingreso.id,
+          mensaje: 'Borraste «${ingreso.concepto}»',
+          borrar: () => mes.eliminarIngresoExtra(ingreso.id),
+        );
       },
       child: ListTile(
         contentPadding: EdgeInsets.zero,

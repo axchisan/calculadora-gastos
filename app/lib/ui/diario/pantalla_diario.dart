@@ -11,6 +11,7 @@ import 'widgets/bandeja_capturas.dart';
 import 'widgets/formulario_compra.dart';
 import 'widgets/lista_cortes.dart';
 import 'widgets/tarjetas_gestion.dart';
+import '../comun/deshacer.dart';
 
 /// Los gastos del día a día: lo que se va en agua, gaseosas y antojos.
 ///
@@ -157,7 +158,11 @@ class _Contenido extends ConsumerWidget {
   /// vistazo qué días se dispara el gasto.
   List<Widget> _porDias(BuildContext context, WidgetRef ref) {
     final porDia = <DateTime, List<Compra>>{};
-    for (final compra in datos.compras) {
+    final compras = datos.compras.sinOcultos(
+      ref.watch(ocultosProvider),
+      (c) => c.id,
+    );
+    for (final compra in compras) {
       porDia.putIfAbsent(compra.fecha, () => []).add(compra);
     }
 
@@ -391,7 +396,8 @@ class _FilaCompra extends ConsumerWidget {
           color: tema.colorScheme.onErrorContainer,
         ),
       ),
-      confirmDismiss: (_) => _confirmarBorrado(context),
+      // Ya no pregunta antes: se borra con la opción de deshacer, que es más rápido cuando sí
+      // se quería borrar y no deja perder nada cuando fue un mal gesto.
       onDismissed: (_) => _eliminar(context, ref),
       child: Material(
         color: tema.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
@@ -449,39 +455,15 @@ class _FilaCompra extends ConsumerWidget {
         'se paga el ${Formato.fechaCorta(compra.vencimiento)}';
   }
 
-  Future<bool> _confirmarBorrado(BuildContext context) async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (contexto) => AlertDialog(
-        title: const Text('¿Borrar la compra?'),
-        content: Text(
-          '${compra.descripcion} · ${Formato.dinero(compra.monto)}',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(contexto, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(contexto, true),
-            child: const Text('Borrar'),
-          ),
-        ],
-      ),
+  void _eliminar(BuildContext context, WidgetRef ref) {
+    final compras = ref.read(comprasProvider.notifier);
+    borrarConDeshacer(
+      context,
+      ref,
+      id: compra.id,
+      mensaje: 'Borraste «${compra.descripcion}»',
+      borrar: () => compras.eliminar(compra.id),
     );
-    return confirmado ?? false;
-  }
-
-  Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
-    try {
-      await ref.read(comprasProvider.notifier).eliminar(compra.id);
-    } on ErrorApi catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
-      }
-    }
   }
 
   Future<void> _editar(BuildContext context, WidgetRef ref) async {

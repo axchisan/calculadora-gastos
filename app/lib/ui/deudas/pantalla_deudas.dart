@@ -10,6 +10,7 @@ import '../../estado/creditos.dart';
 import '../../estado/deudas.dart';
 import '../../estado/mes.dart';
 import '../creditos/pantalla_credito.dart';
+import '../comun/deshacer.dart';
 import 'widgets/detalle_deuda.dart';
 import 'widgets/formulario_deuda.dart';
 
@@ -126,10 +127,10 @@ class _Contenido extends ConsumerWidget {
                   cantidad: datos.activas.length,
                 ),
                 const SizedBox(height: 8),
-                for (final deuda in datos.activas) ...[
-                  _TarjetaDeuda(deuda: deuda),
-                  const SizedBox(height: 10),
-                ],
+                for (final deuda in datos.activas.sinOcultos(
+                  ref.watch(ocultosProvider),
+                  (d) => d.id,
+                )) ...[_TarjetaDeuda(deuda: deuda), const SizedBox(height: 10)],
               ],
 
               if (datos.saldadas.isNotEmpty) ...[
@@ -139,10 +140,10 @@ class _Contenido extends ConsumerWidget {
                   cantidad: datos.saldadas.length,
                 ),
                 const SizedBox(height: 8),
-                for (final deuda in datos.saldadas) ...[
-                  _TarjetaDeuda(deuda: deuda),
-                  const SizedBox(height: 10),
-                ],
+                for (final deuda in datos.saldadas.sinOcultos(
+                  ref.watch(ocultosProvider),
+                  (d) => d.id,
+                )) ...[_TarjetaDeuda(deuda: deuda), const SizedBox(height: 10)],
               ],
             ],
           ),

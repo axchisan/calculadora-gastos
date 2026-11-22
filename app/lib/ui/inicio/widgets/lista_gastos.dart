@@ -7,6 +7,7 @@ import '../../../core/tema.dart';
 import '../../../datos/cliente_api.dart';
 import '../../../dominio/modelos.dart';
 import '../../../estado/mes.dart';
+import '../../comun/deshacer.dart';
 import 'editor_gasto.dart';
 
 /// Gastos del mes, separados entre lo que falta por pagar y lo ya saldado.
@@ -17,8 +18,9 @@ class ListaGastos extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final pendientes = datos.pendientes;
-    final pagados = datos.pagados;
+    final ocultos = ref.watch(ocultosProvider);
+    final pendientes = datos.pendientes.sinOcultos(ocultos, (g) => g.id);
+    final pagados = datos.pagados.sinOcultos(ocultos, (g) => g.id);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -270,15 +272,14 @@ class _FilaGasto extends ConsumerWidget {
     if (!context.mounted || accion == null) return;
 
     if (accion == 'eliminar') {
-      try {
-        await ref.read(mesProvider.notifier).eliminarGasto(gasto.id);
-      } on ErrorApi catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.mensaje)));
-        }
-      }
+      final mes = ref.read(mesProvider.notifier);
+      await borrarConDeshacer(
+        context,
+        ref,
+        id: gasto.id,
+        mensaje: 'Borraste «${gasto.nombre}»',
+        borrar: () => mes.eliminarGasto(gasto.id),
+      );
       return;
     }
 

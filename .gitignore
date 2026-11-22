@@ -96,3 +96,6 @@ temp/
 
 # Notas personales para Claude: el repositorio es público
 CLAUDE.local.md
+
+# ---------- Privado (datos personales, nunca al repo público) ----------
+privado/
