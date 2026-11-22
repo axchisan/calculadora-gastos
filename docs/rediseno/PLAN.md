@@ -137,7 +137,16 @@ lo del día sin red; que nunca haya duda de si lo que se ve está al día.
 - Manual en el emulador: modo avión, abrir cada pestaña, apuntar una compra, volver a conectar
   y comprobar que se subió una sola vez.
 
-## 6. Herramienta para la propuesta visual
+## 6. Después del rediseño: registro automático de movimientos
+
+Pendiente, para cuando termine el rediseño. La captura actual por notificaciones y SMS
+(`docs/CAPTURA-DE-PAGOS.md`) no ha resultado fiable en el uso real. Se hará primero una
+investigación a fondo: APIs de los bancos, open finance en Colombia, agregadores y servicios de
+terceros, y cualquier integración que funcione de verdad (como mínimo Bancolombia; mejor si
+cubre también billeteras y otros bancos). Se compararán fiabilidad, costo, seguridad y si aplican
+a una persona natural, y solo después se elegirá qué implementar.
+
+## 7. Herramienta para la propuesta visual
 
 Opciones para la fase 1:
 

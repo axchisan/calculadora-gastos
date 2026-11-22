@@ -6,6 +6,11 @@ el teléfono Android, en el Mac y en la web.
 
 **Estado actual y lo pendiente: [docs/ESTADO.md](docs/ESTADO.md).** Léelo antes de cambiar nada.
 
+**En curso: rediseño v2** por fases ([docs/rediseno/PLAN.md](docs/rediseno/PLAN.md), con la
+auditoría al lado). La referencia visual es el prototipo aprobado, en `privado/prototipo-v2.html`
+(ignorado por git). Cada fase se prueba en el emulador con los datos de producción, se publica y
+se instala en el teléfono; en el Mac solo al terminar todo.
+
 ## Stack y dónde vive cada cosa
 
 | Pieza | Tecnología | Producción |
@@ -33,6 +38,9 @@ flutter analyze && dart format --set-exit-if-changed lib test && flutter test
 flutter build apk --release --split-per-abi --dart-define=API_URL=https://api.axchisan.com
 flutter build macos --release --dart-define=API_URL=https://api.axchisan.com
 ../scripts/instalar-en-el-telefono.sh     # instala por adb, con el teléfono por USB
+# Con el emulador abierto a la vez: ANDROID_SERIAL=<serial del teléfono> ../scripts/instalar-…
+# Catálogo de componentes del rediseño (entra por Mi cuenta): añadir --dart-define=CATALOGO=true
+~/Library/Android/sdk/emulator/emulator -avd prueba35b   # emulador para revisar fases
 # Mac: cerrar «Mis gastos», reemplazar /Applications/Mis gastos.app con el build y abrirla
 ```
 
@@ -53,6 +61,11 @@ para esa tarea.
 - Las cuotas de `credit_installments` se cruzan con el mes **calendario**, no con el mes
   presupuestal del 28 al 27 (ver `ServicioResumen`).
 - En las pruebas la consulta de la TRM está desactivada (`app.trm.habilitada: false`).
+- **Iconos**: fuentes Phosphor propias (`app/assets/iconos/`, códigos en `ui/comun/iconos.dart`);
+  el paquete `phosphor_flutter` no compila con Flutter 3.44. Todo `IconData` debe ser `const`
+  (también en las ramas de un `switch`) o la compilación de publicación falla.
+- **SnackBar con acción** no se cierra solo en esta versión de Flutter: usar `persist: false`.
+- **Clase `Radio`** choca con el widget de Material: los radios del tema son `Radios`.
 
 ## Convenciones
 
@@ -62,12 +75,19 @@ para esa tarea.
 - Dinero en `numeric(14,2)` / `BigDecimal`; en Dart `double` formateado con `Formato.dinero`.
   Para presupuestar se redondea hacia abajo.
 - Cada función nueva lleva pruebas: unitarias para el cálculo e integración para la API.
+- **Interfaz (rediseño v2)**: colores solo de `context.colores` (tokens en `core/tema.dart`),
+  piezas de `ui/comun/componentes.dart`, importes con `Formato.pesos` (sin centavos en listas).
+  Borrar siempre con `borrarConDeshacer`.
+- **Datos**: leer siempre por `ClienteApi.obtener` (caché y sin conexión van solos) y declarar en
+  cada proveedor sus rutas con `ref.alActualizarse`. Las altas del día a día llevan `id` generado
+  en la app y `sinConexion: Superposicion(...)` para poder hacerse sin red.
 
 ## Datos de producción y privacidad
 
 **El repositorio es público.** Nada personal (saldos, deudas, personas, teléfonos, correos,
-ids de usuario) va en archivos versionados, commits ni PRs. Eso vive en `CLAUDE.local.md`
-(sin versionar) y en la memoria del proyecto.
+ids de usuario) va en archivos versionados, commits ni PRs. **Tampoco como datos de ejemplo** en
+pruebas, catálogos o comentarios: usar cifras inventadas. Lo personal vive en
+`CLAUDE.local.md` (sin versionar) y en la memoria del proyecto.
 
 El usuario pide de vez en cuando «sincronizar» la app con sus bancos: las convenciones de esa
 tarea están en `CLAUDE.local.md`. Antes de escribir en Neon: `pg_dump` a
