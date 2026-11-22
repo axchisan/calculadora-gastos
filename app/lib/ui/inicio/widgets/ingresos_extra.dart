@@ -181,9 +181,10 @@ class _Fila extends ConsumerWidget {
         ),
         title: Text(ingreso.concepto),
         subtitle: Text(
-          ingreso.recibido
-              ? Formato.fechaCorta(ingreso.fecha)
-              : '${Formato.fechaCorta(ingreso.fecha)} · sin cobrar',
+          (ingreso.recibido
+                  ? Formato.fechaCorta(ingreso.fecha)
+                  : '${Formato.fechaCorta(ingreso.fecha)} · sin cobrar') +
+              (ingreso.pendiente ? ' · sin subir' : ''),
           style: tema.textTheme.bodySmall,
         ),
         trailing: Text(

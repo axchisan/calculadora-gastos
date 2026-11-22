@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'cola_pendientes.dart';
+
 /// Copia local de las últimas respuestas del servidor.
 ///
 /// Cumple dos funciones. La primera es poder consultar el mes sin conexión. La segunda, y más
@@ -24,6 +26,10 @@ class CacheLocal {
   static const Duration validez = Duration(hours: 12);
 
   final SharedPreferences _prefs;
+
+  /// La cola de lo apuntado sin conexión, guardada junto al caché pero fuera de su prefijo:
+  /// limpiar el caché al cerrar sesión no debe perder cambios sin enviar.
+  ColaPendientes get cola => ColaPendientes(_prefs);
 
   static Future<CacheLocal> abrir() async =>
       CacheLocal._(await SharedPreferences.getInstance());

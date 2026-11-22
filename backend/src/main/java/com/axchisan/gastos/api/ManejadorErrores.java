@@ -1,6 +1,7 @@
 package com.axchisan.gastos.api;
 
 import com.axchisan.gastos.seguridad.ExcepcionesAutenticacion;
+import com.axchisan.gastos.servicio.IdentificadorEnUso;
 import com.axchisan.gastos.servicio.RecursoNoEncontrado;
 import com.axchisan.gastos.servicio.ServicioGastos;
 import com.axchisan.gastos.servicio.ServicioMeses;
@@ -63,6 +64,11 @@ public class ManejadorErrores {
     @ExceptionHandler(RecursoNoEncontrado.class)
     public ResponseEntity<Map<String, Object>> noEncontrado(RecursoNoEncontrado e) {
         return respuesta(HttpStatus.NOT_FOUND, "no_encontrado", e.getMessage());
+    }
+
+    @ExceptionHandler(IdentificadorEnUso.class)
+    public ResponseEntity<Map<String, Object>> identificadorEnUso(IdentificadorEnUso e) {
+        return respuesta(HttpStatus.CONFLICT, "identificador_en_uso", e.getMessage());
     }
 
     @ExceptionHandler(ServicioMeses.MesYaExiste.class)

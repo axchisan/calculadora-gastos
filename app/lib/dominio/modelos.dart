@@ -230,6 +230,7 @@ class IngresoExtra {
     required this.monto,
     required this.fecha,
     required this.recibido,
+    this.pendiente = false,
   });
 
   final String id;
@@ -238,12 +239,16 @@ class IngresoExtra {
   final DateTime fecha;
   final bool recibido;
 
+  /// Apuntado sin conexión y aún no enviado al servidor.
+  final bool pendiente;
+
   static IngresoExtra deJson(Map<String, dynamic> j) => IngresoExtra(
     id: j['id'] as String,
     concepto: j['concepto'] as String,
     monto: (j['monto'] as num).toDouble(),
     fecha: DateTime.parse(j['fecha'] as String),
     recibido: j['recibido'] as bool,
+    pendiente: j['_pendiente'] == true,
   );
 }
 
@@ -261,6 +266,7 @@ class Gasto {
     this.fechaPago,
     this.diaVencimiento,
     this.notas,
+    this.pendiente = false,
   });
 
   final String id;
@@ -278,6 +284,9 @@ class Gasto {
   final DateTime? fechaPago;
   final int? diaVencimiento;
   final String? notas;
+
+  /// Creado o pagado sin conexión y aún no enviado al servidor.
+  final bool pendiente;
 
   double get proporcionPagada =>
       monto == 0 ? 1 : (montoPagado / monto).clamp(0, 1);
@@ -297,7 +306,28 @@ class Gasto {
         : DateTime.parse(j['fechaPago'] as String),
     diaVencimiento: j['diaVencimiento'] as int?,
     notas: j['notas'] as String?,
+    pendiente: j['_pendiente'] == true,
   );
+
+  /// Lo mismo que devuelve el servidor, para poder mostrarlo modificado sin conexión.
+  Map<String, dynamic> aJson() => {
+    'id': id,
+    'nombre': nombre,
+    'categoria': categoria.codigo,
+    'monto': monto,
+    'montoPagado': montoPagado,
+    'saldoPendiente': saldoPendiente,
+    'estado': estado.codigo,
+    'origen': origen.codigo,
+    'editable': editable,
+    'fechaPago': fechaPago == null
+        ? null
+        : '${fechaPago!.year.toString().padLeft(4, '0')}-'
+              '${fechaPago!.month.toString().padLeft(2, '0')}-'
+              '${fechaPago!.day.toString().padLeft(2, '0')}',
+    'diaVencimiento': diaVencimiento,
+    'notas': notas,
+  };
 }
 
 class TotalCategoria {
@@ -818,11 +848,15 @@ class Compra {
     this.tarjetaId,
     this.tarjetaNombre,
     this.nota,
+    this.pendiente = false,
   });
 
   final String id;
   final DateTime fecha;
   final String descripcion;
+
+  /// Apuntada sin conexión y aún no enviada al servidor.
+  final bool pendiente;
   final CategoriaGasto categoria;
   final double monto;
   final MedioPago medio;
@@ -859,6 +893,7 @@ class Compra {
       tarjetaId: j['tarjetaId'] as String?,
       tarjetaNombre: j['tarjetaNombre'] as String?,
       nota: j['nota'] as String?,
+      pendiente: j['_pendiente'] == true,
     );
   }
 }

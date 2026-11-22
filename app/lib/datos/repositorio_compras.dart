@@ -1,5 +1,7 @@
 import '../dominio/modelos.dart';
+import '../core/identificadores.dart';
 import 'cliente_api.dart';
+import 'cola_pendientes.dart';
 
 /// Las compras del día a día, las tarjetas y sus cortes.
 class RepositorioCompras {
@@ -26,17 +28,42 @@ class RepositorioCompras {
     String? tarjetaId,
     String? nota,
   }) async {
+    final id = nuevoIdentificador();
+    final cuando = fecha ?? DateTime.now();
+    final dia = _fecha(cuando)!;
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/meses/$mesId/compras',
       cuerpo: {
+        'id': id,
         'descripcion': descripcion,
         'monto': monto,
         'categoria': categoria.codigo,
-        'fecha': ?_fecha(fecha),
+        'fecha': dia,
         if (medio != null) 'medio': medio.codigo,
         'tarjetaId': ?tarjetaId,
         'nota': ?nota,
       },
+      descripcion: 'Compra · $descripcion',
+      // Sin conexión no se puede calcular el corte de una tarjeta: se muestra en el mes de la
+      // compra y el servidor lo recoloca al recibirla.
+      sinConexion: Superposicion(
+        ruta: '/api/meses/$mesId/compras',
+        campoLista: 'compras',
+        datos: {
+          'id': id,
+          'fecha': dia,
+          'descripcion': descripcion,
+          'categoria': categoria.codigo,
+          'monto': monto,
+          'medio': (medio ?? MedioPago.efectivo).codigo,
+          'periodoPago': dia.substring(0, 7),
+          'vencimiento': dia,
+          'pagado': (medio ?? MedioPago.efectivo) != MedioPago.credito,
+          'tarjetaId': tarjetaId,
+          'nota': nota,
+          '_pendiente': true,
+        },
+      ),
     );
     return Compra.deJson(datos);
   }

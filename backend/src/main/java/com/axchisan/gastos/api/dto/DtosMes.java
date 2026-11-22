@@ -65,7 +65,9 @@ public final class DtosMes {
             @NotNull(message = "El concepto es obligatorio") String concepto,
             @NotNull(message = "El monto es obligatorio") BigDecimal monto,
             java.time.LocalDate fecha,
-            Boolean recibido) {
+            Boolean recibido,
+            // Identificador generado por la app al apuntar sin conexión. Opcional.
+            UUID id) {
     }
 
     public record IngresoDto(UUID id, String concepto, BigDecimal monto,

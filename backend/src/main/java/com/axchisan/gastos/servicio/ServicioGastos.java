@@ -47,10 +47,33 @@ public class ServicioGastos {
     @Transactional
     public Gasto crear(UUID usuarioId, UUID mesId, String nombre, CategoriaGasto categoria,
                        BigDecimal monto, Short diaVencimiento, String notas) {
+        return crear(usuarioId, null, mesId, nombre, categoria, monto, diaVencimiento, notas);
+    }
+
+    /**
+     * Crea un gasto con el identificador que propuso la app. Un reenvío del mismo gasto apuntado
+     * sin conexión devuelve el que ya existe en lugar de duplicarlo.
+     */
+    @Transactional
+    public Gasto crear(UUID usuarioId, UUID id, UUID mesId, String nombre,
+                       CategoriaGasto categoria, BigDecimal monto, Short diaVencimiento,
+                       String notas) {
+        if (id != null) {
+            var existente = gastos.findById(id);
+            if (existente.isPresent()) {
+                Gasto gasto = existente.get();
+                if (!gasto.getMes().getUsuario().getId().equals(usuarioId)) {
+                    throw new IdentificadorEnUso(id);
+                }
+                return gasto;
+            }
+        }
+
         MesPresupuestal mes = mesDelUsuario(usuarioId, mesId);
         ServicioMeses.verificarAbierto(mes);
 
         Gasto gasto = new Gasto(nombre, categoria, monto, OrigenGasto.MANUAL);
+        gasto.usarIdentificador(id);
         gasto.setDiaVencimiento(diaVencimiento);
         gasto.setNotas(notas);
         mes.agregarGasto(gasto);

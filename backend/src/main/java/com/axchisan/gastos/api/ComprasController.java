@@ -74,9 +74,9 @@ public class ComprasController {
     @Operation(summary = "Registra una compra del día a día")
     public ResponseEntity<CompraDto> registrar(@PathVariable UUID mesId,
                                                @Valid @RequestBody RegistrarCompraRequest peticion) {
-        Compra compra = compras.registrar(UsuarioActual.id(), mesId, peticion.fecha(),
-                peticion.descripcion(), peticion.categoria(), peticion.monto(), peticion.medio(),
-                peticion.tarjetaId(), peticion.nota(), null);
+        Compra compra = compras.registrar(UsuarioActual.id(), peticion.id(), mesId,
+                peticion.fecha(), peticion.descripcion(), peticion.categoria(), peticion.monto(),
+                peticion.medio(), peticion.tarjetaId(), peticion.nota(), null);
         return ResponseEntity.status(HttpStatus.CREATED).body(CompraDto.de(compra));
     }
 

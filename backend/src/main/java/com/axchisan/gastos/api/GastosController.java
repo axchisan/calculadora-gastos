@@ -44,8 +44,9 @@ public class GastosController {
     @Operation(summary = "Añade un gasto puntual al mes")
     public ResponseEntity<GastoDto> crear(@PathVariable UUID mesId,
                                           @Valid @RequestBody CrearGastoRequest peticion) {
-        var gasto = gastos.crear(UsuarioActual.id(), mesId, peticion.nombre(), peticion.categoria(),
-                peticion.monto(), peticion.diaVencimiento(), peticion.notas());
+        var gasto = gastos.crear(UsuarioActual.id(), peticion.id(), mesId, peticion.nombre(),
+                peticion.categoria(), peticion.monto(), peticion.diaVencimiento(),
+                peticion.notas());
         return ResponseEntity.status(HttpStatus.CREATED).body(GastoDto.de(gasto));
     }
 

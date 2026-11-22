@@ -96,6 +96,19 @@ public class Compra {
         aplicarMedio(MedioPago.EFECTIVO, null);
     }
 
+    /**
+     * Adopta el identificador que generó la app.
+     *
+     * <p>Cuando la app apunta algo sin conexión, lo crea en local con su propio identificador y
+     * lo envía al volver la red. Usar ese mismo identificador aquí es lo que permite reenviarlo
+     * sin miedo a duplicarlo.
+     */
+    public void usarIdentificador(UUID id) {
+        if (id != null) {
+            this.id = id;
+        }
+    }
+
     @PrePersist
     void alCrear() {
         OffsetDateTime ahora = OffsetDateTime.now();

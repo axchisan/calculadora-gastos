@@ -448,11 +448,14 @@ class _FilaCompra extends ConsumerWidget {
 
   /// Categoría y, si fue a crédito, cuándo se paga: es lo que no se ve al pagar con el móvil.
   String _subtitulo() {
-    if (compra.medio != MedioPago.credito) return compra.categoria.etiqueta;
+    final sinSubir = compra.pendiente ? ' · sin subir' : '';
+    if (compra.medio != MedioPago.credito) {
+      return '${compra.categoria.etiqueta}$sinSubir';
+    }
 
     final tarjeta = compra.tarjetaNombre ?? 'Crédito';
     return '${compra.categoria.etiqueta} · $tarjeta, '
-        'se paga el ${Formato.fechaCorta(compra.vencimiento)}';
+        'se paga el ${Formato.fechaCorta(compra.vencimiento)}$sinSubir';
   }
 
   void _eliminar(BuildContext context, WidgetRef ref) {

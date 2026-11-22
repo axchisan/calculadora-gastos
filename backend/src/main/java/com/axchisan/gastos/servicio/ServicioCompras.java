@@ -56,6 +56,32 @@ public class ServicioCompras {
     public Compra registrar(UUID usuarioId, UUID mesId, LocalDate fecha, String descripcion,
                             CategoriaGasto categoria, BigDecimal monto, MedioPago medio,
                             UUID tarjetaId, String nota, OrigenCompra origen) {
+        return registrar(usuarioId, null, mesId, fecha, descripcion, categoria, monto, medio,
+                tarjetaId, nota, origen);
+    }
+
+    /**
+     * Registra una compra con el identificador que propuso la app.
+     *
+     * <p>Si ya existe una compra del usuario con ese identificador, la devuelve tal cual: es un
+     * reenvío de algo apuntado sin conexión que ya había llegado, y crearla otra vez la contaría
+     * doble.
+     */
+    @Transactional
+    public Compra registrar(UUID usuarioId, UUID id, UUID mesId, LocalDate fecha,
+                            String descripcion, CategoriaGasto categoria, BigDecimal monto,
+                            MedioPago medio, UUID tarjetaId, String nota, OrigenCompra origen) {
+        if (id != null) {
+            var existente = compras.findById(id);
+            if (existente.isPresent()) {
+                Compra compra = existente.get();
+                if (!compra.getMes().getUsuario().getId().equals(usuarioId)) {
+                    throw new IdentificadorEnUso(id);
+                }
+                return compra;
+            }
+        }
+
         MesPresupuestal mes = mesDelUsuario(usuarioId, mesId);
         if (mes.isCerrado()) {
             throw new ServicioMeses.MesCerrado(mes.periodo());
@@ -65,6 +91,7 @@ public class ServicioCompras {
         exigirQueLaFechaCaigaEnElMes(mes, cuando);
 
         Compra compra = new Compra(mes, cuando, descripcion, categoria, monto);
+        compra.usarIdentificador(id);
         compra.aplicarMedio(medio == null ? MedioPago.EFECTIVO : medio,
                 tarjetaId == null ? null : tarjetaDelUsuario(usuarioId, tarjetaId));
         compra.setNota(nota);

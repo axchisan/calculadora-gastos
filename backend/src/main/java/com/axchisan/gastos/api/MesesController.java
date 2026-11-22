@@ -11,6 +11,7 @@ import com.axchisan.gastos.dominio.MesPresupuestal;
 import com.axchisan.gastos.repositorio.IngresoRepository;
 import com.axchisan.gastos.repositorio.MesPresupuestalRepository;
 import com.axchisan.gastos.seguridad.UsuarioActual;
+import com.axchisan.gastos.servicio.IdentificadorEnUso;
 import com.axchisan.gastos.servicio.RecursoNoEncontrado;
 import com.axchisan.gastos.servicio.ResumenMensual;
 import com.axchisan.gastos.servicio.ServicioMeses;
@@ -154,12 +155,25 @@ public class MesesController {
     @Operation(summary = "Registra un ingreso extra: prima, bono o trabajo adicional")
     public ResponseEntity<IngresoDto> crearIngreso(@PathVariable UUID mesId,
                                                    @Valid @RequestBody CrearIngresoRequest peticion) {
+        // Un reenvío de un ingreso apuntado sin conexión devuelve el que ya llegó, sin duplicarlo.
+        if (peticion.id() != null) {
+            var existente = ingresos.findById(peticion.id());
+            if (existente.isPresent()) {
+                Ingreso ingreso = existente.get();
+                if (!ingreso.getMes().getUsuario().getId().equals(UsuarioActual.id())) {
+                    throw new IdentificadorEnUso(peticion.id());
+                }
+                return ResponseEntity.status(HttpStatus.CREATED).body(IngresoDto.de(ingreso));
+            }
+        }
+
         MesPresupuestal mes = meses.buscar(UsuarioActual.id(), mesId);
         Ingreso ingreso = new Ingreso(
                 peticion.concepto(),
                 peticion.monto(),
                 peticion.fecha() == null ? LocalDate.now() : peticion.fecha(),
                 Boolean.TRUE.equals(peticion.recibido()));
+        ingreso.usarIdentificador(peticion.id());
         mes.agregarIngreso(ingreso);
         repositorio.save(mes);
         return ResponseEntity.status(HttpStatus.CREATED).body(IngresoDto.de(ingreso));

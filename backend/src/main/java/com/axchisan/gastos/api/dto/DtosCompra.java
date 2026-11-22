@@ -144,7 +144,10 @@ public final class DtosCompra {
 
             UUID tarjetaId,
 
-            @Size(max = 200) String nota) {
+            @Size(max = 200) String nota,
+
+            // Identificador generado por la app al apuntar sin conexión. Opcional.
+            UUID id) {
     }
 
     public record ActualizarCompraRequest(

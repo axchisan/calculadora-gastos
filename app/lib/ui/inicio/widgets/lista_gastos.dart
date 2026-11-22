@@ -167,9 +167,10 @@ class _FilaGasto extends ConsumerWidget {
         ],
       ),
       subtitle: Text(
-        parcial
-            ? '${gasto.categoria.etiqueta} · abonado ${Formato.dinero(gasto.montoPagado)}'
-            : gasto.categoria.etiqueta,
+        (parcial
+                ? '${gasto.categoria.etiqueta} · abonado ${Formato.dinero(gasto.montoPagado)}'
+                : gasto.categoria.etiqueta) +
+            (gasto.pendiente ? ' · sin subir' : ''),
         style: TextStyle(
           fontSize: 12.5,
           color: parcial ? Tema.pendiente : esquema.onSurfaceVariant,

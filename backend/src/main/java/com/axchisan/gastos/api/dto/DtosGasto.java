@@ -58,7 +58,10 @@ public final class DtosGasto {
             @Max(value = 31, message = "El día de vencimiento debe estar entre 1 y 31")
             Short diaVencimiento,
 
-            String notas) {
+            String notas,
+
+            // Identificador generado por la app al apuntar sin conexión. Opcional.
+            java.util.UUID id) {
     }
 
     public record ActualizarGastoRequest(

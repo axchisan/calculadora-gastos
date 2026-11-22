@@ -111,7 +111,11 @@ class ControladorMes extends StateNotifier<AsyncValue<DatosMes>> {
   }
 
   Future<void> marcarPagado(String gastoId) async {
-    await _repositorio.marcarPagado(gastoId);
+    // Con el gasto a mano, sin conexión el pago queda en la cola y se ve hecho al instante.
+    final actual = state.valueOrNull?.gastos
+        .where((g) => g.id == gastoId)
+        .firstOrNull;
+    await _repositorio.marcarPagado(gastoId, actual: actual, mesId: _mesId);
     await refrescar();
   }
 

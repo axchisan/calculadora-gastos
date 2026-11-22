@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../core/configuracion.dart';
 import 'almacen_sesion.dart';
 import 'cache_local.dart';
+import 'cola_pendientes.dart';
 
 /// Error de la API con el mensaje que se puede mostrar al usuario.
 class ErrorApi implements Exception {
@@ -94,6 +95,7 @@ class ClienteApi {
   final Map<String, DateTime> _revalidadoEn = {};
   final Set<String> _revalidando = {};
   Timer? _vigiaDeRed;
+  Future<void>? _sincronizacion;
 
   /// Tras revalidar una lectura, no se vuelve a pedir durante este tiempo aunque se lea otra vez.
   static const Duration _respiroEntreRevalidaciones = Duration(seconds: 20);
@@ -147,6 +149,19 @@ class ClienteApi {
     }
 
     final rutaCompleta = _rutaCompleta(ruta, parametros);
+    return _superponer(
+      rutaCompleta,
+      await _leerConCache<T>(ruta, parametros, rutaCompleta, usuario, cache),
+    );
+  }
+
+  Future<T> _leerConCache<T>(
+    String ruta,
+    Map<String, dynamic>? parametros,
+    String rutaCompleta,
+    String usuario,
+    CacheLocal cache,
+  ) async {
     final clave = 'api|$usuario|$rutaCompleta';
     final guardado = cache.leer(clave);
 
@@ -229,8 +244,33 @@ class ClienteApi {
     _actualizaciones.add('*');
   }
 
-  Future<T> publicar<T>(String ruta, {Object? cuerpo}) =>
-      _cambiar<T>(() => _dio.post(ruta, data: cuerpo));
+  /// Envía un alta o un cambio.
+  ///
+  /// Con [sinConexion], si no hay red la operación no falla: se guarda en la cola, aparece en
+  /// las listas con la superposición indicada y se envía sola al volver la conexión. Se usa
+  /// solo para lo del día a día que tiene identificador propio (apuntar compras, ingresos y
+  /// gastos, marcar un gasto como pagado), donde reenviar no duplica nada.
+  Future<T> publicar<T>(
+    String ruta, {
+    Object? cuerpo,
+    Superposicion? sinConexion,
+    String? descripcion,
+  }) => _cambiar<T>(
+    () => _dio.post(ruta, data: cuerpo),
+    encolable: sinConexion == null
+        ? null
+        : OperacionPendiente(
+            id: (cuerpo is Map && cuerpo['id'] is String)
+                ? cuerpo['id'] as String
+                : '${_ahora().microsecondsSinceEpoch}',
+            metodo: 'POST',
+            ruta: ruta,
+            cuerpo: cuerpo,
+            descripcion: descripcion ?? ruta,
+            creadaEn: _ahora(),
+            superposicion: sinConexion,
+          ),
+  );
 
   Future<T> modificar<T>(String ruta, {Object? cuerpo}) =>
       _cambiar<T>(() => _dio.patch(ruta, data: cuerpo));
@@ -242,11 +282,171 @@ class ClienteApi {
 
   /// Un cambio deja desfasado lo guardado: a partir de aquí, cada lectura irá primero al
   /// servidor hasta que se renueve.
-  Future<T> _cambiar<T>(Future<Response<dynamic>> Function() enviar) async {
-    final resultado = await _peticion<T>(enviar);
+  Future<T> _cambiar<T>(
+    Future<Response<dynamic>> Function() enviar, {
+    OperacionPendiente? encolable,
+  }) async {
+    // Lo apuntado antes sin conexión va primero: si no, un cambio sobre algo que el servidor
+    // aún no tiene fallaría.
+    if (pendientes.isNotEmpty && _red.enLinea) await sincronizar();
+
+    try {
+      final resultado = await _peticion<T>(enviar);
+      _ultimoCambio = _ahora();
+      _revalidadoEn.clear();
+      return resultado;
+    } on ErrorApi catch (e) {
+      if (encolable == null || !e.esDeConexion) rethrow;
+      await _encolar(encolable);
+      return encolable.superposicion!.datos as T;
+    }
+  }
+
+  // --- cola de lo apuntado sin conexión ---
+
+  /// Al arrancar: anuncia cuántos cambios esperan y trata de enviarlos.
+  void iniciarCola() {
+    _publicarEstadoCola();
+    if (pendientes.isNotEmpty) unawaited(sincronizar());
+  }
+
+  /// Lo que espera a enviarse, incluido lo que el servidor rechazó.
+  List<OperacionPendiente> get pendientes {
+    final usuario = _sesion?.usuarioId;
+    final cache = _cache;
+    if (usuario == null || cache == null) return const [];
+    return cache.cola.leer(usuario);
+  }
+
+  Future<void> _encolar(OperacionPendiente operacion) async {
+    final usuario = _sesion!.usuarioId;
+    final cola = _cache!.cola;
+    await cola.guardar(usuario, [...cola.leer(usuario), operacion]);
     _ultimoCambio = _ahora();
-    _revalidadoEn.clear();
-    return resultado;
+    _publicarEstadoCola();
+    final ruta = operacion.superposicion?.ruta;
+    if (ruta != null) _actualizaciones.add(ruta);
+  }
+
+  /// Envía en orden lo que quedó en la cola. Se para en cuanto falta la red; lo que el servidor
+  /// rechaza por otro motivo queda marcado con el error para que el usuario decida.
+  Future<void> sincronizar() {
+    return _sincronizacion ??= _sincronizarCola().whenComplete(
+      () => _sincronizacion = null,
+    );
+  }
+
+  Future<void> _sincronizarCola() async {
+    final usuario = _sesion?.usuarioId;
+    final cache = _cache;
+    if (usuario == null || cache == null) return;
+
+    var enviadas = 0;
+    for (final operacion in cache.cola.leer(usuario)) {
+      if (operacion.error != null) continue;
+      try {
+        await _peticion<dynamic>(
+          () => _dio.request<dynamic>(
+            operacion.ruta,
+            data: operacion.cuerpo,
+            options: Options(method: operacion.metodo),
+          ),
+        );
+        await _quitarDeLaCola(usuario, operacion.id);
+        enviadas++;
+      } on ErrorApi catch (e) {
+        if (e.esDeConexion) break;
+        await _reemplazarEnLaCola(usuario, operacion.conError(e.mensaje));
+      } on SesionExpirada {
+        break;
+      }
+    }
+
+    if (enviadas > 0) {
+      _ultimoCambio = _ahora();
+      revisarTodo();
+    }
+    _publicarEstadoCola();
+  }
+
+  /// Vuelve a intentar una operación que el servidor había rechazado.
+  Future<void> reintentar(String operacionId) async {
+    final usuario = _sesion?.usuarioId;
+    if (usuario == null) return;
+    final operacion = pendientes.where((o) => o.id == operacionId).firstOrNull;
+    if (operacion == null) return;
+    await _reemplazarEnLaCola(usuario, operacion.conError(null));
+    await sincronizar();
+  }
+
+  /// Renuncia a una operación pendiente: deja de mostrarse y no se enviará.
+  Future<void> descartar(String operacionId) async {
+    final usuario = _sesion?.usuarioId;
+    if (usuario == null) return;
+    final ruta = pendientes
+        .where((o) => o.id == operacionId)
+        .firstOrNull
+        ?.superposicion
+        ?.ruta;
+    await _quitarDeLaCola(usuario, operacionId);
+    _publicarEstadoCola();
+    if (ruta != null) _actualizaciones.add(ruta);
+  }
+
+  Future<void> _quitarDeLaCola(String usuario, String id) async {
+    final cola = _cache!.cola;
+    await cola.guardar(
+      usuario,
+      cola.leer(usuario).where((o) => o.id != id).toList(),
+    );
+  }
+
+  Future<void> _reemplazarEnLaCola(
+    String usuario,
+    OperacionPendiente operacion,
+  ) async {
+    final cola = _cache!.cola;
+    await cola.guardar(usuario, [
+      for (final o in cola.leer(usuario)) o.id == operacion.id ? operacion : o,
+    ]);
+  }
+
+  void _publicarEstadoCola() {
+    final cola = pendientes;
+    _red = _red.conCola(
+      porSubir: cola.where((o) => o.error == null).length,
+      conError: cola.where((o) => o.error != null).length,
+    );
+    _cambiosDeRed.add(_red);
+  }
+
+  /// Mezcla en una lectura lo apuntado sin conexión que pertenece a ella.
+  T _superponer<T>(String ruta, T datos) {
+    final propias = pendientes
+        .map((o) => o.superposicion)
+        .whereType<Superposicion>()
+        .where((s) => s.ruta == ruta)
+        .toList();
+    if (propias.isEmpty) return datos;
+
+    // Copia profunda: no se toca lo que vive en el caché.
+    final copia = jsonDecode(jsonEncode(datos));
+    for (final s in propias) {
+      final lista = s.campoLista == null
+          ? copia as List<dynamic>?
+          : (copia as Map<String, dynamic>)[s.campoLista] as List<dynamic>?;
+      if (lista == null) continue;
+      if (s.reemplazaId == null) {
+        // Puede que ya hubiera llegado y la lectura lo traiga: no se duplica en pantalla.
+        if (!lista.any((e) => e is Map && e['id'] == s.datos['id'])) {
+          lista.insert(0, s.datos);
+        }
+      } else {
+        final i = lista.indexWhere((e) => e is Map && e['id'] == s.reemplazaId);
+        if (i >= 0) lista[i] = s.datos;
+      }
+    }
+    return copia as T;
   }
 
   static const String _lecturaRapida = 'lecturaRapida';
@@ -261,15 +461,17 @@ class ClienteApi {
     _vigiaDeRed?.cancel();
     _vigiaDeRed = null;
     if (_red.enLinea) return;
-    _red = const EstadoRed.enLinea();
+    _red = _red.enLineaOtraVez();
     _cambiosDeRed.add(_red);
-    // Al volver la conexión se revisa todo lo que se estaba mostrando desde la copia local.
+    // Al volver la conexión se envía lo apuntado sin red y se revisa todo lo que se estaba
+    // mostrando desde la copia local.
+    unawaited(sincronizar());
     revisarTodo();
   }
 
   void _marcarSinConexion() {
     if (!_red.enLinea) return;
-    _red = EstadoRed.sinConexion(desde: _ahora());
+    _red = _red.sinConexion(_ahora());
     _cambiosDeRed.add(_red);
     // Mientras no haya red, se comprueba cada poco si volvió, sin esperar a que el usuario
     // toque algo.
@@ -405,14 +607,49 @@ class ClienteApi {
   }
 }
 
-/// Si hay conexión con el servidor.
+/// Si hay conexión con el servidor y qué queda por enviar.
 class EstadoRed {
-  const EstadoRed.enLinea() : enLinea = true, sinConexionDesde = null;
+  const EstadoRed.enLinea()
+    : enLinea = true,
+      sinConexionDesde = null,
+      porSubir = 0,
+      conError = 0;
 
-  const EstadoRed.sinConexion({required DateTime desde})
-    : enLinea = false,
-      sinConexionDesde = desde;
+  const EstadoRed._({
+    required this.enLinea,
+    required this.sinConexionDesde,
+    required this.porSubir,
+    required this.conError,
+  });
 
   final bool enLinea;
   final DateTime? sinConexionDesde;
+
+  /// Cambios apuntados sin conexión que esperan a enviarse.
+  final int porSubir;
+
+  /// Cambios que el servidor rechazó y esperan una decisión del usuario.
+  final int conError;
+
+  EstadoRed sinConexion(DateTime desde) => EstadoRed._(
+    enLinea: false,
+    sinConexionDesde: desde,
+    porSubir: porSubir,
+    conError: conError,
+  );
+
+  EstadoRed enLineaOtraVez() => EstadoRed._(
+    enLinea: true,
+    sinConexionDesde: null,
+    porSubir: porSubir,
+    conError: conError,
+  );
+
+  EstadoRed conCola({required int porSubir, required int conError}) =>
+      EstadoRed._(
+        enLinea: enLinea,
+        sinConexionDesde: sinConexionDesde,
+        porSubir: porSubir,
+        conError: conError,
+      );
 }

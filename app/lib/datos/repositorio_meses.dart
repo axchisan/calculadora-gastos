@@ -1,5 +1,7 @@
 import '../dominio/modelos.dart';
+import '../core/identificadores.dart';
 import 'cliente_api.dart';
+import 'cola_pendientes.dart';
 
 /// Acceso a los meses, sus gastos y el resumen.
 ///
@@ -77,14 +79,29 @@ class RepositorioMeses {
     required DateTime fecha,
     required bool recibido,
   }) async {
+    final id = nuevoIdentificador();
+    final dia = _formatear(fecha);
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/meses/$mesId/ingresos',
       cuerpo: {
+        'id': id,
         'concepto': concepto,
         'monto': monto,
-        'fecha': fecha.toIso8601String().split('T').first,
+        'fecha': dia,
         'recibido': recibido,
       },
+      descripcion: 'Ingreso · $concepto',
+      sinConexion: Superposicion(
+        ruta: '/api/meses/$mesId/ingresos',
+        datos: {
+          'id': id,
+          'concepto': concepto,
+          'monto': monto,
+          'fecha': dia,
+          'recibido': recibido,
+          '_pendiente': true,
+        },
+      ),
     );
     return IngresoExtra.deJson(datos);
   }
@@ -143,15 +160,36 @@ class RepositorioMeses {
     int? diaVencimiento,
     String? notas,
   }) async {
+    final id = nuevoIdentificador();
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/meses/$mesId/gastos',
       cuerpo: {
+        'id': id,
         'nombre': nombre,
         'categoria': categoria.codigo,
         'monto': monto,
         'diaVencimiento': ?diaVencimiento,
         'notas': ?notas,
       },
+      descripcion: 'Gasto · $nombre',
+      sinConexion: Superposicion(
+        ruta: '/api/meses/$mesId/gastos',
+        datos: {
+          'id': id,
+          'nombre': nombre,
+          'categoria': categoria.codigo,
+          'monto': monto,
+          'montoPagado': 0,
+          'saldoPendiente': monto,
+          'estado': 'PENDIENTE',
+          'origen': 'MANUAL',
+          'editable': true,
+          'fechaPago': null,
+          'diaVencimiento': diaVencimiento,
+          'notas': notas,
+          '_pendiente': true,
+        },
+      ),
     );
     return Gasto.deJson(datos);
   }
@@ -177,10 +215,35 @@ class RepositorioMeses {
     return Gasto.deJson(datos);
   }
 
-  Future<Gasto> marcarPagado(String gastoId, {DateTime? fecha}) async {
+  /// Marca un gasto como pagado del todo.
+  ///
+  /// Con [actual] y [mesId], si no hay conexión el pago queda en la cola y el gasto se ve pagado
+  /// enseguida. Pagar dos veces lo mismo deja el gasto igual, así que reenviarlo no hace daño.
+  Future<Gasto> marcarPagado(
+    String gastoId, {
+    DateTime? fecha,
+    Gasto? actual,
+    String? mesId,
+  }) async {
+    final dia = _formatear(fecha ?? DateTime.now());
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/gastos/$gastoId/pagar',
-      cuerpo: {if (fecha != null) 'fecha': _soloFecha(fecha)},
+      cuerpo: {'fecha': dia},
+      descripcion: 'Pagar · ${actual?.nombre ?? 'gasto'}',
+      sinConexion: actual == null || mesId == null
+          ? null
+          : Superposicion(
+              ruta: '/api/meses/$mesId/gastos',
+              reemplazaId: gastoId,
+              datos: {
+                ...actual.aJson(),
+                'montoPagado': actual.monto,
+                'saldoPendiente': 0,
+                'estado': 'PAGADO',
+                'fechaPago': dia,
+                '_pendiente': true,
+              },
+            ),
     );
     return Gasto.deJson(datos);
   }

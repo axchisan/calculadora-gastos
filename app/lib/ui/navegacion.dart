@@ -61,6 +61,10 @@ class _EstadoNavegacion extends ConsumerState<Navegacion> {
     super.initState();
     // Al volver a la app tras un rato fuera, lo guardado puede haber cambiado en otro
     // dispositivo: se revisa todo por detrás mientras se enseña lo que ya había.
+    // Lo que quedó apuntado sin conexión en una sesión anterior se envía al abrir.
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => ref.read(clienteApiProvider).iniciarCola(),
+    );
     _ciclo = AppLifecycleListener(
       onResume: () {
         final ahora = DateTime.now();
