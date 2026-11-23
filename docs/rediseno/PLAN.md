@@ -63,7 +63,7 @@ commit y despliegue.
 | **4. Navegación e Inicio** | Cuatro pestañas, Ajustes y el nuevo Inicio con «Próximos pagos». | Hecho en 3c: `GET /api/inicio` ya trae los próximos pagos | Hecha (v1.14.0) |
 | **5. Movimientos** | Línea de tiempo unificada, filtros, «+» único, notas en ingresos, tipos de ingreso, categoría Mascota. Apuntar sin conexión. | Notas y tipo de ingreso (migración) | Hecha (v1.15.0) |
 | **6. Deudas** | Total consolidado, proyección mes a mes, tarjeta de crédito como deuda, cuadro de cuotas compacto, «Te deben». | Arreglar la deuda total del resumen; proyección; saldo de tarjeta; cuentas por cobrar | Hecha (v1.17.0) |
-| **7. Análisis** | Gráficas nuevas sin artefactos y frases con lo importante del mes. | Serie de deuda total | Pendiente |
+| **7. Análisis** | Gráficas nuevas sin artefactos y frases con lo importante del mes. | No hizo falta: la evolución de la deuda está en Deudas | Hecha (v1.18.0) |
 | **8. Secundarias** | Mis cuentas, Mi sueldo (próximo pago destacado, sueldo base automático), Gastos fijos, Transporte y Ahorro como módulos opcionales. | Sueldo base automático | Pendiente |
 | **9. Pulido y publicación** | Accesibilidad (contraste, tamaños de toque, lector de pantalla), escritorio y web, versión 2.0.0 en teléfono, Mac y web. | — | Pendiente |
 

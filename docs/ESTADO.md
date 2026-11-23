@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.17.1+26** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.18.0+27** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V10** | Neon, proyecto de la Calculadora (V10: deudas «a favor») |
-| Pruebas | backend **298**, app **146** | todas en verde |
+| Pruebas | backend **298**, app **151** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -36,8 +36,8 @@ uso personal, no para un contador. Documentos:
 | 4. Navegación de 4 pestañas e Inicio nuevo | Publicada (1.14.0) |
 | 5. Movimientos | Publicada (1.15.0) |
 | 6. Deudas (total real, proyección, «Te deben») | Publicada (1.17.0) |
-| **7. Análisis** | **Siguiente** |
-| 8. Pantallas secundarias | Pendiente |
+| 7. Análisis | Publicada (1.18.0) |
+| **8. Pantallas secundarias** | **Siguiente** |
 | 9. Pulido y versión 2.0.0 (también en el Mac) | Pendiente |
 
 **Forma de trabajar acordada**: cada fase se prueba en el emulador (`prueba35b`, el usuario
@@ -110,7 +110,11 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
   solo las cuotas, «Terminas X en …», lista con progreso y próximo pago, y las saldadas
   plegadas. La tarjeta de crédito se registra como deuda de tipo tarjeta. «Te deben»: deudas
   con `aFavor`, cuyos abonos son cobros que entran al mes.
-- **Análisis** es aún la pantalla de Gráficas (fase 7).
+- **Análisis** (`ui/analisis/`, cálculos en `dominio/analisis.dart`): frases con lo importante
+  del mes (la categoría que más pesa, mascota, suscripciones, lo pagado en deudas), «En qué se
+  fue» en barras horizontales (gastos pagados y compras, sin deudas ni ahorro) y «Mes a mes» en
+  barras agrupadas con el mes siguiente estimado (contorno punteado). Sale de los movimientos y
+  de la serie de resúmenes; no usa endpoints propios.
 
 - **Mes**: sueldo base, ingresos extra, gastos fijos con estado (pendiente/parcial/pagado),
   disponible hoy y saldo al cerrar. El mes presupuestal va **del 28 al 27**.
@@ -129,7 +133,6 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
 **Datos**: ver `CLAUDE.local.md` (privado).
 
 **Errores conocidos** (se arreglan en el rediseño)
-- La curva «Mes a mes» de Gráficas baja de cero por la interpolación (fase 7).
 
 **App**
 - El **sueldo base de los meses no se recalcula solo** cuando cambia la TRM (fase 8).

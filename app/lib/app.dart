@@ -12,7 +12,7 @@ import 'ui/catalogo/pantalla_catalogo.dart';
 import 'ui/autenticacion/pantalla_acceso.dart';
 import 'ui/cuenta/pantalla_cuenta.dart';
 import 'ui/deudas/pantalla_deudas.dart';
-import 'ui/graficas/pantalla_graficas.dart';
+import 'ui/analisis/pantalla_analisis.dart';
 import 'ui/inicio/pantalla_inicio.dart';
 import 'ui/movimientos/pantalla_movimientos.dart';
 import 'ui/mes/pantalla_mes.dart';
@@ -119,7 +119,7 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: Rutas.analisis,
-            builder: (_, _) => const PantallaGraficas(),
+            builder: (_, _) => const PantallaAnalisis(),
           ),
         ],
       ),
