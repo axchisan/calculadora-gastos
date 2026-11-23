@@ -74,10 +74,42 @@ public class ServicioSueldo {
         if (pendientes.isEmpty()) {
             return;
         }
-        clienteTrm.vigenteEn(hoy).ifPresent(trm -> pendientes.forEach(f -> {
-            f.actualizarTrm(trm.valor(), hoy);
-            fuentes.save(f);
-        }));
+        clienteTrm.vigenteEn(hoy).ifPresent(trm -> {
+            pendientes.forEach(f -> {
+                f.actualizarTrm(trm.valor(), hoy);
+                fuentes.save(f);
+            });
+            recalcularSueldosAutomaticos(usuarioId);
+        });
+    }
+
+    /**
+     * Vuelve a calcular el sueldo base de los meses marcados como automáticos con la TRM y las
+     * condiciones de hoy.
+     *
+     * <p>Solo toca meses abiertos, desde el actual, que tienen la marca: los que se editaron a
+     * mano o donde ya llegó el pago real tienen la marca quitada y no se pisan.
+     */
+    @Transactional
+    public void recalcularSueldosAutomaticos(UUID usuarioId) {
+        YearMonth actual = CalculadoraSueldo.mesPresupuestal(hoy());
+        Map<YearMonth, BigDecimal> porMes = new LinkedHashMap<>();
+        for (FuenteIngreso fuente : fuentes.listarDelUsuario(usuarioId)) {
+            if (!fuente.isActivo()) {
+                continue;
+            }
+            for (PagoProyectado pago : proyeccion(usuarioId, fuente.getId(), null, 12)) {
+                if (pagos.delMes(fuente.getId(), pago.mesDePago().toString()).isPresent()
+                        || pago.mesPresupuestal().isBefore(actual)) {
+                    continue;
+                }
+                porMes.merge(pago.mesPresupuestal(), pago.montoPesos(), BigDecimal::add);
+            }
+        }
+        porMes.forEach((periodo, monto) -> meses.buscarPorPeriodoSiExiste(usuarioId, periodo)
+                .filter(m -> m.isSueldoAutomatico() && !m.isCerrado())
+                .filter(m -> m.getIngresoBase().compareTo(monto) != 0)
+                .ifPresent(m -> meses.fijarIngreso(usuarioId, m.getId(), monto, true)));
     }
 
     @Transactional(readOnly = true)
@@ -147,7 +179,10 @@ public class ServicioSueldo {
         if (Boolean.TRUE.equals(cambios.trmAutomatica())) {
             trmDeHoy().ifPresent(t -> fuente.actualizarTrm(t.valor(), hoy()));
         }
-        return fuentes.save(fuente);
+        FuenteIngreso guardada = fuentes.save(fuente);
+        // Otra TRM, otro monto o costos distintos cambian lo que se espera cobrar.
+        recalcularSueldosAutomaticos(usuarioId);
+        return guardada;
     }
 
     @Transactional
@@ -242,7 +277,7 @@ public class ServicioSueldo {
             if (mes.isCerrado()) {
                 return;
             }
-            meses.actualizarIngreso(usuarioId, mes.getId(), monto);
+            meses.fijarIngreso(usuarioId, mes.getId(), monto, true);
             aplicados.put(periodo, monto);
         });
         return aplicados;

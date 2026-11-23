@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
@@ -105,6 +106,16 @@ class ClienteApi {
 
   /// Tras revalidar una lectura, no se vuelve a pedir durante este tiempo aunque se lea otra vez.
   static const Duration _respiroEntreRevalidaciones = Duration(seconds: 20);
+
+  /// Peticiones a la vez como mucho. La cuenta de AWS admite 10 ejecuciones simultáneas de
+  /// Lambda y la precarga lanzaba una docena al abrir la app: las que pasaban del límite
+  /// volvían con un 429 y la pantalla mostraba «Ocurrió un error inesperado».
+  static const int maximoSimultaneas = 4;
+  int _enCurso = 0;
+  final Queue<Completer<void>> _enEspera = Queue();
+
+  /// Reintentos ante un 429 (demasiadas peticiones), con una espera que crece.
+  static const int _reintentosPorSaturacion = 3;
 
   /// Se invoca cuando la sesión ya no puede renovarse, para que la app lleve al login.
   ///
@@ -539,7 +550,7 @@ class ClienteApi {
   ) async {
     late Response<dynamic> respuesta;
     try {
-      respuesta = await enviar();
+      respuesta = await _enviarConTurno(enviar);
       _marcarEnLinea();
     } on DioException catch (e) {
       final error = _traducirFalloDeRed(e);
@@ -553,7 +564,7 @@ class ClienteApi {
       final renovado = await _renovarSesion();
       if (renovado) {
         try {
-          respuesta = await enviar();
+          respuesta = await _enviarConTurno(enviar);
         } on DioException catch (e) {
           throw _traducirFalloDeRed(e);
         }
@@ -567,6 +578,37 @@ class ClienteApi {
     final codigo = respuesta.statusCode ?? 0;
     if ((codigo >= 200 && codigo < 300) || codigo == 304) return respuesta;
     throw _traducirError(respuesta);
+  }
+
+  /// Envía respetando el máximo de peticiones simultáneas y reintenta si el servidor responde
+  /// que está saturado (429).
+  Future<Response<dynamic>> _enviarConTurno(
+    Future<Response<dynamic>> Function() enviar,
+  ) async {
+    for (var intento = 0; ; intento++) {
+      final respuesta = await _conTurno(enviar);
+      if (respuesta.statusCode != 429 || intento >= _reintentosPorSaturacion) {
+        return respuesta;
+      }
+      await Future<void>.delayed(
+        Duration(milliseconds: 250 * (1 << intento) + 50 * _enEspera.length),
+      );
+    }
+  }
+
+  Future<T> _conTurno<T>(Future<T> Function() tarea) async {
+    if (_enCurso >= maximoSimultaneas) {
+      final turno = Completer<void>();
+      _enEspera.add(turno);
+      await turno.future;
+    }
+    _enCurso++;
+    try {
+      return await tarea();
+    } finally {
+      _enCurso--;
+      if (_enEspera.isNotEmpty) _enEspera.removeFirst().complete();
+    }
   }
 
   void _alEnviar(RequestOptions opciones, RequestInterceptorHandler siguiente) {
@@ -622,6 +664,13 @@ class ClienteApi {
   }
 
   ErrorApi _traducirError(Response<dynamic> respuesta) {
+    if (respuesta.statusCode == 429) {
+      return ErrorApi(
+        codigo: 'servidor_ocupado',
+        mensaje: 'El servidor está ocupado. Inténtalo de nuevo en un momento.',
+        estado: respuesta.statusCode,
+      );
+    }
     final datos = respuesta.data;
     if (datos is Map<String, dynamic>) {
       return ErrorApi(

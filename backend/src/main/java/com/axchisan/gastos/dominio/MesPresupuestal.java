@@ -49,6 +49,10 @@ public class MesPresupuestal {
     @Column(nullable = false)
     private boolean cerrado = false;
 
+    /** El sueldo base viene de la proyección de un sueldo y se recalcula si cambia la TRM. */
+    @Column(name = "sueldo_automatico", nullable = false)
+    private boolean sueldoAutomatico = false;
+
     @Column
     private String notas;
 
@@ -161,5 +165,13 @@ public class MesPresupuestal {
 
     public OffsetDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public boolean isSueldoAutomatico() {
+        return sueldoAutomatico;
+    }
+
+    public void setSueldoAutomatico(boolean sueldoAutomatico) {
+        this.sueldoAutomatico = sueldoAutomatico;
     }
 }

@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.18.0+27** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.19.0+28** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V10** | Neon, proyecto de la Calculadora (V10: deudas «a favor») |
-| Pruebas | backend **298**, app **151** | todas en verde |
+| Esquema de base de datos | migración **V11** | Neon, proyecto de la Calculadora (V11: sueldo automático) |
+| Pruebas | backend **301**, app **154** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -37,8 +37,8 @@ uso personal, no para un contador. Documentos:
 | 5. Movimientos | Publicada (1.15.0) |
 | 6. Deudas (total real, proyección, «Te deben») | Publicada (1.17.0) |
 | 7. Análisis | Publicada (1.18.0) |
-| **8. Pantallas secundarias** | **Siguiente** |
-| 9. Pulido y versión 2.0.0 (también en el Mac) | Pendiente |
+| 8. Pantallas secundarias | Publicada (1.19.0) |
+| **9. Pulido y versión 2.0.0 (también en el Mac)** | **Siguiente** |
 
 **Forma de trabajar acordada**: cada fase se prueba en el emulador (`prueba35b`, el usuario
 inicia sesión) con los datos de producción, se publica (push a `main`) y se instala en el
@@ -115,6 +115,14 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
   fue» en barras horizontales (gastos pagados y compras, sin deudas ni ahorro) y «Mes a mes» en
   barras agrupadas con el mes siguiente estimado (contorno punteado). Sale de los movimientos y
   de la serie de resúmenes; no usa endpoints propios.
+- **Mi sueldo**: el próximo pago arriba, en grande y con «Ya me llegó»; los siguientes en una
+  lista corta; las condiciones al final. **Sueldo automático** (V11, `sueldo_automatico` en
+  `budget_months`): los meses llevados al presupuesto desde el sueldo se recalculan solos al
+  cambiar la TRM o las condiciones; editar el sueldo a mano o «Ya me llegó» quitan la marca.
+- **Mis cuentas** y **Gastos fijos** con el sistema de diseño (los gastos fijos se borran con
+  deshacer). Transporte y Ahorro siguen como estaban (módulos opcionales).
+- **Concurrencia**: la cuenta de AWS admite 10 ejecuciones simultáneas de Lambda. El cliente
+  manda como mucho 4 peticiones a la vez y reintenta los 429 (`ClienteApi.maximoSimultaneas`).
 
 - **Mes**: sueldo base, ingresos extra, gastos fijos con estado (pendiente/parcial/pagado),
   disponible hoy y saldo al cerrar. El mes presupuestal va **del 28 al 27**.
@@ -135,7 +143,6 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
 **Errores conocidos** (se arreglan en el rediseño)
 
 **App**
-- El **sueldo base de los meses no se recalcula solo** cuando cambia la TRM (fase 8).
 - No hay **cuentas por cobrar** ni **transferencias entre cuentas propias** (en el plan).
 - Los saldos de **Mis cuentas** se anotan a mano.
 - Lo apuntado sin conexión no mueve el resumen del mes hasta que se sube.

@@ -17,12 +17,17 @@ public final class DtosMes {
     }
 
     /** Vista resumida de un mes, sin sus gastos. */
+    /**
+     * @param sueldoAutomatico el sueldo base sale de la proyección de un sueldo en otra moneda y
+     *                         se recalcula solo cuando cambia la TRM
+     */
     public record MesDto(UUID id, int anio, int mes, YearMonth periodo, BigDecimal ingresoBase,
-                         boolean cerrado, String notas) {
+                         boolean cerrado, String notas, boolean sueldoAutomatico) {
 
         public static MesDto de(MesPresupuestal mes) {
             return new MesDto(mes.getId(), mes.getAnio(), mes.getMes(), mes.periodo(),
-                    mes.getIngresoBase(), mes.isCerrado(), mes.getNotas());
+                    mes.getIngresoBase(), mes.isCerrado(), mes.getNotas(),
+                    mes.isSueldoAutomatico());
         }
     }
 

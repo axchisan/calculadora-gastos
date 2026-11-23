@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../comun/deshacer.dart';
+import '../comun/iconos.dart';
+import '../comun/componentes.dart';
 
 import '../../core/dinero.dart';
-import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
 import '../../dominio/modelos.dart';
@@ -30,10 +32,10 @@ class PantallaPlantillas extends ConsumerWidget {
         data: (plantillas) => _Contenido(plantillas: plantillas),
       ),
       floatingActionButton: datos.hasValue
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
+              tooltip: 'Nuevo gasto fijo',
               onPressed: () => _editar(context, ref, null),
-              icon: const Icon(Icons.add),
-              label: const Text('Gasto fijo'),
+              child: const Icon(Iconos.anadir),
             )
           : null,
     );
@@ -89,8 +91,10 @@ class _Contenido extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (plantillas.isEmpty) return const _SinPlantillas();
 
-    final activas = plantillas.where((p) => p.activo).toList();
-    final inactivas = plantillas.where((p) => !p.activo).toList();
+    final ocultos = ref.watch(ocultosProvider);
+    final visibles = plantillas.sinOcultos(ocultos, (p) => p.id);
+    final activas = visibles.where((p) => p.activo).toList();
+    final inactivas = visibles.where((p) => !p.activo).toList();
     final total = activas.fold<double>(0, (s, p) => s + p.montoDefault);
     final anchoMaximo = Pantalla.esEscritorio(context)
         ? 640.0
@@ -101,44 +105,32 @@ class _Contenido extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: anchoMaximo),
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+          padding: const EdgeInsets.fromLTRB(
+            Espacio.lateral,
+            Espacio.s,
+            Espacio.lateral,
+            96,
+          ),
           children: [
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Cada mes empieza con',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      Formato.dinero(total),
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'El transporte se suma aparte, calculado desde el calendario.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
+            const SizedBox(height: Espacio.m),
+            CifraPrincipal(etiqueta: 'Cada mes empieza con', valor: total),
+            const SizedBox(height: Espacio.s),
+            Text(
+              'El transporte se suma aparte, calculado desde el calendario.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: context.colores.tinta2),
+            ),
+            Seccion(
+              titulo: 'Tus gastos fijos',
+              accion: '${activas.length}',
+              child: Panel.lista(
+                filas: [
+                  for (final plantilla in [...activas, ...inactivas])
+                    _Fila(plantilla: plantilla),
+                ],
               ),
             ),
-
-            const SizedBox(height: 20),
-            for (final plantilla in [...activas, ...inactivas]) ...[
-              _Fila(plantilla: plantilla),
-              const SizedBox(height: 8),
-            ],
-
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -164,43 +156,30 @@ class _Fila extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final esquema = Theme.of(context).colorScheme;
-
-    return Card(
-      child: ListTile(
-        title: Text(
-          plantilla.nombre,
-          style: TextStyle(
-            fontWeight: FontWeight.w500,
-            decoration: plantilla.activo ? null : TextDecoration.lineThrough,
-            color: plantilla.activo ? null : esquema.onSurfaceVariant,
-          ),
-        ),
-        subtitle: Text(
-          plantilla.diaVencimiento == null
+    return GestureDetector(
+      onLongPress: () => _eliminar(context, ref),
+      child: Opacity(
+        opacity: plantilla.activo ? 1 : 0.5,
+        child: Fila(
+          inicio: IconoCaja(Iconos.deCategoria(plantilla.categoria)),
+          titulo: plantilla.nombre,
+          subtitulo: plantilla.diaVencimiento == null
               ? plantilla.categoria.etiqueta
               : '${plantilla.categoria.etiqueta} · vence el ${plantilla.diaVencimiento}',
-          style: const TextStyle(fontSize: 12.5),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              Formato.dinero(plantilla.montoDefault),
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: plantilla.activo ? null : esquema.onSurfaceVariant,
+          final_: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Importe(plantilla.montoDefault, colorear: false),
+              const SizedBox(width: Espacio.xs),
+              Switch(
+                value: plantilla.activo,
+                onChanged: (valor) => _cambiarActivo(context, ref, valor),
               ),
-            ),
-            const SizedBox(width: 6),
-            Switch(
-              value: plantilla.activo,
-              onChanged: (valor) => _cambiarActivo(context, ref, valor),
-            ),
-          ],
+            ],
+          ),
+          etiqueta: plantilla.activo ? null : const Etiqueta('En pausa'),
+          alTocar: () => PantallaPlantillas._editar(context, ref, plantilla),
         ),
-        onTap: () => PantallaPlantillas._editar(context, ref, plantilla),
-        onLongPress: () => _eliminar(context, ref),
       ),
     );
   }
@@ -223,41 +202,16 @@ class _Fila extends ConsumerWidget {
     }
   }
 
-  Future<void> _eliminar(BuildContext context, WidgetRef ref) async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (contexto) => AlertDialog(
-        title: Text('Eliminar «${plantilla.nombre}»'),
-        content: const Text(
-          'Deja de copiarse a los meses nuevos. Los gastos ya creados en meses anteriores se '
-          'conservan.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(contexto, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Tema.negativo),
-            onPressed: () => Navigator.pop(contexto, true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-
-    if (!(confirmado ?? false) || !context.mounted) return;
-
-    try {
-      await ref.read(plantillasProvider.notifier).eliminar(plantilla.id);
-    } on ErrorApi catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
-      }
-    }
-  }
+  /// Se borra con «Deshacer» durante unos segundos, como todo en la app.
+  Future<void> _eliminar(BuildContext context, WidgetRef ref) =>
+      borrarConDeshacer(
+        context,
+        ref,
+        id: plantilla.id,
+        mensaje: 'Eliminaste «${plantilla.nombre}» de los gastos fijos',
+        borrar: () =>
+            ref.read(plantillasProvider.notifier).eliminar(plantilla.id),
+      );
 }
 
 class _DatosPlantilla {

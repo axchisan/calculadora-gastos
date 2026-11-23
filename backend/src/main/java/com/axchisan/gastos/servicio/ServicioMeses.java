@@ -134,6 +134,13 @@ public class ServicioMeses {
     }
 
     @Transactional(readOnly = true)
+    public java.util.Optional<MesPresupuestal> buscarPorPeriodoSiExiste(UUID usuarioId,
+                                                                       YearMonth periodo) {
+        return meses.buscarPorPeriodo(usuarioId, (short) periodo.getYear(),
+                (short) periodo.getMonthValue());
+    }
+
+    @Transactional(readOnly = true)
     public MesPresupuestal buscarPorPeriodo(UUID usuarioId, YearMonth periodo) {
         return meses.buscarPorPeriodo(usuarioId, (short) periodo.getYear(),
                         (short) periodo.getMonthValue())
@@ -153,9 +160,20 @@ public class ServicioMeses {
 
     @Transactional
     public MesPresupuestal actualizarIngreso(UUID usuarioId, UUID mesId, BigDecimal ingresoBase) {
+        return fijarIngreso(usuarioId, mesId, ingresoBase, false);
+    }
+
+    /**
+     * Pone el sueldo base de un mes. Con {@code automatico}, queda marcado para recalcularse
+     * cuando cambie la TRM; sin él (editado a mano o un pago real), queda fijo.
+     */
+    @Transactional
+    public MesPresupuestal fijarIngreso(UUID usuarioId, UUID mesId, BigDecimal ingresoBase,
+                                        boolean automatico) {
         MesPresupuestal mes = buscar(usuarioId, mesId);
         verificarAbierto(mes);
         mes.setIngresoBase(ingresoBase);
+        mes.setSueldoAutomatico(automatico);
         return meses.save(mes);
     }
 

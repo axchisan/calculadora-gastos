@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../dominio/inicio.dart';
+import '../../estado/inicio.dart';
+import '../comun/iconos.dart';
+import '../comun/componentes.dart';
 
 import '../../core/dinero.dart';
 import '../../core/formato.dart';
@@ -53,32 +57,40 @@ class PantallaCuentas extends ConsumerWidget {
             await ref.read(mesProvider.notifier).refrescar();
           },
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            padding: const EdgeInsets.fromLTRB(
+              Espacio.lateral,
+              Espacio.s,
+              Espacio.lateral,
+              96,
+            ),
             children: [
-              const TarjetaCuadre(),
-              const SizedBox(height: 20),
-              Text(
-                'Toca una cuenta para anotar el saldo que te muestra hoy.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 8),
+              const _Cabecera(),
               if (lista.isEmpty)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Text(
-                    'Aún no hay cuentas. Añade tus bancos y el efectivo.',
-                    textAlign: TextAlign.center,
+                const EstadoVacio(
+                  icono: Iconos.banco,
+                  titulo: 'Aún no hay cuentas',
+                  texto:
+                      'Añade tus bancos, billeteras y el efectivo para saber '
+                      'cuánto tienes de verdad.',
+                )
+              else
+                Seccion(
+                  titulo: 'Tus cuentas',
+                  accion: 'Toca una para anotar su saldo',
+                  child: Panel.lista(
+                    filas: [
+                      for (final cuenta in lista) _FilaCuenta(cuenta: cuenta),
+                    ],
                   ),
                 ),
-              for (final cuenta in lista) _FilaCuenta(cuenta: cuenta),
             ],
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Nueva cuenta',
         onPressed: () => _nuevaCuenta(context, ref),
-        icon: const Icon(Icons.add),
-        label: const Text('Cuenta'),
+        child: const Icon(Iconos.anadir),
       ),
     );
   }
@@ -145,6 +157,45 @@ class PantallaCuentas extends ConsumerWidget {
 }
 
 /// Compara el dinero real con el disponible que calcula la app para el mes en pantalla.
+/// Lo que hay entre todas las cuentas y si coincide con lo que calcula la app.
+class _Cabecera extends ConsumerWidget {
+  const _Cabecera();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final total = ref.watch(dineroRealProvider).valueOrNull ?? 0;
+    final inicio = ref.watch(inicioProvider).valueOrNull;
+    final r = inicio?.resumen;
+    final diferencia = r == null ? null : total - r.disponibleHoy;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: Espacio.m),
+      child: CifraPrincipal(
+        etiqueta: 'Tienes hoy entre todas',
+        valor: total,
+        debajo: [
+          if (diferencia != null)
+            diferencia.abs() < DatosInicio.toleranciaCuadre
+                ? const Etiqueta(
+                    'Cuadra con la app',
+                    tono: Tono.positivo,
+                    icono: Iconos.listo,
+                    grande: true,
+                  )
+                : Etiqueta(
+                    diferencia > 0
+                        ? 'Tienes ${Formato.pesos(diferencia)} más que la app'
+                        : 'Te faltan ${Formato.pesos(-diferencia)} frente a la app',
+                    tono: Tono.aviso,
+                    icono: Iconos.atencion,
+                    grande: true,
+                  ),
+        ],
+      ),
+    );
+  }
+}
+
 class TarjetaCuadre extends ConsumerWidget {
   const TarjetaCuadre({super.key, this.alTocar});
 
@@ -250,9 +301,9 @@ class _FilaCuenta extends ConsumerWidget {
   final Cuenta cuenta;
 
   IconData get _icono => switch (cuenta.tipo) {
-    TipoCuenta.banco => Icons.account_balance_outlined,
-    TipoCuenta.billetera => Icons.phone_android,
-    TipoCuenta.efectivo => Icons.payments_outlined,
+    TipoCuenta.banco => Iconos.banco,
+    TipoCuenta.billetera => Iconos.billetera,
+    TipoCuenta.efectivo => Iconos.efectivo,
   };
 
   @override
@@ -264,26 +315,28 @@ class _FilaCuenta extends ConsumerWidget {
         ? 'Actualizado ayer'
         : 'Hace $dias días · ${Formato.fechaCorta(cuenta.saldoAl)}';
 
+    final c = context.colores;
     return Opacity(
       opacity: cuenta.activa ? 1 : 0.5,
-      child: Card(
-        child: ListTile(
-          leading: Icon(_icono),
-          title: Text(cuenta.nombre),
-          subtitle: Text(
-            cuenta.activa ? antiguedad : 'Archivada',
-            style: dias > 7 && cuenta.activa
-                ? const TextStyle(color: Tema.pendiente)
-                : null,
-          ),
-          trailing: Text(
+      child: GestureDetector(
+        onLongPress: () => _opciones(context, ref),
+        child: Fila(
+          inicio: IconoCaja(_icono),
+          titulo: cuenta.nombre,
+          // Un saldo de hace más de una semana ya no sirve para cuadrar: se avisa.
+          etiqueta: dias > 7 && cuenta.activa
+              ? const Etiqueta('Revisar', tono: Tono.aviso)
+              : null,
+          subtitulo: cuenta.activa ? antiguedad : 'Archivada',
+          // Con centavos: es la cifra que se compara contra la del banco.
+          final_: Text(
             Formato.dinero(cuenta.saldo),
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: c.tinta,
+            ),
           ),
-          onTap: () => _anotarSaldo(context, ref),
-          onLongPress: () => _opciones(context, ref),
+          alTocar: () => _anotarSaldo(context, ref),
         ),
       ),
     );

@@ -9,6 +9,8 @@ import '../../datos/cliente_api.dart';
 import '../../dominio/cuentas_y_sueldo.dart';
 import '../../estado/cuentas.dart';
 import '../../estado/mes.dart';
+import '../comun/componentes.dart';
+import '../comun/iconos.dart';
 
 /// Un sueldo cobrado en dólares: cuánto llega en pesos, cuándo y qué periodo cubre cada pago.
 class PantallaSueldo extends ConsumerWidget {
@@ -185,12 +187,64 @@ class _Fuente extends ConsumerWidget {
     final tema = Theme.of(context);
     final usd = Formato.numero(fuente.montoMensual);
 
+    final pendientes = fuente.proximosPagos
+        .where((p) => p.recibido == null)
+        .toList();
+    final proximo = pendientes.isNotEmpty
+        ? pendientes.first
+        : (fuente.proximosPagos.isEmpty ? null : fuente.proximosPagos.first);
+    final siguientes = fuente.proximosPagos.where((p) => p != proximo).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        if (proximo != null)
+          _TarjetaPago(pago: proximo, fuente: fuente, destacado: true),
+        if (siguientes.isNotEmpty)
+          Seccion(
+            titulo: 'Después',
+            child: Panel.lista(
+              filas: [
+                for (final p in siguientes) _FilaPago(pago: p, fuente: fuente),
+              ],
+            ),
+          ),
+        if (fuente.recibidos.isNotEmpty)
+          Seccion(
+            titulo: 'Ya llegaron',
+            child: Panel.lista(
+              filas: [
+                for (final r in fuente.recibidos)
+                  Fila(
+                    inicio: const IconoCaja(Iconos.listo),
+                    titulo:
+                        'Pago de ${Formato.mesYAnio(r.mesDePago).toLowerCase()}',
+                    subtitulo:
+                        '${Formato.numero(r.montoOriginal)} ${fuente.moneda} · '
+                        'llegó el ${Formato.fechaCorta(r.fecha)} · a '
+                        '${Formato.dinero(r.tasaEfectiva)} por dólar',
+                    importe: r.montoPesos,
+                    importeConSigno: true,
+                  ),
+              ],
+            ),
+          ),
+        const SizedBox(height: Espacio.xl),
+        FilledButton.tonalIcon(
+          onPressed: () => _llevarAlPresupuesto(context, ref),
+          icon: const Icon(Iconos.calendario),
+          label: const Text('Usar estos pagos como sueldo de cada mes'),
+        ),
+        const SizedBox(height: Espacio.s),
+        Text(
+          'El sueldo de cada mes se actualiza solo cuando cambia el dólar. Si lo cambias a '
+          'mano, o cuando tocas «Ya me llegó», se queda con ese valor.',
+          style: tema.textTheme.bodySmall,
+          textAlign: TextAlign.center,
+        ),
+        Seccion(
+          titulo: 'Cómo te pagan',
+          child: Panel(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -279,50 +333,7 @@ class _Fuente extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
-        Text('Próximos pagos', style: tema.textTheme.titleMedium),
-        const SizedBox(height: 8),
-        for (final pago in fuente.proximosPagos)
-          _TarjetaPago(pago: pago, fuente: fuente),
-        if (fuente.recibidos.isNotEmpty) ...[
-          const SizedBox(height: 16),
-          Text('Pagos que ya llegaron', style: tema.textTheme.titleMedium),
-          const SizedBox(height: 8),
-          Card(
-            child: Column(
-              children: [
-                for (final r in fuente.recibidos)
-                  ListTile(
-                    dense: true,
-                    title: Text(
-                      'Pago de ${Formato.mesYAnio(r.mesDePago).toLowerCase()}',
-                    ),
-                    subtitle: Text(
-                      '${Formato.numero(r.montoOriginal)} ${fuente.moneda} · llegó el '
-                      '${Formato.fechaCorta(r.fecha)} · a ${Formato.dinero(r.tasaEfectiva)} '
-                      'por dólar',
-                    ),
-                    trailing: Text(Formato.dinero(r.montoPesos)),
-                  ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 12),
-        FilledButton.icon(
-          onPressed: () => _llevarAlPresupuesto(context, ref),
-          icon: const Icon(Icons.playlist_add_check),
-          label: const Text('Poner estos pagos como sueldo de cada mes'),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Los dólares de cada pago son exactos. Los pesos dependen del dólar del día en '
-          'que te paguen: hasta entonces se estiman con la TRM de hoy. Cuando llegue, toca '
-          '«Ya me llegó» y la app guarda lo real.',
-          style: tema.textTheme.bodySmall,
-          textAlign: TextAlign.center,
-        ),
-        const SizedBox(height: 24),
+        const SizedBox(height: Espacio.xl),
       ],
     );
   }
@@ -428,11 +439,52 @@ class _Dato extends StatelessWidget {
   }
 }
 
-class _TarjetaPago extends ConsumerWidget {
-  const _TarjetaPago({required this.pago, required this.fuente});
+/// Un pago que no es el próximo: una fila corta que abre el detalle completo.
+class _FilaPago extends StatelessWidget {
+  const _FilaPago({required this.pago, required this.fuente});
 
   final PagoProyectado pago;
   final FuenteIngreso fuente;
+
+  @override
+  Widget build(BuildContext context) {
+    final recibido = pago.recibido;
+    return Fila(
+      inicio: FechaCorta(
+        dia: '${pago.primerDiaPosible.day}–${pago.fechaLimite.day}',
+        mes: Formato.mesYAnio(pago.mesDePago).substring(0, 3).toLowerCase(),
+      ),
+      titulo: 'Pago de ${Formato.mesYAnio(pago.mesDePago).toLowerCase()}',
+      subtitulo: '${Formato.numero(pago.montoOriginal)} ${fuente.moneda}',
+      importe: recibido?.montoPesos ?? pago.montoPesos,
+      importeConSigno: true,
+      debajoDelImporte: recibido != null ? 'recibido' : 'estimado',
+      alTocar: () => abrirHoja<void>(
+        context,
+        titulo: 'Pago de ${Formato.mesYAnio(pago.mesDePago).toLowerCase()}',
+        contenido: (_) =>
+            _TarjetaPago(pago: pago, fuente: fuente, enHoja: true),
+      ),
+    );
+  }
+}
+
+class _TarjetaPago extends ConsumerWidget {
+  const _TarjetaPago({
+    required this.pago,
+    required this.fuente,
+    this.destacado = false,
+    this.enHoja = false,
+  });
+
+  final PagoProyectado pago;
+  final FuenteIngreso fuente;
+
+  /// El próximo pago: la cifra en grande y el botón de «Ya me llegó» a la vista.
+  final bool destacado;
+
+  /// Dentro de una hoja, sin panel alrededor ni título repetido.
+  final bool enHoja;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -442,138 +494,176 @@ class _TarjetaPago extends ConsumerWidget {
     final pesos = recibido?.montoPesos ?? pago.montoPesos;
     final sensibilidad = pago.pesosPorCadaPesoDeTrm * 100;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 6),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    'Pago de ${Formato.mesYAnio(pago.mesDePago).toLowerCase()}',
-                    style: tema.textTheme.titleSmall,
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      Formato.dinero(pesos),
-                      style: tema.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: Tema.positivo,
+    final c = context.colores;
+    final cabecera = destacado
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Tu próximo pago · ${fuente.nombre}',
+                style: tema.textTheme.bodyMedium?.copyWith(color: c.tinta2),
+              ),
+              const SizedBox(height: Espacio.xs),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Flexible(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        Formato.pesos(pesos),
+                        style: tema.textTheme.displayMedium?.copyWith(
+                          color: c.positivo,
+                        ),
                       ),
                     ),
-                    Text(
+                  ),
+                  const SizedBox(width: Espacio.s),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Etiqueta(
                       recibido != null ? 'Recibido' : 'Estimado',
-                      style: tema.textTheme.labelSmall,
+                      tono: recibido != null ? Tono.positivo : Tono.suave,
                     ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${Formato.numero(pago.montoOriginal)} $moneda por el trabajo del '
-              '${Formato.fechaCorta(pago.desde)} al ${Formato.fechaCorta(pago.hasta)}',
-              style: tema.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 6),
-            if (recibido != null)
+                  ),
+                ],
+              ),
+              const SizedBox(height: Espacio.xs),
               Text(
-                'Llegó el ${Formato.fechaCorta(recibido.fecha)}: te pagaron a '
-                '${Formato.dinero(recibido.tasaEfectiva)} por dólar '
-                '(${_diferencia(recibido.montoPesos - pago.montoPesos)} frente a lo estimado '
-                'con la TRM de hoy).',
-                style: tema.textTheme.bodySmall,
-              )
-            else
-              Row(
-                children: [
-                  const Icon(Icons.event, size: 16),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      'Llega entre el ${Formato.fechaCorta(pago.primerDiaPosible)} y el '
-                      '${Formato.fechaCorta(pago.fechaLimite)}; si se demora, hasta el '
-                      '${Formato.fechaCorta(pago.fechaTardia)}.',
-                      style: tema.textTheme.bodySmall,
-                    ),
-                  ),
-                ],
+                'Pago de ${Formato.mesYAnio(pago.mesDePago).toLowerCase()}',
+                style: tema.textTheme.titleSmall,
               ),
-            Theme(
-              data: tema.copyWith(dividerColor: Colors.transparent),
-              child: ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                childrenPadding: const EdgeInsets.only(bottom: 8),
-                expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                title: Text(
-                  'Cómo se calcula',
-                  style: tema.textTheme.labelLarge,
-                ),
-                children: [
-                  for (final t in pago.tramos(fuente.montoMensual))
-                    _Linea(
-                      t.completo
-                          ? '${_mes(t.mes)} completo'
-                          : '${_mes(t.mes)}: ${t.dias} de ${t.diasDelMes} días '
-                                '× ${Formato.numero(fuente.montoMensual)} ÷ ${t.diasDelMes}',
-                      '${Formato.numero(_redondear(t.monto))} $moneda',
-                    ),
-                  _Linea(
-                    'Total en dólares',
-                    '${Formato.numero(pago.montoOriginal)} $moneda',
-                    fuerte: true,
-                  ),
-                  if (pago.comisiones > 0)
-                    _Linea(
-                      'Comisión de ${fuente.medio.etiqueta}',
-                      '− ${Formato.numero(pago.comisiones)} $moneda',
-                    ),
-                  _Linea(
-                    '× dólar ${Formato.dinero(fuente.trm)}'
-                        '${fuente.descuentoCambioPorcentaje > 0 ? ' − ${Formato.numero(fuente.descuentoCambioPorcentaje)} % de cambio' : ''}',
-                    '',
-                  ),
-                  if (fuente.costoRetiro > 0)
-                    _Linea(
-                      'Retiro al banco',
-                      '− ${Formato.dinero(fuente.costoRetiro)}',
-                    ),
-                  _Linea(
-                    'Te llegan',
-                    Formato.dinero(pago.montoPesos),
-                    fuerte: true,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Si el dólar sube o baja \$100, este pago cambia '
-                    '${Formato.dinero(sensibilidad)}.',
-                    style: tema.textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: () => _registrar(context, ref),
-                icon: Icon(
-                  recibido == null ? Icons.check : Icons.edit,
-                  size: 18,
-                ),
-                label: Text(
-                  recibido == null ? 'Ya me llegó' : 'Corregir lo que llegó',
+            ],
+          )
+        : enHoja
+        ? Row(
+            children: [
+              Text(
+                Formato.pesos(pesos),
+                style: tema.textTheme.headlineSmall?.copyWith(
+                  color: c.positivo,
                 ),
               ),
-            ),
-          ],
+              const SizedBox(width: Espacio.s),
+              Etiqueta(recibido != null ? 'Recibido' : 'Estimado'),
+            ],
+          )
+        : const SizedBox.shrink();
+
+    final contenido = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        cabecera,
+        const SizedBox(height: 4),
+        Text(
+          '${Formato.numero(pago.montoOriginal)} $moneda por el trabajo del '
+          '${Formato.fechaCorta(pago.desde)} al ${Formato.fechaCorta(pago.hasta)}',
+          style: tema.textTheme.bodyMedium,
         ),
-      ),
+        const SizedBox(height: 6),
+        if (recibido != null)
+          Text(
+            'Llegó el ${Formato.fechaCorta(recibido.fecha)}: te pagaron a '
+            '${Formato.dinero(recibido.tasaEfectiva)} por dólar '
+            '(${_diferencia(recibido.montoPesos - pago.montoPesos)} frente a lo estimado '
+            'con la TRM de hoy).',
+            style: tema.textTheme.bodySmall,
+          )
+        else
+          Row(
+            children: [
+              const Icon(Icons.event, size: 16),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Llega entre el ${Formato.fechaCorta(pago.primerDiaPosible)} y el '
+                  '${Formato.fechaCorta(pago.fechaLimite)}; si se demora, hasta el '
+                  '${Formato.fechaCorta(pago.fechaTardia)}.',
+                  style: tema.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        Theme(
+          data: tema.copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            childrenPadding: const EdgeInsets.only(bottom: 8),
+            expandedCrossAxisAlignment: CrossAxisAlignment.start,
+            title: Text('Cómo se calcula', style: tema.textTheme.labelLarge),
+            children: [
+              for (final t in pago.tramos(fuente.montoMensual))
+                _Linea(
+                  t.completo
+                      ? '${_mes(t.mes)} completo'
+                      : '${_mes(t.mes)}: ${t.dias} de ${t.diasDelMes} días '
+                            '× ${Formato.numero(fuente.montoMensual)} ÷ ${t.diasDelMes}',
+                  '${Formato.numero(_redondear(t.monto))} $moneda',
+                ),
+              _Linea(
+                'Total en dólares',
+                '${Formato.numero(pago.montoOriginal)} $moneda',
+                fuerte: true,
+              ),
+              if (pago.comisiones > 0)
+                _Linea(
+                  'Comisión de ${fuente.medio.etiqueta}',
+                  '− ${Formato.numero(pago.comisiones)} $moneda',
+                ),
+              _Linea(
+                '× dólar ${Formato.dinero(fuente.trm)}'
+                    '${fuente.descuentoCambioPorcentaje > 0 ? ' − ${Formato.numero(fuente.descuentoCambioPorcentaje)} % de cambio' : ''}',
+                '',
+              ),
+              if (fuente.costoRetiro > 0)
+                _Linea(
+                  'Retiro al banco',
+                  '− ${Formato.dinero(fuente.costoRetiro)}',
+                ),
+              _Linea(
+                'Te llegan',
+                Formato.dinero(pago.montoPesos),
+                fuerte: true,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Si el dólar sube o baja \$100, este pago cambia '
+                '${Formato.dinero(sensibilidad)}.',
+                style: tema.textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+        if (destacado)
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: () => _registrar(context, ref),
+              icon: Icon(recibido == null ? Iconos.listo : Iconos.editar),
+              label: Text(
+                recibido == null ? 'Ya me llegó' : 'Corregir lo que llegó',
+              ),
+            ),
+          )
+        else
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: () => _registrar(context, ref),
+              icon: Icon(
+                recibido == null ? Iconos.listo : Iconos.editar,
+                size: 18,
+              ),
+              label: Text(
+                recibido == null ? 'Ya me llegó' : 'Corregir lo que llegó',
+              ),
+            ),
+          ),
+      ],
     );
+
+    return enHoja ? contenido : Panel(child: contenido);
   }
 
   static double _redondear(double v) => (v * 100).roundToDouble() / 100;
