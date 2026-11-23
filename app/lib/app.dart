@@ -22,6 +22,7 @@ import 'ui/navegacion.dart';
 import 'ui/plantillas/pantalla_plantillas.dart';
 import 'ui/cuentas/pantalla_cuentas.dart';
 import 'ui/sueldo/pantalla_sueldo.dart';
+import 'ui/ajustes/pantalla_registro_automatico.dart';
 import 'ui/detectados/pantalla_por_revisar.dart';
 import 'ui/detectados/recepcion_extractos.dart';
 import 'ui/transporte/pantalla_transporte.dart';
@@ -49,6 +50,9 @@ class Rutas {
   static const String cuenta = '/cuenta';
   static const String plantillas = '/plantillas';
   static const String cuentas = '/cuentas';
+
+  /// SMS del banco y correos de Gmail que llegan solos a «Por revisar».
+  static const String registroAutomatico = '/registro-automatico';
   static const String sueldo = '/sueldo';
   static const String acceso = '/acceso';
   static const String cargando = '/cargando';
@@ -89,6 +93,10 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PantallaPlantillas(),
       ),
       GoRoute(path: Rutas.cuentas, builder: (_, _) => const PantallaCuentas()),
+      GoRoute(
+        path: Rutas.registroAutomatico,
+        builder: (_, _) => const PantallaRegistroAutomatico(),
+      ),
       GoRoute(path: Rutas.sueldo, builder: (_, _) => const PantallaSueldo()),
       GoRoute(path: Rutas.ajustes, builder: (_, _) => const PantallaAjustes()),
       // Secciones opcionales: se encienden en Ajustes y se abren desde Inicio.

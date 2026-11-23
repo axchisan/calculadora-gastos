@@ -35,7 +35,9 @@ public class ConfiguracionSeguridad {
     private static final String[] RUTAS_PUBLICAS = {
             "/api/auth/registro", "/api/auth/login", "/api/auth/refresh", "/api/auth/logout",
             "/api/auth/registro-abierto",
-            "/api/salud", "/docs/**", "/v3/api-docs/**", "/swagger-ui/**"
+            "/api/salud", "/docs/**", "/v3/api-docs/**", "/swagger-ui/**",
+            // Se autentica con la clave de ingesta dentro del controlador, no con la sesión.
+            "/api/ingesta/avisos"
     };
 
     private final List<String> origenesPermitidos;

@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../app.dart';
 
 import '../../core/formato.dart';
 import '../../core/tema.dart';
@@ -118,6 +121,11 @@ class _EstadoPorRevisar extends ConsumerState<PantallaPorRevisar> {
       appBar: AppBar(
         title: const Text('Por revisar'),
         actions: [
+          IconButton(
+            tooltip: 'Registro automático',
+            onPressed: () => context.push(Rutas.registroAutomatico),
+            icon: const Icon(Iconos.ajustes),
+          ),
           IconButton(
             tooltip: 'Importar extracto en PDF',
             onPressed: _importando ? null : _elegirPdf,

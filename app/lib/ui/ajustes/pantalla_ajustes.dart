@@ -91,6 +91,12 @@ class PantallaAjustes extends ConsumerWidget {
                       () => context.push(Rutas.cuentas),
                     ),
                     ir(
+                      Iconos.entro,
+                      'Registro automático',
+                      () => context.push(Rutas.registroAutomatico),
+                      sub: 'SMS y correos del banco a «Por revisar»',
+                    ),
+                    ir(
                       Iconos.dolar,
                       'Mi sueldo',
                       () => context.push(Rutas.sueldo),

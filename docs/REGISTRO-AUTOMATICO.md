@@ -120,9 +120,8 @@ desde Nequi, entre otros) solo se puede recuperar con el PDF.
   neta que otra herramienta de extracción.
 - `ServicioDetectados` y `/api/detectados` (ver [API.md](API.md)): bandeja, cruce entre
   canales, cruce con lo ya registrado, reglas, intereses y retiros de cajero descartados solos.
-- **Queda para la fase C**: hoy los avisos entran con el token de sesión. El Apps Script de
-  Gmail necesitará un secreto propio con firma HMAC, y faltará borrar el texto crudo pasado un
-  tiempo.
+- Los avisos entraban con el token de sesión; desde la fase C, el teléfono y Gmail usan una
+  clave de ingesta propia (ver abajo).
 
 ## Fase B: lo construido
 
@@ -140,3 +139,20 @@ desde Nequi, entre otros) solo se puede recuperar con el PDF.
   el 28 oct, de 40 movimientos 17 se reconocieron como ya apuntados, 5 transferencias propias y
   11 intereses se descartaron solos y quedaron 7 por revisar, que eran justo los que las
   convenciones registran distinto (apoyo de la familia en neto, préstamos).
+
+## Fase C: lo construido
+
+- **Claves de ingesta** (`/api/ingesta`): una por dispositivo, revocable, solo para enviar
+  avisos; se guarda su huella. Se eligió una clave en cabecera sobre HTTPS en vez de firmar
+  cada petición con HMAC: repetir un aviso no tiene efecto (la huella lo descarta) y la clave
+  no da acceso a nada más.
+- **SMS en Android** (`ReceptorSms`, `EnvioDeAvisos`): Android despierta la app con cada SMS;
+  los de Bancolombia (85540, 85784, 85630, 87400 o texto que empieza por «Bancolombia») se
+  envían al momento, y lo que no sale por falta de red queda en cola hasta el siguiente SMS o
+  hasta abrir la app. Al activarlo se mandan los SMS del banco desde el último cuadre.
+- **Gmail** (`lib/datos/script_gmail.dart`): un Apps Script en la cuenta del usuario revisa
+  cada 5 minutos los correos de «Alertas y Notificaciones», exige que Gmail los haya
+  verificado como firmados (DKIM) por `notificacionesbancolombia.com` y manda solo la frase
+  del aviso, que es la misma del SMS. La app lo copia con la clave puesta.
+- Todo se activa en Ajustes → Registro automático (también desde el engranaje de la bandeja).
+- **Pendiente**: borrar el texto crudo de los avisos pasado un tiempo.

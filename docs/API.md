@@ -620,6 +620,23 @@ registra solo. Ver [REGISTRO-AUTOMATICO.md](REGISTRO-AUTOMATICO.md).
   ya estaba pendiente. La referencia compara sin espacios; la contraparte, por contenido y sin
   tildes ni mayúsculas.
 
+## Ingesta: avisos que llegan solos
+
+El teléfono (al recibir un SMS del banco) y el script de Gmail envían avisos sin la sesión, con
+una **clave de ingesta** propia en la cabecera `X-Clave-Ingesta`. La clave solo sirve para
+enviar avisos, se puede revocar y en la base solo se guarda su huella SHA-256.
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `POST` | `/api/ingesta/avisos` | Con `X-Clave-Ingesta`: `{"avisos": [{"origen": "SMS", "texto": "…"}]}`, hasta 200 |
+| `POST` | `/api/detectados/avisos/lote` | Lo mismo con la sesión (el historial de SMS que manda la app) |
+| `GET` · `POST` | `/api/ingesta/claves` | Lista las claves activas o crea una (`nombre`); la clave se ve solo en la respuesta |
+| `DELETE` | `/api/ingesta/claves/{id}` | Revoca una clave |
+
+Responde `{"nuevos", "repetidos", "ignorados", "noReconocidos"}`. Sin clave o con una revocada,
+401. Un aviso repetido no se duplica, y el mismo movimiento por SMS y por correo queda como
+`DUPLICADO` del primero.
+
 ## Festivos
 
 | Método | Ruta |

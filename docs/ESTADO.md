@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **2.1.0+31** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **2.2.0+32** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **2.0.0+29** | `/Applications/Mis gastos.app` |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V14** | Neon, proyecto de la Calculadora (V12: movimientos detectados; V13: saldos que siguen a lo apuntado; V14: reglas con deuda) |
-| Pruebas | backend **358**, app **165** | todas en verde |
+| Esquema de base de datos | migración **V15** | Neon, proyecto de la Calculadora (V12: movimientos detectados; V13: saldos que siguen a lo apuntado; V14: reglas con deuda; V15: claves de ingesta) |
+| Pruebas | backend **363**, app **166** | todas en verde |
 
 ## Rediseño v2 (terminado el 23 nov 2026)
 
@@ -60,7 +60,7 @@ Planteamiento, cobertura medida y fases en **[REGISTRO-AUTOMATICO.md](REGISTRO-A
 |---|---|
 | A. Backend: bandeja, lectores de Bancolombia (correo, SMS, PDF), cruces y reglas | Publicada (V12) |
 | B. App: bandeja «Por revisar» e importar el PDF | Publicada (2.1.0) |
-| C. Tiempo real: SMS en Android y Apps Script de Gmail | Pendiente |
+| C. Tiempo real: SMS en Android y Apps Script de Gmail | Publicada (2.2.0) |
 | D. Nu, Banco de Bogotá, Nequi | Pendiente |
 | E. Pulido | Pendiente |
 

@@ -26,6 +26,9 @@ class MainActivity : FlutterActivity() {
 
     private var canalExtractos: MethodChannel? = null
 
+    /** La respuesta que espera el permiso de leer SMS. */
+    private var permisoSmsPendiente: MethodChannel.Result? = null
+
     /** La respuesta que espera el PDF elegido con el selector de documentos. */
     private var eleccionPendiente: MethodChannel.Result? = null
 
@@ -44,6 +47,43 @@ class MainActivity : FlutterActivity() {
             abiertaDesdeElAviso = true
         }
         if (recogerPdf(nuevo)) canalExtractos?.invokeMethod("pdfRecibido", null)
+    }
+
+    private fun tienePermisoSms(): Boolean =
+        PERMISOS_SMS.all { checkSelfPermission(it) == PackageManager.PERMISSION_GRANTED }
+
+    override fun onRequestPermissionsResult(
+        codigo: Int, permisos: Array<out String>, resultados: IntArray,
+    ) {
+        super.onRequestPermissionsResult(codigo, permisos, resultados)
+        if (codigo != CODIGO_PERMISO_SMS) return
+        permisoSmsPendiente?.success(tienePermisoSms())
+        permisoSmsPendiente = null
+    }
+
+    /**
+     * Los SMS del banco desde una fecha, del más viejo al más reciente, para empezar con datos.
+     * Solo se leen los remitentes del banco; el resto de SMS ni se toca.
+     */
+    private fun historialDelBanco(desde: Long): List<Map<String, Any>> {
+        if (!tienePermisoSms()) return emptyList()
+        val resultado = mutableListOf<Map<String, Any>>()
+        contentResolver.query(
+            android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+            arrayOf("address", "body", "date"),
+            "date >= ?",
+            arrayOf(desde.toString()),
+            "date ASC",
+        )?.use { c ->
+            while (c.moveToNext()) {
+                val remitente = c.getString(0)
+                val texto = c.getString(1) ?: continue
+                if (EnvioDeAvisos.esDelBanco(remitente, texto)) {
+                    resultado.add(mapOf("texto" to texto, "fecha" to c.getLong(2)))
+                }
+            }
+        }
+        return resultado
     }
 
     @Deprecated("Basta para un único selector; no hace falta la API de resultados")
@@ -96,6 +136,10 @@ class MainActivity : FlutterActivity() {
 
     override fun onResume() {
         super.onResume()
+        // Lo que no se pudo enviar al llegar el SMS (sin red, en reposo) sale al abrir la app.
+        if (EnvioDeAvisos.activo(this)) {
+            kotlin.concurrent.thread { EnvioDeAvisos.enviarPendientes(applicationContext) }
+        }
         // Abrir la aplicación es el momento natural para recuperar el servicio si el sistema lo
         // soltó. No cuesta nada si ya está enganchado.
         if (tienePermiso()) EscuchaDeNotificaciones.pedirReconexion(this)
@@ -103,6 +147,45 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(motor: FlutterEngine) {
         super.configureFlutterEngine(motor)
+
+        MethodChannel(motor.dartExecutor.binaryMessenger, CANAL_SMS).setMethodCallHandler {
+            llamada, respuesta ->
+            when (llamada.method) {
+                "estado" -> respuesta.success(mapOf(
+                    "permiso" to tienePermisoSms(),
+                    "activo" to EnvioDeAvisos.activo(this),
+                    "pendientes" to EnvioDeAvisos.pendientes(this),
+                    "ultimoEnvio" to EnvioDeAvisos.ultimoEnvio(this),
+                ))
+                "pedirPermiso" -> {
+                    if (tienePermisoSms()) {
+                        respuesta.success(true)
+                    } else {
+                        permisoSmsPendiente?.success(false)
+                        permisoSmsPendiente = respuesta
+                        ActivityCompat.requestPermissions(this, PERMISOS_SMS, CODIGO_PERMISO_SMS)
+                    }
+                }
+                "configurar" -> {
+                    EnvioDeAvisos.configurar(
+                        this, llamada.argument<String>("url"), llamada.argument<String>("clave"),
+                    )
+                    respuesta.success(null)
+                }
+                "historial" -> {
+                    val desde = (llamada.argument<Number>("desde") ?: 0).toLong()
+                    kotlin.concurrent.thread {
+                        val lista = try {
+                            historialDelBanco(desde)
+                        } catch (e: Exception) {
+                            emptyList()
+                        }
+                        runOnUiThread { respuesta.success(lista) }
+                    }
+                }
+                else -> respuesta.notImplemented()
+            }
+        }
 
         canalExtractos = MethodChannel(motor.dartExecutor.binaryMessenger, CANAL_EXTRACTOS).also {
             it.setMethodCallHandler { llamada, respuesta ->
@@ -357,6 +440,12 @@ class MainActivity : FlutterActivity() {
         const val CANAL = "com.axchisan.calculadora_gastos/capturas"
         const val CANAL_EXTRACTOS = "com.axchisan.calculadora_gastos/extractos"
         const val CODIGO_ELEGIR_PDF = 4127
+        const val CANAL_SMS = "com.axchisan.calculadora_gastos/sms"
+        const val CODIGO_PERMISO_SMS = 4128
+        val PERMISOS_SMS = arrayOf(
+            android.Manifest.permission.RECEIVE_SMS,
+            android.Manifest.permission.READ_SMS,
+        )
         // Viaja en base64 dentro del JSON y Lambda acepta hasta 6 MB por petición.
         const val MAXIMO_PDF = 4 * 1024 * 1024
 
