@@ -22,7 +22,7 @@ public interface DeudaRepository extends JpaRepository<Deuda, UUID> {
 
     @Query("""
             SELECT d FROM Deuda d
-             WHERE d.usuario.id = :usuarioId AND d.activa = true
+             WHERE d.usuario.id = :usuarioId AND d.activa = true AND d.aFavor = false
              ORDER BY d.saldo DESC
             """)
     List<Deuda> listarActivas(@Param("usuarioId") UUID usuarioId);
@@ -75,7 +75,7 @@ public interface DeudaRepository extends JpaRepository<Deuda, UUID> {
     /** Total adeudado, base del cálculo del patrimonio neto. */
     @Query("""
             SELECT coalesce(sum(d.saldo), 0) FROM Deuda d
-             WHERE d.usuario.id = :usuarioId AND d.activa = true
+             WHERE d.usuario.id = :usuarioId AND d.activa = true AND d.aFavor = false
             """)
     BigDecimal saldoTotal(@Param("usuarioId") UUID usuarioId);
 
@@ -93,6 +93,7 @@ public interface DeudaRepository extends JpaRepository<Deuda, UUID> {
               FROM Deuda d
              WHERE d.usuario.id = :usuarioId
                AND d.activa = true
+               AND d.aFavor = false
                AND d.cuotaSugerida IS NOT NULL
                AND d.cuotaSugerida > 0
             """)
@@ -109,6 +110,7 @@ public interface DeudaRepository extends JpaRepository<Deuda, UUID> {
             SELECT count(d) FROM Deuda d
              WHERE d.usuario.id = :usuarioId
                AND d.activa = true
+               AND d.aFavor = false
                AND (d.cuotaSugerida IS NULL OR d.cuotaSugerida = 0)
             """)
     long contarSinCuota(@Param("usuarioId") UUID usuarioId);

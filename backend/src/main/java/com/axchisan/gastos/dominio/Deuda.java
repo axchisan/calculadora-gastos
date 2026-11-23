@@ -61,6 +61,10 @@ public class Deuda {
     @Column(nullable = false)
     private boolean activa = true;
 
+    /** Lo debe otra persona al usuario: «te deben». Sus abonos son cobros. */
+    @Column(name = "a_favor", nullable = false)
+    private boolean aFavor = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -254,5 +258,13 @@ public class Deuda {
 
     public void setActiva(boolean activa) {
         this.activa = activa;
+    }
+
+    public boolean isAFavor() {
+        return aFavor;
+    }
+
+    public void setAFavor(boolean aFavor) {
+        this.aFavor = aFavor;
     }
 }

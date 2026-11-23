@@ -65,11 +65,18 @@ public class ServicioPanoramaDeudas {
     public record Saldada(Origen origen, UUID id, String nombre) {
     }
 
+    /** Lo que otra persona le debe al usuario y aún no le ha devuelto. */
+    public record TeDeben(UUID id, String nombre, String descripcion, BigDecimal saldo,
+                          LocalDate desde) {
+    }
+
     /**
      * @param terminaTodoEn mes en que se termina de pagar todo; null si alguna deuda no tiene plan
+     * @param teDeben       lo que le deben al usuario; no suma a {@code total}
      */
     public record Panorama(BigDecimal total, List<Parte> partes, List<Punto> proyeccion,
-                           YearMonth terminaTodoEn, List<Saldada> saldadas) {
+                           YearMonth terminaTodoEn, List<Saldada> saldadas,
+                           List<TeDeben> teDeben, BigDecimal totalTeDeben) {
     }
 
     @Transactional(readOnly = true)
@@ -87,7 +94,15 @@ public class ServicioPanoramaDeudas {
                 saldadas.add(new Saldada(Origen.CREDITO, credito.getId(), credito.getEntidad()));
             }
         }
+        List<TeDeben> teDeben = new ArrayList<>();
         for (Deuda deuda : deudas.listarDelUsuario(usuarioId)) {
+            if (deuda.isAFavor()) {
+                if (deuda.isActiva() && deuda.getSaldo().signum() > 0) {
+                    teDeben.add(new TeDeben(deuda.getId(), deuda.getAcreedor(),
+                            deuda.getDescripcion(), deuda.getSaldo(), deuda.getFechaInicio()));
+                }
+                continue;
+            }
             if (deuda.isActiva() && deuda.getSaldo().signum() > 0) {
                 planes.add(planDeDeuda(deuda, actual));
             } else {
@@ -120,7 +135,10 @@ public class ServicioPanoramaDeudas {
         List<Parte> partes = planes.stream().map(p -> p.parte)
                 .sorted(Comparator.comparing(Parte::saldo).reversed())
                 .toList();
-        return new Panorama(total, partes, proyeccion, terminaTodo, saldadas);
+        BigDecimal totalTeDeben = teDeben.stream().map(TeDeben::saldo)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new Panorama(total, partes, proyeccion, terminaTodo, saldadas, teDeben,
+                totalTeDeben);
     }
 
     // --- planes ---

@@ -167,6 +167,43 @@ class PanoramaDeudasTest {
                 .andExpect(jsonPath("$.patrimonioNeto").value(-340000));
     }
 
+    @Test
+    void lo_que_te_deben_va_aparte_y_su_cobro_entra_en_el_mes() throws Exception {
+        crearDeudas();
+        String mes = json.readTree(enviar(post("/api/meses"),
+                        "{\"anio\":2026,\"mes\":8,\"ingresoBase\":1000000,"
+                                + "\"copiarPlantillas\":false}")
+                .getResponse().getContentAsString()).get("id").asText();
+        String prestamo = json.readTree(enviar(post("/api/deudas"), """
+                {"acreedor":"Hermana","tipo":"FAMILIAR","montoOriginal":60000,
+                 "fechaInicio":"2026-08-02","descripcion":"Le prestaste para el bus",
+                 "aFavor":true}
+                """).getResponse().getContentAsString()).get("id").asText();
+
+        JsonNode p = leer();
+        // No suma a lo que se debe ni sale en la lista de deudas.
+        assertThat(p.get("total").decimalValue()).isEqualByComparingTo("140000");
+        assertThat(p.get("partes")).hasSize(2);
+        assertThat(p.get("teDeben").get(0).get("nombre").asText()).isEqualTo("Hermana");
+        assertThat(p.get("totalTeDeben").decimalValue()).isEqualByComparingTo("60000");
+
+        // Te devuelve 25.000: entra al mes como ingreso, no sale como un pago.
+        enviar(post("/api/deudas/" + prestamo + "/abonos"),
+                "{\"monto\":25000,\"fecha\":\"2026-08-10\",\"mesId\":\"" + mes + "\"}");
+        mvc.perform(auth(get("/api/meses/" + mes + "/resumen")))
+                .andExpect(jsonPath("$.ingresoTotal").value(1025000))
+                .andExpect(jsonPath("$.abonosDeuda").value(0))
+                .andExpect(jsonPath("$.disponibleHoy").value(1025000))
+                .andExpect(jsonPath("$.deudaTotal").value(140000));
+
+        JsonNode movs = json.readTree(mvc.perform(auth(get("/api/meses/" + mes
+                + "/movimientos"))).andReturn().getResponse().getContentAsString());
+        JsonNode cobro = movs.get("movimientos").get(0);
+        assertThat(cobro.get("titulo").asText()).isEqualTo("Hermana te pagó");
+        assertThat(cobro.get("monto").decimalValue()).isEqualByComparingTo("25000");
+        assertThat(leer().get("totalTeDeben").decimalValue()).isEqualByComparingTo("35000");
+    }
+
     // --- ayudas ---
 
     private JsonNode leer() throws Exception {

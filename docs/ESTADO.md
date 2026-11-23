@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.16.0+24** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.17.0+25** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V9** | Neon, proyecto de la Calculadora (tipo y notas de ingresos, categoría Mascota) |
-| Pruebas | backend **297**, app **145** | todas en verde |
+| Esquema de base de datos | migración **V10** | Neon, proyecto de la Calculadora (V10: deudas «a favor») |
+| Pruebas | backend **298**, app **145** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -35,7 +35,7 @@ uso personal, no para un contador. Documentos:
 | 3c. ETag y `GET /api/inicio` con próximos pagos | Publicada (1.13.0) |
 | 4. Navegación de 4 pestañas e Inicio nuevo | Publicada (1.14.0) |
 | 5. Movimientos | Publicada (1.15.0) |
-| 6. Deudas (total real, proyección) | Publicada (1.16.0); falta «Te deben» |
+| 6. Deudas (total real, proyección, «Te deben») | Publicada (1.17.0) |
 | **7. Análisis** | **Siguiente** |
 | 8. Pantallas secundarias | Pendiente |
 | 9. Pulido y versión 2.0.0 (también en el Mac) | Pendiente |
@@ -108,7 +108,8 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
 - **Deudas** (`ui/deudas/pantalla_deudas.dart`, lee `GET /api/deudas/panorama`): «Debes en
   total» con créditos y deudas, barra por deuda, gráfica en escalones de cómo baja si se pagan
   solo las cuotas, «Terminas X en …», lista con progreso y próximo pago, y las saldadas
-  plegadas. La tarjeta de crédito se registra como deuda de tipo tarjeta. Falta «Te deben».
+  plegadas. La tarjeta de crédito se registra como deuda de tipo tarjeta. «Te deben»: deudas
+  con `aFavor`, cuyos abonos son cobros que entran al mes.
 - **Análisis** es aún la pantalla de Gráficas (fase 7).
 
 - **Mes**: sueldo base, ingresos extra, gastos fijos con estado (pendiente/parcial/pagado),

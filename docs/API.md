@@ -475,6 +475,11 @@ calcularlo como otro día.
 
 `deudaTotal` del resumen mensual suma ahora deudas **y** el capital de los créditos.
 
+**Te deben.** Una deuda creada con `"aFavor": true` es algo que otra persona le debe al
+usuario. No suma a `total` ni a `deudaTotal`; va en `teDeben` y `totalTeDeben` del panorama.
+Sus abonos son cobros: suman a `ingresoTotal` del mes (no a `abonosDeuda`) y en movimientos
+salen como «X te pagó», en positivo.
+
 ### Deudas de un mes
 
 Una deuda no pertenece a un mes: se contrae un día y se arrastra hasta saldarla. Pero listarlas

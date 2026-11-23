@@ -49,6 +49,16 @@ void main() {
     'saldadas': [
       {'origen': 'DEUDA', 'id': 'd9', 'nombre': 'Vecino'},
     ],
+    'teDeben': [
+      {
+        'id': 't1',
+        'nombre': 'Hermana',
+        'descripcion': 'Para el bus',
+        'saldo': 35000,
+        'desde': '2026-08-02',
+      },
+    ],
+    'totalTeDeben': 35000,
   });
 
   test('lee las partes, la proyección y las saldadas', () {
@@ -61,6 +71,9 @@ void main() {
     expect(p.proyeccion.map((x) => x.total), [340000, 160000, 0]);
     expect(p.terminaTodoEn, DateTime(2026, 11));
     expect(p.saldadas.single.nombre, 'Vecino');
+    expect(p.teDeben.single.nombre, 'Hermana');
+    expect(p.teDeben.single.desde, DateTime(2026, 8, 2));
+    expect(p.totalTeDeben, 35000);
   });
 
   test('ordena por fecha de fin y separa las que no tienen plan', () {

@@ -77,6 +77,15 @@ public class ServicioDeudas {
     public Deuda crear(UUID usuarioId, String acreedor, TipoDeuda tipo, BigDecimal montoOriginal,
                        LocalDate fechaInicio, String descripcion, BigDecimal tasaInteresMensual,
                        BigDecimal cuotaSugerida, LocalDate fechaLimite) {
+        return crear(usuarioId, acreedor, tipo, montoOriginal, fechaInicio, descripcion,
+                tasaInteresMensual, cuotaSugerida, fechaLimite, false);
+    }
+
+    /** Con {@code aFavor}, es algo que otra persona le debe al usuario. */
+    @Transactional
+    public Deuda crear(UUID usuarioId, String acreedor, TipoDeuda tipo, BigDecimal montoOriginal,
+                       LocalDate fechaInicio, String descripcion, BigDecimal tasaInteresMensual,
+                       BigDecimal cuotaSugerida, LocalDate fechaLimite, boolean aFavor) {
         Usuario usuario = usuarios.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNoEncontrado("el usuario", usuarioId));
 
@@ -86,6 +95,7 @@ public class ServicioDeudas {
         deuda.setTasaInteresMensual(tasaInteresMensual);
         deuda.setCuotaSugerida(cuotaSugerida);
         deuda.setFechaLimite(fechaLimite);
+        deuda.setAFavor(aFavor);
         return deudas.save(deuda);
     }
 

@@ -230,9 +230,15 @@ public class ServicioMovimientos {
 
     private List<Movimiento> abonosDelMes(UUID mesId) {
         return abonos.listarDelMes(mesId).stream()
-                .map((AbonoDeuda a) -> new Movimiento(TipoMovimiento.ABONO, a.getId(),
-                        a.getFecha(), "Pago a " + a.getDeuda().getAcreedor(), "DEUDA",
-                        a.getMonto().negate(), true, null, null, a.getNota(), a.getCreatedAt()))
+                .map((AbonoDeuda a) -> a.getDeuda().isAFavor()
+                        // Un cobro de lo que le deben: dinero que entra.
+                        ? new Movimiento(TipoMovimiento.ABONO, a.getId(), a.getFecha(),
+                                a.getDeuda().getAcreedor() + " te pagó", "COBRO", a.getMonto(),
+                                true, null, "Te debía", a.getNota(), a.getCreatedAt())
+                        : new Movimiento(TipoMovimiento.ABONO, a.getId(), a.getFecha(),
+                                "Pago a " + a.getDeuda().getAcreedor(), "DEUDA",
+                                a.getMonto().negate(), true, null, null, a.getNota(),
+                                a.getCreatedAt()))
                 .toList();
     }
 

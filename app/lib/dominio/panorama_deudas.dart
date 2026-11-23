@@ -73,6 +73,31 @@ class PuntoDeuda {
   final double total;
 }
 
+/// Lo que otra persona le debe al usuario.
+class TeDeben {
+  const TeDeben({
+    required this.id,
+    required this.nombre,
+    required this.saldo,
+    this.descripcion,
+    this.desde,
+  });
+
+  final String id;
+  final String nombre;
+  final double saldo;
+  final String? descripcion;
+  final DateTime? desde;
+
+  static TeDeben deJson(Map<String, dynamic> j) => TeDeben(
+    id: j['id'] as String,
+    nombre: j['nombre'] as String,
+    saldo: (j['saldo'] as num).toDouble(),
+    descripcion: j['descripcion'] as String?,
+    desde: j['desde'] == null ? null : DateTime.parse(j['desde'] as String),
+  );
+}
+
 class DeudaSaldada {
   const DeudaSaldada(this.origen, this.id, this.nombre);
 
@@ -89,6 +114,8 @@ class PanoramaDeudas {
     required this.proyeccion,
     required this.saldadas,
     this.terminaTodoEn,
+    this.teDeben = const [],
+    this.totalTeDeben = 0,
   });
 
   final double total;
@@ -100,6 +127,10 @@ class PanoramaDeudas {
 
   /// Null si alguna deuda no tiene forma de terminar.
   final DateTime? terminaTodoEn;
+
+  /// Lo que le deben al usuario; no suma a [total].
+  final List<TeDeben> teDeben;
+  final double totalTeDeben;
 
   /// Las que no dejan saber cuándo se termina.
   List<ParteDeuda> get sinPlan => partes.where((p) => p.sinPlan).toList();
@@ -131,6 +162,10 @@ class PanoramaDeudas {
       );
     }).toList(),
     terminaTodoEn: _mes(j['terminaTodoEn'] as String?),
+    teDeben: (j['teDeben'] as List<dynamic>? ?? const [])
+        .map((e) => TeDeben.deJson(e as Map<String, dynamic>))
+        .toList(),
+    totalTeDeben: (j['totalTeDeben'] as num? ?? 0).toDouble(),
   );
 }
 

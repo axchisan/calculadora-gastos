@@ -23,7 +23,7 @@ public final class DtosDeuda {
                            BigDecimal montoOriginal, BigDecimal saldo, BigDecimal porcentajePagado,
                            BigDecimal tasaInteresMensual, BigDecimal interesMensualEstimado,
                            BigDecimal cuotaSugerida, LocalDate fechaInicio, LocalDate fechaLimite,
-                           boolean activa) {
+                           boolean activa, boolean aFavor) {
 
         public static DeudaDto de(Deuda deuda) {
             return new DeudaDto(
@@ -31,7 +31,7 @@ public final class DtosDeuda {
                     deuda.getMontoOriginal(), deuda.getSaldo(), deuda.porcentajePagado(),
                     deuda.getTasaInteresMensual(), deuda.interesMensualEstimado(),
                     deuda.getCuotaSugerida(), deuda.getFechaInicio(), deuda.getFechaLimite(),
-                    deuda.isActiva());
+                    deuda.isActiva(), deuda.isAFavor());
         }
 
         /**
@@ -53,7 +53,7 @@ public final class DtosDeuda {
                     original, saldoDelPeriodo, porcentaje,
                     deuda.getTasaInteresMensual(), deuda.interesMensualEstimado(),
                     deuda.getCuotaSugerida(), deuda.getFechaInicio(), deuda.getFechaLimite(),
-                    saldoDelPeriodo.signum() > 0);
+                    saldoDelPeriodo.signum() > 0, deuda.isAFavor());
         }
     }
 
@@ -78,7 +78,10 @@ public final class DtosDeuda {
             @PositiveOrZero(message = "La cuota no puede ser negativa")
             BigDecimal cuotaSugerida,
 
-            LocalDate fechaLimite) {
+            LocalDate fechaLimite,
+
+            // true si es algo que otra persona le debe al usuario («te deben»).
+            Boolean aFavor) {
     }
 
     /**

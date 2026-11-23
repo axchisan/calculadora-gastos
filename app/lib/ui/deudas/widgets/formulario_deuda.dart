@@ -22,10 +22,14 @@ class DatosNuevaDeuda {
 }
 
 class FormularioDeuda extends StatefulWidget {
-  const FormularioDeuda({this.deuda, super.key});
+  const FormularioDeuda({this.deuda, this.aFavor = false, super.key});
 
   /// Deuda a editar, o nulo para crear una nueva.
   final Deuda? deuda;
+
+  /// Algo que otra persona le debe al usuario: cambian los textos y no se piden interés ni
+  /// cuota, que no tienen sentido en un préstamo a la familia.
+  final bool aFavor;
 
   @override
   State<FormularioDeuda> createState() => _FormularioDeudaState();
@@ -41,6 +45,8 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
   late TipoDeuda _tipo;
 
   bool get _esEdicion => widget.deuda != null;
+
+  bool get _aFavor => widget.deuda?.aFavor ?? widget.aFavor;
 
   /// Lo ya abonado, que el importe corregido no puede dejar por debajo.
   double get _abonado => widget.deuda == null
@@ -63,7 +69,9 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
           ? ''
           : Dinero.paraEditar(d!.cuotaSugerida!),
     );
-    _tipo = d?.tipo ?? TipoDeuda.tarjetaCredito;
+    _tipo =
+        d?.tipo ??
+        (widget.aFavor ? TipoDeuda.familiar : TipoDeuda.tarjetaCredito);
   }
 
   @override
@@ -92,7 +100,11 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                _esEdicion ? 'Editar deuda' : 'Nueva deuda',
+                _esEdicion
+                    ? 'Editar deuda'
+                    : _aFavor
+                    ? 'Alguien te debe'
+                    : 'Nueva deuda',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: 20),
@@ -101,9 +113,11 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                 controller: _acreedor,
                 autofocus: !_esEdicion,
                 textCapitalization: TextCapitalization.words,
-                decoration: const InputDecoration(
-                  labelText: '¿A quién le debes?',
-                  hintText: 'Tarjeta Bancolombia, Papá, un amigo…',
+                decoration: InputDecoration(
+                  labelText: _aFavor ? '¿Quién te debe?' : '¿A quién le debes?',
+                  hintText: _aFavor
+                      ? 'Mamá, un amigo…'
+                      : 'Tarjeta Bancolombia, Papá, un amigo…',
                 ),
                 validator: (v) =>
                     (v == null || v.trim().isEmpty) ? 'Escribe a quién' : null,
@@ -130,7 +144,9 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
                 ),
                 inputFormatters: const [FormatoDeImporte()],
                 decoration: InputDecoration(
-                  labelText: 'Cuánto debes en total',
+                  labelText: _aFavor
+                      ? 'Cuánto te debe'
+                      : 'Cuánto debes en total',
                   prefixText: r'$ ',
                   // Al corregirlo, el saldo se recalcula conservando lo ya abonado: cambia la
                   // deuda, no los pagos hechos.
@@ -153,35 +169,37 @@ class _FormularioDeudaState extends State<FormularioDeuda> {
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _tasa,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              if (!_aFavor) ...[
+                TextFormField(
+                  controller: _tasa,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: const [FormatoDeImporte.tasa()],
+                  decoration: const InputDecoration(
+                    labelText: 'Interés mensual (opcional)',
+                    suffixText: '%',
+                    helperText: 'Los préstamos familiares no suelen tenerlo',
+                  ),
                 ),
-                inputFormatters: const [FormatoDeImporte.tasa()],
-                decoration: const InputDecoration(
-                  labelText: 'Interés mensual (opcional)',
-                  suffixText: '%',
-                  helperText: 'Los préstamos familiares no suelen tenerlo',
-                ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _cuota,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                TextFormField(
+                  controller: _cuota,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: const [FormatoDeImporte()],
+                  decoration: const InputDecoration(
+                    labelText: 'Cuota mensual',
+                    prefixText: r'$ ',
+                    // Sin cuota no hay forma de estimar qué parte del sueldo ocupará la deuda.
+                    helperText:
+                        'Sin esto, la deuda no aparece en el modo estimación',
+                    helperMaxLines: 2,
+                  ),
                 ),
-                inputFormatters: const [FormatoDeImporte()],
-                decoration: const InputDecoration(
-                  labelText: 'Cuota mensual',
-                  prefixText: r'$ ',
-                  // Sin cuota no hay forma de estimar qué parte del sueldo ocupará la deuda.
-                  helperText:
-                      'Sin esto, la deuda no aparece en el modo estimación',
-                  helperMaxLines: 2,
-                ),
-              ),
+              ],
               const SizedBox(height: 24),
 
               FilledButton(

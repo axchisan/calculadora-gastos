@@ -505,6 +505,7 @@ class _FilaMovimiento extends ConsumerWidget {
     TipoMovimiento.sueldo => Iconos.dolar,
     TipoMovimiento.ingreso => Iconos.deIngreso(m.tipoIngreso!),
     TipoMovimiento.ahorro => Iconos.ahorro,
+    _ when m.esCobro => Iconos.familia,
     _ => Iconos.deCategoria(m.categoriaGasto ?? CategoriaGasto.otro),
   };
 

@@ -72,6 +72,7 @@ class RepositorioDeudas {
     double? tasaInteresMensual,
     double? cuotaSugerida,
     DateTime? fechaLimite,
+    bool aFavor = false,
   }) async {
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/deudas',
@@ -84,6 +85,7 @@ class RepositorioDeudas {
         'tasaInteresMensual': ?tasaInteresMensual,
         'cuotaSugerida': ?cuotaSugerida,
         'fechaLimite': ?_fecha(fechaLimite),
+        if (aFavor) 'aFavor': true,
       },
     );
     return Deuda.deJson(datos);

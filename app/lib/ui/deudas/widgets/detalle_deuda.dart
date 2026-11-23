@@ -124,7 +124,7 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
                   child: FilledButton.icon(
                     onPressed: () => _abonar(context),
                     icon: const Icon(Icons.payments_outlined),
-                    label: const Text('Abonar'),
+                    label: Text(widget.deuda.aFavor ? 'Me pagó' : 'Abonar'),
                   ),
                 ),
               if (deuda.activa) const SizedBox(width: 10),
@@ -211,7 +211,11 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
       context: context,
       builder: (contexto) => StatefulBuilder(
         builder: (contexto, setEstado) => AlertDialog(
-          title: const Text('Registrar abono'),
+          title: Text(
+            widget.deuda.aFavor
+                ? 'Registrar lo que te pagó'
+                : 'Registrar abono',
+          ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -224,7 +228,9 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
                 inputFormatters: const [FormatoDeImporte()],
                 decoration: InputDecoration(
                   prefixText: r'$ ',
-                  helperText: 'Debes ${Formato.dinero(widget.deuda.saldo)}',
+                  helperText: widget.deuda.aFavor
+                      ? 'Te debe ${Formato.dinero(widget.deuda.saldo)}'
+                      : 'Debes ${Formato.dinero(widget.deuda.saldo)}',
                 ),
               ),
               const SizedBox(height: 10),
@@ -232,7 +238,11 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
                 contentPadding: EdgeInsets.zero,
                 value: imputarAlMes,
                 onChanged: (v) => setEstado(() => imputarAlMes = v ?? true),
-                title: const Text('Descontar del mes actual'),
+                title: Text(
+                  widget.deuda.aFavor
+                      ? 'Sumar al mes actual'
+                      : 'Descontar del mes actual',
+                ),
                 subtitle: const Text(
                   'Si lo desmarcas, solo baja la deuda',
                   style: TextStyle(fontSize: 11.5),

@@ -80,6 +80,7 @@ class PantallaDeudas extends ConsumerWidget {
                       if (p.proyeccion.length > 1) _ComoBaja(panorama: p),
                       _Lista(panorama: p),
                     ],
+                    if (p.teDeben.isNotEmpty) _TeDeben(panorama: p),
                     if (p.saldadas.isNotEmpty) _Saldadas(saldadas: p.saldadas),
                   ],
                 ),
@@ -97,11 +98,33 @@ class PantallaDeudas extends ConsumerWidget {
   }
 
   Future<void> _nuevaDeuda(BuildContext context, WidgetRef ref) async {
+    final aFavor = await abrirHoja<bool>(
+      context,
+      titulo: '¿Qué quieres anotar?',
+      contenido: (ctx) => Panel.lista(
+        filas: [
+          Fila(
+            inicio: const IconoCaja(Iconos.deudas),
+            titulo: 'Algo que debes',
+            subtitulo: 'Una tarjeta, un préstamo, un crédito',
+            alTocar: () => Navigator.pop(ctx, false),
+          ),
+          Fila(
+            inicio: const IconoCaja(Iconos.familia),
+            titulo: 'Algo que te deben',
+            subtitulo: 'Plata que le prestaste a alguien',
+            alTocar: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+    if (aFavor == null || !context.mounted) return;
+
     final nueva = await showModalBottomSheet<DatosNuevaDeuda>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
-      builder: (_) => const FormularioDeuda(),
+      builder: (_) => FormularioDeuda(aFavor: aFavor),
     );
     if (nueva == null) return;
 
@@ -114,7 +137,9 @@ class PantallaDeudas extends ConsumerWidget {
             montoOriginal: nueva.monto,
             tasaInteresMensual: nueva.tasaInteres,
             cuotaSugerida: nueva.cuota,
+            aFavor: aFavor,
           );
+      ref.invalidate(panoramaDeudasProvider);
     } on ErrorApi catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(
@@ -507,6 +532,59 @@ class _FilaDeuda extends ConsumerWidget {
           builder: (_) => DetalleDeuda(deuda: deuda),
         );
       }
+      ref.invalidate(panoramaDeudasProvider);
+    } on ErrorApi catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+}
+
+class _TeDeben extends ConsumerWidget {
+  const _TeDeben({required this.panorama});
+
+  final PanoramaDeudas panorama;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    return Seccion(
+      titulo: 'Te deben',
+      accion: Formato.pesos(panorama.totalTeDeben),
+      child: Panel.lista(
+        filas: [
+          for (final t in panorama.teDeben)
+            Fila(
+              inicio: IconoCaja(Iconos.familia, color: c.positivo),
+              titulo: t.nombre,
+              subtitulo: [
+                ?t.descripcion,
+                if (t.desde != null)
+                  'desde el ${t.desde!.day} ${_mesCorto(t.desde!)}',
+              ].join(' · '),
+              importe: t.saldo,
+              importeConSigno: true,
+              alTocar: () => _abrir(context, ref, t),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _abrir(BuildContext context, WidgetRef ref, TeDeben t) async {
+    try {
+      final deudas = await ref.read(repositorioDeudasProvider).listar();
+      final deuda = deudas.where((d) => d.id == t.id).firstOrNull;
+      if (deuda == null || !context.mounted) return;
+      await showModalBottomSheet<void>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        builder: (_) => DetalleDeuda(deuda: deuda),
+      );
       ref.invalidate(panoramaDeudasProvider);
     } on ErrorApi catch (e) {
       if (context.mounted) {

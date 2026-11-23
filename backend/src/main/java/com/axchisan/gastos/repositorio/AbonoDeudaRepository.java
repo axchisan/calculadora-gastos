@@ -18,9 +18,19 @@ public interface AbonoDeudaRepository extends JpaRepository<AbonoDeuda, UUID> {
     @Query("SELECT a FROM AbonoDeuda a WHERE a.id = :id AND a.deuda.usuario.id = :usuarioId")
     Optional<AbonoDeuda> buscarDelUsuario(@Param("usuarioId") UUID usuarioId, @Param("id") UUID id);
 
-    /** Abonos imputados a un mes; se descuentan del disponible. */
-    @Query("SELECT coalesce(sum(a.monto), 0) FROM AbonoDeuda a WHERE a.mes.id = :mesId")
+    /** Abonos a lo que el usuario debe, imputados a un mes; se descuentan del disponible. */
+    @Query("""
+            SELECT coalesce(sum(a.monto), 0) FROM AbonoDeuda a
+             WHERE a.mes.id = :mesId AND a.deuda.aFavor = false
+            """)
     BigDecimal totalDelMes(@Param("mesId") UUID mesId);
+
+    /** Lo cobrado de lo que le deben al usuario, imputado a un mes: dinero que entra. */
+    @Query("""
+            SELECT coalesce(sum(a.monto), 0) FROM AbonoDeuda a
+             WHERE a.mes.id = :mesId AND a.deuda.aFavor = true
+            """)
+    BigDecimal cobradoDelMes(@Param("mesId") UUID mesId);
 
     @Query("SELECT a FROM AbonoDeuda a WHERE a.mes.id = :mesId ORDER BY a.fecha DESC")
     List<AbonoDeuda> listarDelMes(@Param("mesId") UUID mesId);

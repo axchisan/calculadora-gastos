@@ -87,8 +87,10 @@ public class ServicioResumen {
         UUID mesId = mes.getId();
 
         BigDecimal ingresoBase = mes.getIngresoBase();
-        BigDecimal extrasCobrados = ingresos.totalRecibidoDelMes(mesId);
-        BigDecimal extrasTotales = ingresos.totalPrevistoDelMes(mesId);
+        // Lo que devuelven quienes le deben al usuario entra igual que un ingreso extra cobrado.
+        BigDecimal cobros = abonos.cobradoDelMes(mesId);
+        BigDecimal extrasCobrados = ingresos.totalRecibidoDelMes(mesId).add(cobros);
+        BigDecimal extrasTotales = ingresos.totalPrevistoDelMes(mesId).add(cobros);
         BigDecimal ingresoTotal = ingresoBase.add(extrasCobrados);
         BigDecimal ingresoProyectado = ingresoBase.add(extrasTotales);
 

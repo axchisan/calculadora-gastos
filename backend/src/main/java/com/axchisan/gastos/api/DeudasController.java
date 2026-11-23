@@ -96,7 +96,8 @@ public class DeudasController {
     public ResponseEntity<DeudaDto> crear(@Valid @RequestBody CrearDeudaRequest peticion) {
         var deuda = deudas.crear(UsuarioActual.id(), peticion.acreedor(), peticion.tipo(),
                 peticion.montoOriginal(), peticion.fechaInicio(), peticion.descripcion(),
-                peticion.tasaInteresMensual(), peticion.cuotaSugerida(), peticion.fechaLimite());
+                peticion.tasaInteresMensual(), peticion.cuotaSugerida(), peticion.fechaLimite(),
+                Boolean.TRUE.equals(peticion.aFavor()));
         return ResponseEntity.status(HttpStatus.CREATED).body(DeudaDto.de(deuda));
     }
 

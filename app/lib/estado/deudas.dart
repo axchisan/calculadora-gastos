@@ -83,6 +83,8 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
     required double montoOriginal,
     double? tasaInteresMensual,
     double? cuotaSugerida,
+    String? descripcion,
+    bool aFavor = false,
   }) async {
     await _repositorio.crear(
       acreedor: acreedor,
@@ -91,6 +93,8 @@ class ControladorDeudas extends StateNotifier<AsyncValue<DatosDeudas>> {
       fechaInicio: _fechaDeAlta(),
       tasaInteresMensual: tasaInteresMensual,
       cuotaSugerida: cuotaSugerida,
+      descripcion: descripcion,
+      aFavor: aFavor,
     );
     await refrescar();
   }

@@ -76,8 +76,12 @@ class Movimiento {
   TipoIngreso? get tipoIngreso =>
       tipo == TipoMovimiento.ingreso ? TipoIngreso.desde(categoria) : null;
 
+  /// Un cobro de algo que le debían al usuario.
+  bool get esCobro => tipo == TipoMovimiento.abono && categoria == 'COBRO';
+
   /// Nombre legible de la categoría o del tipo.
   String get etiquetaCategoria => switch (tipo) {
+    _ when esCobro => 'Te pagaron',
     TipoMovimiento.sueldo => 'Sueldo',
     TipoMovimiento.ingreso => tipoIngreso!.etiqueta,
     TipoMovimiento.cuota => 'Crédito',

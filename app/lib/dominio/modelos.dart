@@ -675,6 +675,7 @@ class Deuda {
     this.interesMensualEstimado,
     this.cuotaSugerida,
     this.fechaLimite,
+    this.aFavor = false,
   });
 
   final String id;
@@ -689,6 +690,9 @@ class Deuda {
   final double? interesMensualEstimado;
   final double? cuotaSugerida;
   final DateTime? fechaLimite;
+
+  /// Lo debe otra persona al usuario («te deben»): sus abonos son cobros.
+  final bool aFavor;
 
   static Deuda deJson(Map<String, dynamic> j) => Deuda(
     id: j['id'] as String,
@@ -705,6 +709,7 @@ class Deuda {
     fechaLimite: j['fechaLimite'] == null
         ? null
         : DateTime.parse(j['fechaLimite'] as String),
+    aFavor: j['aFavor'] as bool? ?? false,
   );
 }
 
