@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.15.0+23** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.16.0+24** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V9** | Neon, proyecto de la Calculadora (tipo y notas de ingresos, categoría Mascota) |
-| Pruebas | backend **293**, app **143** | todas en verde |
+| Pruebas | backend **297**, app **145** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -35,8 +35,8 @@ uso personal, no para un contador. Documentos:
 | 3c. ETag y `GET /api/inicio` con próximos pagos | Publicada (1.13.0) |
 | 4. Navegación de 4 pestañas e Inicio nuevo | Publicada (1.14.0) |
 | 5. Movimientos | Publicada (1.15.0) |
-| **6. Deudas (total real, proyección)** | **Siguiente** |
-| 7. Análisis | Pendiente |
+| 6. Deudas (total real, proyección) | Publicada (1.16.0); falta «Te deben» |
+| **7. Análisis** | **Siguiente** |
 | 8. Pantallas secundarias | Pendiente |
 | 9. Pulido y versión 2.0.0 (también en el Mac) | Pendiente |
 
@@ -105,6 +105,10 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
   medio de pago, fecha y nota. Se abre desde el «+» de Inicio y de Movimientos y funciona sin
   conexión: la cola guarda superposiciones en varias lecturas (`Superposicion.tambien`).
 - Todas las hojas se abren por encima de la barra de pestañas (`useRootNavigator`).
+- **Deudas** (`ui/deudas/pantalla_deudas.dart`, lee `GET /api/deudas/panorama`): «Debes en
+  total» con créditos y deudas, barra por deuda, gráfica en escalones de cómo baja si se pagan
+  solo las cuotas, «Terminas X en …», lista con progreso y próximo pago, y las saldadas
+  plegadas. La tarjeta de crédito se registra como deuda de tipo tarjeta. Falta «Te deben».
 - **Análisis** es aún la pantalla de Gráficas (fase 7).
 
 - **Mes**: sueldo base, ingresos extra, gastos fijos con estado (pendiente/parcial/pagado),
@@ -124,9 +128,6 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
 **Datos**: ver `CLAUDE.local.md` (privado).
 
 **Errores conocidos** (se arreglan en el rediseño)
-- **La deuda total del resumen está mal**: «Deuda», «Patrimonio» y «Debes en total» solo suman
-  las deudas informales. `ServicioResumen` usa `deudas.saldoTotal` y no suma
-  `CreditoRepository.pendienteTotal` ni la tarjeta (fase 6, o antes si se pide).
 - La curva «Mes a mes» de Gráficas baja de cero por la interpolación (fase 7).
 
 **App**

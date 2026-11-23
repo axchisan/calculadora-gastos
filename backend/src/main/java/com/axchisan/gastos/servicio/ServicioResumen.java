@@ -143,7 +143,10 @@ public class ServicioResumen {
                 .subtract(creditoPagado)
                 .subtract(creditoPendiente);
 
-        BigDecimal deudaTotal = deudas.saldoTotal(usuarioId);
+        // Todo lo que se debe: deudas (tarjetas, préstamos, familia) y el capital de los
+        // créditos. Antes solo contaba las deudas, y un crédito de millones no aparecía.
+        BigDecimal deudaTotal = deudas.saldoTotal(usuarioId)
+                .add(creditos.saldoCapitalTotal(usuarioId));
         BigDecimal ahorroTotal = metas.saldoTotal(usuarioId);
 
         // Todo lo que ya tiene destino este mes, se haya pagado o no. Es la cifra que responde

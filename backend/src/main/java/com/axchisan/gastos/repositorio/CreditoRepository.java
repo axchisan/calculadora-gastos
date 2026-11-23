@@ -64,4 +64,18 @@ public interface CreditoRepository extends JpaRepository<Credito, UUID> {
     BigDecimal cuotasPagadasEntre(@Param("usuarioId") UUID usuarioId,
                                   @Param("inicio") java.time.LocalDate inicio,
                                   @Param("fin") java.time.LocalDate fin);
+
+    /**
+     * Capital que se debe hoy en todos los créditos activos: el que declara la primera cuota sin
+     * pagar de cada uno, como en el estado de cada crédito.
+     */
+    @Query("""
+            SELECT coalesce(sum(q.saldoCapital), 0) FROM CuotaCredito q
+             WHERE q.credito.usuario.id = :usuarioId
+               AND q.credito.activo = true
+               AND q.pagada = false
+               AND q.numero = (SELECT min(q2.numero) FROM CuotaCredito q2
+                                WHERE q2.credito = q.credito AND q2.pagada = false)
+            """)
+    BigDecimal saldoCapitalTotal(@Param("usuarioId") UUID usuarioId);
 }

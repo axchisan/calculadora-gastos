@@ -458,6 +458,23 @@ Al abonar, el saldo baja; al llegar a cero la deuda se marca inactiva y deja de 
 Los abonos **no** generan un gasto en el mes: se contabilizan aparte en `abonosDeuda` del
 resumen. Crear además un gasto los contaría dos veces.
 
+### Panorama: todo lo que se debe
+
+`GET /api/deudas/panorama`: créditos activos (su capital según la primera cuota sin pagar) y
+deudas activas, sumados en `total`, con la proyección de lo que se deberá **al empezar cada
+mes** si se pagan solo las cuotas (el primer punto es hoy).
+
+- Un crédito baja según su cuadro.
+- Una deuda con `cuotaSugerida` baja esa cuota cada mes (con su interés mensual, si lo tiene),
+  desde el mes de su `fechaLimite` o el siguiente. Con fecha y sin cuota es un pago único. Sin
+  ninguna de las dos lleva `sinPlan: true`, no baja y `terminaTodoEn` queda vacío.
+
+Cada parte trae `saldo`, `progreso` (0–1), `terminaEn`, `proximoPago`, `proximoMonto` y, en los
+créditos, `cuotas` («Cuota 4 de 18»). `saldadas` lista lo ya pagado. `fecha` (opcional) permite
+calcularlo como otro día.
+
+`deudaTotal` del resumen mensual suma ahora deudas **y** el capital de los créditos.
+
 ### Deudas de un mes
 
 Una deuda no pertenece a un mes: se contrae un día y se arrastra hasta saldarla. Pero listarlas

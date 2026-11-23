@@ -34,5 +34,6 @@ final precargaProvider = Provider<void>((ref) {
     ..watch(tarjetasProvider)
     ..watch(evolucionProvider)
     ..watch(inicioProvider)
-    ..watch(movimientosProvider);
+    ..watch(movimientosProvider)
+    ..watch(panoramaDeudasProvider);
 });

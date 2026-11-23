@@ -1,59 +1,98 @@
+import 'dart:math' as math;
+
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
-import '../../dominio/credito.dart';
-import '../../dominio/modelos.dart';
+import '../../dominio/panorama_deudas.dart';
 import '../../estado/creditos.dart';
 import '../../estado/deudas.dart';
-import '../../estado/mes.dart';
+import '../../estado/proveedores.dart';
+import '../comun/componentes.dart';
+import '../comun/iconos.dart';
 import '../creditos/pantalla_credito.dart';
-import '../comun/deshacer.dart';
 import 'widgets/detalle_deuda.dart';
 import 'widgets/formulario_deuda.dart';
 
-/// Deudas externas: tarjetas, préstamos y dinero prestado por familiares o amigos.
+/// Deudas: cuánto se debe en total, cómo baja y cuándo se termina cada una.
+///
+/// Junta créditos (con el cuadro del banco) y deudas (tarjetas, préstamos, familia). Antes el
+/// total solo sumaba las segundas y un crédito de millones no aparecía en la cifra.
 class PantallaDeudas extends ConsumerWidget {
   const PantallaDeudas({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final datos = ref.watch(deudasProvider);
-    final verTodas = ref.watch(verTodasLasDeudasProvider);
-    final periodo = ref.watch(periodoProvider);
+    final datos = ref.watch(panoramaDeudasProvider);
+    final textos = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(verTodas ? 'Deudas' : Formato.mesYAnio(periodo)),
-        actions: [
-          IconButton(
-            tooltip: verTodas ? 'Ver solo las del mes' : 'Ver todas',
-            icon: Icon(verTodas ? Icons.filter_alt_off : Icons.history),
-            onPressed: () => ref
-                .read(verTodasLasDeudasProvider.notifier)
-                .update((valor) => !valor),
+      body: SafeArea(
+        bottom: false,
+        child: datos.when(
+          skipLoadingOnRefresh: true,
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (e, _) => EstadoVacio(
+            icono: Iconos.sinConexion,
+            titulo: 'No se pudieron cargar las deudas',
+            texto: e is ErrorApi ? e.mensaje : 'Inténtalo de nuevo',
+            accion: 'Reintentar',
+            alTocarAccion: () => ref.invalidate(panoramaDeudasProvider),
           ),
-        ],
-      ),
-      body: datos.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, _) => _Error(
-          mensaje: error is ErrorApi
-              ? error.mensaje
-              : 'No se pudieron cargar las deudas',
-          alReintentar: () => ref.read(deudasProvider.notifier).cargar(),
+          data: (p) => RefreshIndicator(
+            onRefresh: () async {
+              ref.read(clienteApiProvider).revisarTodo();
+              await ref
+                  .refresh(panoramaDeudasProvider.future)
+                  .catchError((_) => p);
+            },
+            child: Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: Pantalla.esEscritorio(context)
+                      ? 680
+                      : double.infinity,
+                ),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(
+                    Espacio.lateral,
+                    Espacio.m,
+                    Espacio.lateral,
+                    96,
+                  ),
+                  children: [
+                    Text('Deudas', style: textos.headlineSmall),
+                    const SizedBox(height: Espacio.xl),
+                    if (p.partes.isEmpty)
+                      const EstadoVacio(
+                        icono: Iconos.listo,
+                        titulo: 'No debes nada',
+                        texto:
+                            'Cuando tengas un crédito, una tarjeta o un préstamo, '
+                            'aquí verás cuánto debes y cuándo terminas.',
+                      )
+                    else ...[
+                      _Total(panorama: p),
+                      if (p.proyeccion.length > 1) _ComoBaja(panorama: p),
+                      _Lista(panorama: p),
+                    ],
+                    if (p.saldadas.isNotEmpty) _Saldadas(saldadas: p.saldadas),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-        data: (d) => _Contenido(datos: d),
       ),
-      floatingActionButton: datos.hasValue
-          ? FloatingActionButton.extended(
-              onPressed: () => _nuevaDeuda(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text('Deuda'),
-            )
-          : null,
+      floatingActionButton: FloatingActionButton(
+        tooltip: 'Nueva deuda',
+        onPressed: () => _nuevaDeuda(context, ref),
+        child: const Icon(Iconos.anadir),
+      ),
     );
   }
 
@@ -86,276 +125,217 @@ class PantallaDeudas extends ConsumerWidget {
   }
 }
 
-class _Contenido extends ConsumerWidget {
-  const _Contenido({required this.datos});
+/// Tonos de la barra y los puntos: del más oscuro (la deuda mayor) al más claro. Sin colores
+/// de adorno: el color en esta app significa algo, y aquí solo distingue.
+List<Color> _tonos(Colores c) => [
+  c.tinta,
+  c.tinta2,
+  c.tinta3,
+  Color.lerp(c.tinta3, c.linea, 0.5)!,
+  c.linea,
+];
 
-  final DatosDeudas datos;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // Los créditos se listan aparte de las deudas, así que un mes sin deudas puede tener
-    // igualmente un crédito vivo. Cortar aquí por las deudas lo dejaba invisible: en septiembre
-    // no había ninguna deuda y Bancamía desaparecía de la pantalla.
-    final hayCreditos = ref
-        .watch(creditosProvider)
-        .maybeWhen(data: (lista) => lista.isNotEmpty, orElse: () => false);
-
-    if (datos.deudas.isEmpty && !hayCreditos) return const _SinDeudas();
-
-    final anchoMaximo = Pantalla.esEscritorio(context)
-        ? 720.0
-        : double.infinity;
-
-    return RefreshIndicator(
-      onRefresh: () => ref.read(deudasProvider.notifier).refrescar(),
-      child: Align(
-        alignment: Alignment.topCenter,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: anchoMaximo),
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-            children: [
-              _Resumen(datos: datos),
-              const SizedBox(height: 20),
-
-              // Los créditos van arriba: son deudas también, pero con un plan cerrado detrás y
-              // mucho más dinero en juego que un préstamo entre amigos.
-              const _Creditos(),
-
-              if (datos.activas.isNotEmpty) ...[
-                _Encabezado(
-                  titulo: 'Pendientes',
-                  cantidad: datos.activas.length,
-                ),
-                const SizedBox(height: 8),
-                for (final deuda in datos.activas.sinOcultos(
-                  ref.watch(ocultosProvider),
-                  (d) => d.id,
-                )) ...[_TarjetaDeuda(deuda: deuda), const SizedBox(height: 10)],
-              ],
-
-              if (datos.saldadas.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                _Encabezado(
-                  titulo: 'Saldadas',
-                  cantidad: datos.saldadas.length,
-                ),
-                const SizedBox(height: 8),
-                for (final deuda in datos.saldadas.sinOcultos(
-                  ref.watch(ocultosProvider),
-                  (d) => d.id,
-                )) ...[_TarjetaDeuda(deuda: deuda), const SizedBox(height: 10)],
-              ],
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+Color _tono(Colores c, int i) {
+  final tonos = _tonos(c);
+  return tonos[math.min(i, tonos.length - 1)];
 }
 
-/// Los créditos con cuadro de amortización, que son deudas de otra naturaleza.
-class _Creditos extends ConsumerWidget {
-  const _Creditos();
+class _Total extends StatelessWidget {
+  const _Total({required this.panorama});
+
+  final PanoramaDeudas panorama;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ref
-        .watch(creditosProvider)
-        .maybeWhen(
-          data: (creditos) {
-            if (creditos.isEmpty) return const SizedBox.shrink();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CifraPrincipal(etiqueta: 'Debes en total', valor: panorama.total),
+        const SizedBox(height: Espacio.l),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(99),
+          child: SizedBox(
+            height: 10,
+            child: Row(
+              // Estirada: sin esto cada tramo de color medía cero de alto y la barra no se veía.
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _Encabezado(titulo: 'Créditos', cantidad: creditos.length),
-                const SizedBox(height: 8),
-                for (final credito in creditos) ...[
-                  _TarjetaCredito(credito: credito),
-                  const SizedBox(height: 10),
-                ],
-                const SizedBox(height: 12),
-              ],
-            );
-          },
-          // Un fallo aquí no debe tapar las deudas, que es lo principal de la pantalla.
-          orElse: () => const SizedBox.shrink(),
-        );
-  }
-}
-
-class _TarjetaCredito extends StatelessWidget {
-  const _TarjetaCredito({required this.credito});
-
-  final Credito credito;
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-
-    return Card(
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (_) => PantallaCredito(credito: credito),
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.account_balance,
-                    size: 20,
-                    color: tema.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 10),
+                for (var i = 0; i < panorama.partes.length; i++) ...[
+                  if (i > 0) const SizedBox(width: 2),
                   Expanded(
-                    child: Text(
-                      credito.entidad,
-                      style: tema.textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    flex: math.max(
+                      1,
+                      (panorama.partes[i].saldo / panorama.total * 1000)
+                          .round(),
                     ),
-                  ),
-                  Text(
-                    Formato.dinero(credito.saldo),
-                    style: tema.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: Tema.negativo,
-                    ),
+                    child: ColoredBox(color: _tono(c, i)),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: SizedBox(
-                  height: 6,
-                  child: Stack(
-                    children: [
-                      Container(
-                        color: tema.colorScheme.surfaceContainerHighest,
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: (credito.porcentajePagado / 100).clamp(
-                          0.0,
-                          1.0,
-                        ),
-                        child: Container(color: Tema.positivo),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                [
-                  '${credito.cuotasPagadas} de ${credito.cuotasTotales} cuotas',
-                  if (credito.proximaCuota case final proxima?)
-                    'próxima el ${Formato.fechaCorta(proxima.fecha)} '
-                        'por ${Formato.dinero(proxima.valorCuota)}',
-                ].join(' · '),
-                style: tema.textTheme.bodySmall?.copyWith(
-                  color: tema.colorScheme.onSurfaceVariant,
-                ),
-              ),
-              if (credito.tieneVencidas) ...[
-                const SizedBox(height: 6),
-                Text(
-                  credito.cuotasVencidas == 1
-                      ? 'Una cuota vencida'
-                      : '${credito.cuotasVencidas} cuotas vencidas',
-                  style: tema.textTheme.bodySmall?.copyWith(
-                    color: Tema.negativo,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
               ],
-            ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _Resumen extends StatelessWidget {
-  const _Resumen({required this.datos});
+class _ComoBaja extends StatelessWidget {
+  const _ComoBaja({required this.panorama});
 
-  final DatosDeudas datos;
+  final PanoramaDeudas panorama;
 
   @override
   Widget build(BuildContext context) {
+    final c = context.colores;
     final textos = Theme.of(context).textTheme;
-    final esquema = Theme.of(context).colorScheme;
+    final puntos = panorama.proyeccion;
+    final maximo = puntos.map((p) => p.total).reduce(math.max);
+    final paso = _pasoEje(maximo);
+    final ultimo = puntos.length - 1;
 
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
+    final porFin = panorama.porFin;
+    final sinPlan = panorama.sinPlan;
+    final frase = <InlineSpan>[
+      if (porFin.isNotEmpty) ...[
+        const TextSpan(text: 'Terminas '),
+        for (var i = 0; i < porFin.length; i++) ...[
+          if (i > 0) TextSpan(text: i == porFin.length - 1 ? ' y ' : ', '),
+          TextSpan(text: '${_corto(porFin[i].nombre)} en '),
+          TextSpan(
+            text: _mesYAnioCorto(porFin[i].terminaEn!),
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+        ],
+        const TextSpan(text: '.'),
+      ],
+      if (sinPlan.isNotEmpty)
+        TextSpan(
+          text:
+              '${porFin.isEmpty ? '' : ' '}${_lista(sinPlan.map((p) => _corto(p.nombre)))} '
+              '${sinPlan.length == 1 ? 'no tiene' : 'no tienen'} cuota ni fecha: '
+              'añádesela para saber cuándo terminas.',
+        ),
+    ];
+
+    return Seccion(
+      titulo: 'Cómo baja',
+      accion: 'si pagas solo las cuotas',
+      child: Panel(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'Debes en total',
-              style: textos.labelLarge?.copyWith(
-                color: esquema.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              Formato.dinero(datos.saldoTotal),
-              style: textos.displaySmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: datos.saldoTotal > 0 ? Tema.negativo : Tema.positivo,
-              ),
-            ),
-
-            if (datos.montoOriginalTotal > 0) ...[
-              const SizedBox(height: 16),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox(
-                  height: 8,
-                  child: Stack(
-                    children: [
-                      Container(color: esquema.surfaceContainerHighest),
-                      FractionallySizedBox(
-                        widthFactor: datos.proporcionPagada,
-                        child: Container(color: Tema.positivo),
+            SizedBox(
+              height: 180,
+              child: Semantics(
+                label:
+                    'La deuda total baja de ${Formato.pesos(puntos.first.total)} '
+                    'a ${Formato.pesos(puntos.last.total)} en '
+                    '${_mesYAnioCorto(puntos.last.mes)}',
+                excludeSemantics: true,
+                child: LineChart(
+                  LineChartData(
+                    minX: 0,
+                    maxX: ultimo.toDouble(),
+                    minY: 0,
+                    maxY: (maximo / paso).ceil() * paso,
+                    lineTouchData: LineTouchData(
+                      touchTooltipData: LineTouchTooltipData(
+                        getTooltipColor: (_) => c.tinta,
+                        getTooltipItems: (tocados) => [
+                          for (final t in tocados)
+                            LineTooltipItem(
+                              '${_mesYAnioCorto(puntos[t.x.toInt()].mes)}\n'
+                              '${Formato.pesos(t.y)}',
+                              Tipo.estilo(12, 600, color: c.sobreAcento),
+                            ),
+                        ],
+                      ),
+                    ),
+                    gridData: FlGridData(
+                      drawVerticalLine: false,
+                      horizontalInterval: paso,
+                      getDrawingHorizontalLine: (_) =>
+                          FlLine(color: c.linea, strokeWidth: 1),
+                    ),
+                    borderData: FlBorderData(show: false),
+                    titlesData: FlTitlesData(
+                      topTitles: const AxisTitles(),
+                      rightTitles: const AxisTitles(),
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 40,
+                          interval: paso,
+                          getTitlesWidget: (v, meta) => Text(
+                            _compacto(v),
+                            style: Tipo.estilo(11, 500, color: c.tinta3),
+                          ),
+                        ),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          reservedSize: 24,
+                          interval: math.max(1, (ultimo / 4).ceil()).toDouble(),
+                          getTitlesWidget: (v, meta) {
+                            final i = v.toInt();
+                            final intervalo = math.max(1, (ultimo / 4).ceil());
+                            // fl_chart también rotula el último punto aunque no caiga en el
+                            // intervalo; pegado al borde, se cortaba.
+                            if (i < 0 ||
+                                i > ultimo ||
+                                v != i.toDouble() ||
+                                i % intervalo != 0) {
+                              return const SizedBox.shrink();
+                            }
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 6),
+                              child: Text(
+                                i == 0 ? 'hoy' : _mesEje(puntos[i].mes),
+                                style: Tipo.estilo(11, 500, color: c.tinta3),
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    lineBarsData: [
+                      LineChartBarData(
+                        // Escalones y no curva: la deuda baja de golpe el día de cada pago, y
+                        // una curva suavizada inventaba valores intermedios (y bajaba de cero).
+                        isStepLineChart: true,
+                        spots: [
+                          for (var i = 0; i < puntos.length; i++)
+                            FlSpot(i.toDouble(), puntos[i].total),
+                        ],
+                        color: c.tinta,
+                        barWidth: 2,
+                        dotData: FlDotData(
+                          checkToShowDot: (spot, _) => spot.x == 0,
+                        ),
+                        belowBarData: BarAreaData(
+                          show: true,
+                          color: c.tinta.withValues(alpha: 0.07),
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Has pagado ${Formato.dinero(datos.montoOriginalTotal - datos.saldoTotal)} '
-                'de ${Formato.dinero(datos.montoOriginalTotal)}',
-                style: textos.bodySmall,
-              ),
-            ],
-
-            if (datos.interesMensualTotal > 0) ...[
-              const Divider(height: 28),
+            ),
+            if (frase.isNotEmpty) ...[
+              const SizedBox(height: Espacio.l),
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.trending_up,
-                    size: 18,
-                    color: Tema.pendiente,
-                  ),
-                  const SizedBox(width: 8),
+                  Icon(Iconos.calendario, size: 18, color: c.tinta2),
+                  const SizedBox(width: Espacio.s),
                   Expanded(
-                    child: Text(
-                      'Los intereses suman ${Formato.dinero(datos.interesMensualTotal)} '
-                      'cada mes',
-                      style: textos.bodySmall,
+                    child: Text.rich(
+                      TextSpan(children: frase),
+                      style: textos.bodyMedium,
                     ),
                   ),
                 ],
@@ -366,195 +346,236 @@ class _Resumen extends StatelessWidget {
       ),
     );
   }
+
+  /// Un paso de eje redondo: 500 mil, 1 millón, 2 millones…
+  static double _pasoEje(double maximo) {
+    if (maximo <= 0) return 1;
+    final bruto = maximo / 4;
+    final magnitud = math
+        .pow(10, (math.log(bruto) / math.ln10).floor())
+        .toDouble();
+    for (final m in [1, 2, 2.5, 5, 10]) {
+      if (m * magnitud >= bruto) return m * magnitud;
+    }
+    return 10 * magnitud;
+  }
+
+  static String _compacto(double v) {
+    if (v == 0) return '0';
+    if (v >= 1000000) {
+      final m = v / 1000000;
+      return '${m == m.roundToDouble() ? m.toStringAsFixed(0) : m.toStringAsFixed(1).replaceAll('.', ',')} M';
+    }
+    return '${(v / 1000).round()} mil';
+  }
 }
 
-class _TarjetaDeuda extends ConsumerWidget {
-  const _TarjetaDeuda({required this.deuda});
+class _Lista extends ConsumerWidget {
+  const _Lista({required this.panorama});
 
-  final Deuda deuda;
+  final PanoramaDeudas panorama;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final esquema = Theme.of(context).colorScheme;
+    final c = context.colores;
     final textos = Theme.of(context).textTheme;
-    final proporcion = (deuda.porcentajePagado / 100).clamp(0.0, 1.0);
-
-    return Card(
-      child: InkWell(
-        onTap: () => showModalBottomSheet<void>(
-          context: context,
-          useRootNavigator: true,
-          isScrollControlled: true,
-          builder: (_) => DetalleDeuda(deuda: deuda),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(_icono(deuda.tipo), size: 20, color: esquema.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          deuda.acreedor,
-                          style: textos.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            decoration: deuda.activa
-                                ? null
-                                : TextDecoration.lineThrough,
-                          ),
-                        ),
-                        Text(
-                          deuda.tipo.etiqueta,
-                          style: textos.bodySmall?.copyWith(
-                            color: esquema.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        Formato.dinero(deuda.saldo),
-                        style: textos.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: deuda.activa ? Tema.negativo : Tema.positivo,
-                        ),
-                      ),
-                      Text(
-                        deuda.activa
-                            ? 'de ${Formato.dinero(deuda.montoOriginal)}'
-                            : 'saldada',
-                        style: textos.labelSmall?.copyWith(
-                          color: esquema.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 12),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(6),
-                child: LinearProgressIndicator(
-                  value: proporcion,
-                  minHeight: 6,
-                  backgroundColor: esquema.surfaceContainerHighest,
-                  valueColor: const AlwaysStoppedAnimation(Tema.positivo),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Text(
-                    '${deuda.porcentajePagado.toStringAsFixed(0)}% pagado',
-                    style: textos.labelSmall,
-                  ),
-                  const Spacer(),
-                  if (deuda.interesMensualEstimado != null &&
-                      deuda.interesMensualEstimado! > 0)
-                    Text(
-                      '+${Formato.dinero(deuda.interesMensualEstimado!)}/mes de interés',
-                      style: textos.labelSmall?.copyWith(color: Tema.pendiente),
-                    ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  static IconData _icono(TipoDeuda tipo) => switch (tipo) {
-    TipoDeuda.tarjetaCredito => Icons.credit_card,
-    TipoDeuda.prestamoBancario => Icons.account_balance,
-    TipoDeuda.familiar => Icons.family_restroom,
-    TipoDeuda.amigo => Icons.people_outline,
-    TipoDeuda.otro => Icons.receipt_long_outlined,
-  };
-}
-
-class _Encabezado extends StatelessWidget {
-  const _Encabezado({required this.titulo, required this.cantidad});
-
-  final String titulo;
-  final int cantidad;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      child: Row(
-        children: [
-          Text(
-            titulo,
-            style: Theme.of(
-              context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '($cantidad)',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
+    return Seccion(
+      titulo: 'Tus deudas',
+      accion: '${panorama.partes.length}',
+      child: Panel.lista(
+        filas: [
+          for (var i = 0; i < panorama.partes.length; i++)
+            _FilaDeuda(
+              parte: panorama.partes[i],
+              tono: _tono(c, i),
+              textos: textos,
             ),
-          ),
         ],
       ),
     );
   }
 }
 
-class _SinDeudas extends ConsumerWidget {
-  const _SinDeudas();
+class _FilaDeuda extends ConsumerWidget {
+  const _FilaDeuda({
+    required this.parte,
+    required this.tono,
+    required this.textos,
+  });
+
+  final ParteDeuda parte;
+  final Color tono;
+  final TextTheme textos;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Con el filtro por mes activo, «no debes nada» sería engañoso: puede haber deudas en
-    // otros meses. Lo que no hay es nada que pague este.
-    final porMes = !ref.watch(verTodasLasDeudasProvider);
-    final periodo = ref.watch(periodoProvider);
+    final c = context.colores;
+    final detalle = [
+      parte.etiquetaTipo,
+      ?parte.cuotas,
+      if (parte.sinPlan) 'sin cuota ni fecha',
+    ].join(' · ');
+    final proximo = parte.proximoPago == null || parte.proximoMonto == null
+        ? null
+        : '${parte.proximoPago!.day} ${_mesCorto(parte.proximoPago!)} · '
+              '${Formato.pesos(parte.proximoMonto!)}';
 
-    return Center(
+    return InkWell(
+      onTap: () => _abrir(context, ref),
       child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
-              Icons.check_circle_outline,
-              size: 56,
-              color: Tema.positivo,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              porMes
-                  ? 'Nada que pagar en ${Formato.mesYAnio(periodo).toLowerCase()}'
-                  : 'No debes nada',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              porMes
-                  ? 'Aquí salen las deudas que seguías debiendo este mes y las que saldaste '
-                        'en él. Toca el icono del historial para verlas todas.'
-                  : 'Si le debes a alguien —la tarjeta, un familiar, un amigo— añádelo aquí '
-                        'para que cuente en tu presupuesto.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(
+                  color: tono,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: c.linea),
+                ),
               ),
             ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    parte.nombre,
+                    style: textos.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(detalle, style: textos.bodySmall),
+                  if (parte.progreso > 0) ...[
+                    const SizedBox(height: Espacio.s),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(99),
+                      child: LinearProgressIndicator(
+                        value: parte.progreso,
+                        minHeight: 4,
+                        backgroundColor: c.superficie2,
+                        color: c.positivo,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: Espacio.m),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Importe(parte.saldo, colorear: false),
+                if (proximo != null) ...[
+                  const SizedBox(height: 2),
+                  Text(proximo, style: textos.bodySmall),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _abrir(BuildContext context, WidgetRef ref) async {
+    final navegador = Navigator.of(context);
+    try {
+      if (parte.origen == OrigenDeuda.credito) {
+        final credito = await ref
+            .read(repositorioCreditosProvider)
+            .obtener(parte.id);
+        await navegador.push(
+          MaterialPageRoute<void>(
+            builder: (_) => PantallaCredito(credito: credito),
+          ),
+        );
+      } else {
+        final deudas = await ref.read(repositorioDeudasProvider).listar();
+        final deuda = deudas.where((d) => d.id == parte.id).firstOrNull;
+        if (deuda == null || !context.mounted) return;
+        await showModalBottomSheet<void>(
+          context: context,
+          useRootNavigator: true,
+          isScrollControlled: true,
+          builder: (_) => DetalleDeuda(deuda: deuda),
+        );
+      }
+      ref.invalidate(panoramaDeudasProvider);
+    } on ErrorApi catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
+      }
+    }
+  }
+}
+
+class _Saldadas extends StatefulWidget {
+  const _Saldadas({required this.saldadas});
+
+  final List<DeudaSaldada> saldadas;
+
+  @override
+  State<_Saldadas> createState() => _EstadoSaldadas();
+}
+
+class _EstadoSaldadas extends State<_Saldadas> {
+  bool _abierto = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final textos = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: Espacio.l),
+      child: Panel(
+        relleno: EdgeInsets.zero,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: () => setState(() => _abierto = !_abierto),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
+                child: Row(
+                  children: [
+                    Icon(Iconos.listo, size: 18, color: c.positivo),
+                    const SizedBox(width: Espacio.m),
+                    Expanded(
+                      child: Text(
+                        'Ya pagaste ${widget.saldadas.length} '
+                        '${widget.saldadas.length == 1 ? 'deuda' : 'deudas'}',
+                        style: textos.titleSmall,
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: _abierto ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 150),
+                      child: Icon(Iconos.desplegar, color: c.tinta3),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (_abierto)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(46, 0, 16, 14),
+                child: Text(
+                  widget.saldadas.map((s) => s.nombre).join(' · '),
+                  style: textos.bodySmall,
+                ),
+              ),
           ],
         ),
       ),
@@ -562,35 +583,31 @@ class _SinDeudas extends ConsumerWidget {
   }
 }
 
-class _Error extends StatelessWidget {
-  const _Error({required this.mensaje, required this.alReintentar});
+// --- textos ---
 
-  final String mensaje;
-  final VoidCallback alReintentar;
+const _meses = [
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun', //
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
 
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 48,
-              color: Tema.pendiente,
-            ),
-            const SizedBox(height: 16),
-            Text(mensaje, textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            FilledButton.tonal(
-              onPressed: alReintentar,
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+String _mesCorto(DateTime f) => _meses[f.month - 1];
+
+/// «jun 27», para el eje de la gráfica, donde no cabe el año entero.
+String _mesEje(DateTime f) =>
+    '${_mesCorto(f)} ${(f.year % 100).toString().padLeft(2, '0')}';
+
+/// «feb 2028».
+String _mesYAnioCorto(DateTime f) => '${_mesCorto(f)} ${f.year}';
+
+/// Sin lo que va entre paréntesis ni números de operación: «RapiFlex #78 (RapiCredit)» →
+/// «RapiFlex».
+String _corto(String nombre) => nombre
+    .replaceAll(RegExp(r'\s*\(.*?\)'), '')
+    .replaceAll(RegExp(r'\s*#\S+'), '')
+    .trim();
+
+String _lista(Iterable<String> partes) {
+  final l = partes.toList();
+  if (l.length <= 1) return l.join();
+  return '${l.sublist(0, l.length - 1).join(', ')} y ${l.last}';
 }

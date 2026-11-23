@@ -1,4 +1,5 @@
 import '../dominio/modelos.dart';
+import '../dominio/panorama_deudas.dart';
 import 'cliente_api.dart';
 
 /// Pago realizado a una deuda.
@@ -56,6 +57,11 @@ class RepositorioDeudas {
     );
     return datos.map((e) => Deuda.deJson(e as Map<String, dynamic>)).toList();
   }
+
+  /// Todo lo que se debe (créditos y deudas) y cómo baja mes a mes.
+  Future<PanoramaDeudas> panorama() async => PanoramaDeudas.deJson(
+    await _api.obtener<Map<String, dynamic>>('/api/deudas/panorama'),
+  );
 
   Future<Deuda> crear({
     required String acreedor,

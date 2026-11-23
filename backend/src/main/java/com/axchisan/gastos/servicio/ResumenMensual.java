@@ -30,7 +30,7 @@ import java.util.UUID;
  * @param aporteAhorro                aportes menos retiros de ahorro en este mes
  * @param disponibleHoy               dinero libre contando solo lo ya pagado
  * @param saldoProyectado             dinero que quedará al cerrar el mes
- * @param deudaTotal                  saldo pendiente de todas las deudas activas
+ * @param deudaTotal                  lo que se debe hoy: deudas activas y capital de los créditos
  * @param ahorroTotal                 saldo acumulado en todas las metas
  * @param patrimonioNeto              ahorro menos deuda
  * @param comprometido                todo lo que tiene destino este mes: gastos, abonos a

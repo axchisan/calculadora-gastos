@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../datos/cliente_api.dart';
 import '../datos/repositorio_deudas.dart';
 import '../dominio/modelos.dart';
+import '../dominio/panorama_deudas.dart';
 import 'mes.dart';
 import 'proveedores.dart';
 
@@ -167,3 +168,15 @@ final deudasProvider =
       ref.alActualizarse(['/api/deudas'], controlador.refrescar);
       return controlador;
     });
+
+/// Todo lo que se debe y cómo baja. Se vuelve a pedir tras cualquier cambio hecho en la app:
+/// pagar una cuota en otra pantalla también mueve el total.
+final panoramaDeudasProvider = FutureProvider<PanoramaDeudas>((ref) {
+  ref.alActualizarse(['/api/deudas', '/api/creditos'], ref.invalidateSelf);
+  final cambios = ref
+      .read(clienteApiProvider)
+      .cambiosLocales
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(cambios.cancel);
+  return ref.watch(repositorioDeudasProvider).panorama();
+});

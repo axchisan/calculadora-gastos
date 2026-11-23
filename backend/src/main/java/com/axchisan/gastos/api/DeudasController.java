@@ -8,6 +8,8 @@ import com.axchisan.gastos.api.dto.DtosDeuda.DeudaDto;
 import com.axchisan.gastos.dominio.Deuda;
 import com.axchisan.gastos.seguridad.UsuarioActual;
 import com.axchisan.gastos.servicio.ServicioDeudas;
+import com.axchisan.gastos.servicio.ServicioPanoramaDeudas;
+import com.axchisan.gastos.servicio.ServicioSueldo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -33,9 +35,22 @@ import java.util.UUID;
 public class DeudasController {
 
     private final ServicioDeudas deudas;
+    private final ServicioPanoramaDeudas panorama;
 
-    public DeudasController(ServicioDeudas deudas) {
+    public DeudasController(ServicioDeudas deudas, ServicioPanoramaDeudas panorama) {
         this.deudas = deudas;
+        this.panorama = panorama;
+    }
+
+    @GetMapping("/panorama")
+    @Operation(summary = "Todo lo que se debe (créditos y deudas) y cómo baja mes a mes")
+    public ServicioPanoramaDeudas.Panorama panorama(
+            // Solo para ver cómo se veía otro día; la app nunca lo envía.
+            @RequestParam(required = false)
+            @org.springframework.format.annotation.DateTimeFormat(
+                    iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE)
+            java.time.LocalDate fecha) {
+        return panorama.de(UsuarioActual.id(), fecha != null ? fecha : ServicioSueldo.hoy());
     }
 
     /**
