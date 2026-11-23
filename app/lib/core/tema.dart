@@ -188,14 +188,12 @@ class Radios {
   static const double hoja = 24;
 }
 
-/// Tipografía: Manrope empaquetada, con cifras tabulares para que los importes se alineen.
+/// Tipografía: Inter en pesos fijos, con cifras tabulares para que los importes se alineen.
 class Tipo {
   const Tipo._();
 
-  static const String familia = 'Manrope';
+  static const String familia = 'Inter';
 
-  /// Un estilo con su peso aplicado también al eje `wght` de la fuente variable: con solo
-  /// `fontWeight`, algunos motores de texto dibujan la variable en su peso por defecto.
   static TextStyle estilo(
     double tamano,
     int peso, {
@@ -206,7 +204,6 @@ class Tipo {
     fontFamily: familia,
     fontSize: tamano,
     fontWeight: FontWeight.values[(peso ~/ 100) - 1],
-    fontVariations: [FontVariation('wght', peso.toDouble())],
     fontFeatures: const [FontFeature.tabularFigures()],
     letterSpacing: espaciado,
     height: altura,

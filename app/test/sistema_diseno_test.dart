@@ -75,11 +75,11 @@ void main() {
       expect(fondo('Editar'), Colores.claro.superficie2);
     });
 
-    test('la tipografía es Manrope con cifras tabulares', () {
+    test('la tipografía es Inter con cifras tabulares', () {
       final estilo = Tema.claro().textTheme.displayLarge!;
-      expect(estilo.fontFamily, 'Manrope');
+      expect(estilo.fontFamily, 'Inter');
       expect(estilo.fontFeatures, contains(const FontFeature.tabularFigures()));
-      expect(estilo.fontVariations, contains(const FontVariation('wght', 700)));
+      expect(estilo.fontWeight, FontWeight.w700);
     });
   });
 

@@ -4,7 +4,7 @@ publish_to: 'none'
 
 # El número tras el '+' es el código de versión de Android, que debe subir en cada publicación
 # aunque el nombre de versión no cambie.
-version: 1.14.0+21
+version: 1.14.1+22
 
 environment:
   sdk: ^3.12.2
@@ -61,9 +61,22 @@ flutter:
   # Manrope (licencia OFL, ver assets/fuentes/OFL.txt) va empaquetada en lugar de descargarse al
   # abrir: así la tipografía es la misma sin conexión y no hay un salto visual al cargar.
   fonts:
-    - family: Manrope
+    # Inter (licencia OFL, ver assets/fuentes/inter/OFL.txt), elegida por el usuario frente a
+    # Manrope, Plus Jakarta Sans y Figtree. Va en pesos fijos, uno por archivo, y recortada a
+    # los caracteres del español: como fuente variable, Flutter usaba su peso por defecto en
+    # cualquier texto al que no le llegara el eje de peso.
+    - family: Inter
       fonts:
-        - asset: assets/fuentes/Manrope-Variable.ttf
+        - asset: assets/fuentes/inter/Inter-400.ttf
+          weight: 400
+        - asset: assets/fuentes/inter/Inter-500.ttf
+          weight: 500
+        - asset: assets/fuentes/inter/Inter-600.ttf
+          weight: 600
+        - asset: assets/fuentes/inter/Inter-700.ttf
+          weight: 700
+        - asset: assets/fuentes/inter/Inter-800.ttf
+          weight: 800
     # Iconos de Phosphor (licencia MIT, ver assets/iconos/LICENSE-Phosphor.txt).
     - family: PhosphorRegular
       fonts:

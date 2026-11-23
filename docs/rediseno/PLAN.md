@@ -58,7 +58,7 @@ commit y despliegue.
 |---|---|---|---|
 | **0. Red de seguridad** | Borrado diferido con «Deshacer» en ingresos, gastos, compras y deudas (`ui/comun/deshacer.dart`). | — | Hecha, sin publicar |
 | **1. Propuesta visual** | Prototipo navegable de las cuatro pestañas con datos reales, en claro y oscuro. | — | Aprobada el 22 nov |
-| **2. Sistema de diseño** | Tokens (color, tipografía Manrope con cifras tabulares, espaciado), tema claro por defecto con selector Claro / Oscuro / Sistema, componentes base: importe, sección, fila de movimiento, chip, estado vacío, hoja inferior, aviso. | — | Hecha, sin publicar |
+| **2. Sistema de diseño** | Tokens (color, tipografía con cifras tabulares (Manrope; cambiada a Inter el 22 nov), espaciado), tema claro por defecto con selector Claro / Oscuro / Sistema, componentes base: importe, sección, fila de movimiento, chip, estado vacío, hoja inferior, aviso. | — | Hecha, sin publicar |
 | **3. Datos locales y sin conexión** | Ver el apartado 5. Va antes de las pantallas para que las nuevas se construyan ya sobre datos locales. 3a: lectura local de todo, precarga y aviso sin conexión. 3b: cola de pendientes. 3c: ETag y `/api/inicio`. | Revalidación barata, endpoint de inicio, identificadores del cliente | Hecha (3c: v1.13.0) |
 | **4. Navegación e Inicio** | Cuatro pestañas, Ajustes y el nuevo Inicio con «Próximos pagos». | Hecho en 3c: `GET /api/inicio` ya trae los próximos pagos | Hecha (v1.14.0) |
 | **5. Movimientos** | Línea de tiempo unificada, filtros, «+» único, notas en ingresos, tipos de ingreso, categoría Mascota. Apuntar sin conexión. | Notas y tipo de ingreso (migración) | Pendiente |

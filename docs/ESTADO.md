@@ -7,7 +7,7 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.14.0+21** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.14.1+22** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V8** | Neon, proyecto de la Calculadora (3b y 3c no necesitaron migración) |
@@ -50,7 +50,7 @@ primero). La captura por notificaciones no ha funcionado en el uso real (ver PLA
 ## Cómo está hecho lo nuevo
 
 - **Tema** (`app/lib/core/tema.dart`): tokens en `Colores` (ThemeExtension, claro y oscuro),
-  `Espacio`, `Radios` y `Tipo` (Manrope empaquetada en `assets/fuentes/`, cifras tabulares). El
+  `Espacio`, `Radios` y `Tipo` (Inter en pesos fijos 400–800, recortada al español, en `assets/fuentes/inter/`; cifras tabulares. Se eligió el 22 nov frente a Manrope, cuya variable salía en ExtraLight). El
   tema de Material se arma desde esos tokens. La elección Claro / Oscuro / Sistema vive en
   `estado/apariencia.dart` y hoy se cambia en Mi cuenta → Apariencia. Arranca en claro.
 - **Componentes** (`app/lib/ui/comun/componentes.dart`): `CifraPrincipal`, `Importe`, `Panel`,
