@@ -19,15 +19,21 @@ public class ServicioCuentas {
 
     private final CuentaRepository cuentas;
     private final UsuarioRepository usuarios;
+    private final CambiosDeCuentas cambios;
 
-    public ServicioCuentas(CuentaRepository cuentas, UsuarioRepository usuarios) {
+    public ServicioCuentas(CuentaRepository cuentas, UsuarioRepository usuarios,
+                           CambiosDeCuentas cambios) {
         this.cuentas = cuentas;
         this.usuarios = usuarios;
+        this.cambios = cambios;
     }
 
+    /** Las cuentas, cada una con lo apuntado desde que se anotó su saldo. */
     @Transactional(readOnly = true)
     public List<Cuenta> listar(UUID usuarioId) {
-        return cuentas.listarDelUsuario(usuarioId);
+        List<Cuenta> lista = cuentas.listarDelUsuario(usuarioId);
+        cambios.calcular(usuarioId, lista);
+        return lista;
     }
 
     @Transactional
@@ -58,7 +64,14 @@ public class ServicioCuentas {
         if (activa != null) {
             cuenta.setActiva(activa);
         }
-        return cuentas.save(cuenta);
+        Cuenta guardada = cuentas.saveAndFlush(cuenta);
+        // El cambio depende de las demás cuentas (cuál es la principal), así que se calcula
+        // sobre la lista entera.
+        List<Cuenta> todas = cuentas.listarDelUsuario(usuarioId);
+        cambios.calcular(usuarioId, todas);
+        todas.stream().filter(c -> c.getId().equals(guardada.getId())).findFirst()
+                .ifPresent(c -> guardada.setCambio(c.getCambio()));
+        return guardada;
     }
 
     @Transactional

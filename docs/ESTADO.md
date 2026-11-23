@@ -1,17 +1,17 @@
 # Estado de la aplicación
 
-Actualizado el **22 de noviembre de 2026** (noche). Este documento resume cómo está todo y qué
+Actualizado el **23 de noviembre de 2026**. Este documento resume cómo está todo y qué
 falta, para retomar el trabajo sin tener que reconstruirlo.
 
 ## Versiones en uso
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **2.0.0+29** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **2.0.1+30** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **2.0.0+29** | `/Applications/Mis gastos.app` |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V11** | Neon, proyecto de la Calculadora (V11: sueldo automático) |
-| Pruebas | backend **301**, app **158** | todas en verde |
+| Esquema de base de datos | migración **V13** | Neon, proyecto de la Calculadora (V12: movimientos detectados; V13: saldos que siguen a lo apuntado) |
+| Pruebas | backend **352**, app **160** | todas en verde |
 
 ## Rediseño v2 (terminado el 23 nov 2026)
 
@@ -51,6 +51,18 @@ dentro de la propia hoja.
 
 **Lo siguiente**: investigar a fondo cómo registrar movimientos solos (Bancolombia
 primero). La captura por notificaciones no ha funcionado en el uso real (ver PLAN, apartado 6).
+
+## Registro automático de movimientos (en curso)
+
+Planteamiento, cobertura medida y fases en **[REGISTRO-AUTOMATICO.md](REGISTRO-AUTOMATICO.md)**.
+
+| Fase | Estado |
+|---|---|
+| A. Backend: bandeja, lectores de Bancolombia (correo, SMS, PDF), cruces y reglas | Publicada (V12) |
+| B. App: bandeja «Por revisar» e importar el PDF | Pendiente |
+| C. Tiempo real: SMS en Android y Apps Script de Gmail | Pendiente |
+| D. Nu, Banco de Bogotá, Nequi | Pendiente |
+| E. Pulido | Pendiente |
 
 ## Cómo está hecho lo nuevo
 
@@ -149,7 +161,7 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
 
 **App**
 - No hay **cuentas por cobrar** ni **transferencias entre cuentas propias** (en el plan).
-- Los saldos de **Mis cuentas** se anotan a mano.
+- Los saldos de **Mis cuentas** siguen a lo apuntado desde el 23 nov, pero todo lo que no es efectivo se carga a la cuenta principal: la app no sabe de qué banco salió cada cosa.
 - Lo apuntado sin conexión no mueve el resumen del mes hasta que se sube.
 - Del ROADMAP: volcado semanal de la base a S3, recordatorios de vencimientos, exportar a
   CSV/PDF y clave propia de firma para Android.

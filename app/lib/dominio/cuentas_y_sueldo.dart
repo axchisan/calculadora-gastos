@@ -24,12 +24,22 @@ class Cuenta {
     required this.saldo,
     required this.saldoAl,
     required this.activa,
-  });
+    double? saldoAnotado,
+    this.cambio = 0,
+  }) : saldoAnotado = saldoAnotado ?? saldo;
 
   final String id;
   final String nombre;
   final TipoCuenta tipo;
+
+  /// Lo que debería haber hoy: el saldo anotado más lo apuntado después.
   final double saldo;
+
+  /// La cifra que se anotó el día [saldoAl].
+  final double saldoAnotado;
+
+  /// Lo apuntado después de anotar el saldo (negativo si salió plata).
+  final double cambio;
 
   /// Día en que se consultó el saldo.
   final DateTime saldoAl;
@@ -46,6 +56,8 @@ class Cuenta {
     saldo: (j['saldo'] as num).toDouble(),
     saldoAl: DateTime.parse(j['saldoAl'] as String),
     activa: j['activa'] as bool,
+    saldoAnotado: (j['saldoAnotado'] as num?)?.toDouble(),
+    cambio: (j['cambio'] as num?)?.toDouble() ?? 0,
   );
 }
 

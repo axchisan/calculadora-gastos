@@ -8,9 +8,18 @@ final repositorioCuentasProvider = Provider<RepositorioCuentas>(
   (ref) => RepositorioCuentas(ref.watch(clienteApiProvider)),
 );
 
-/// Las cuentas con su saldo real.
+/// Las cuentas con su saldo al día: el anotado más lo apuntado después. Por eso se vuelve a
+/// pedir también cuando se apunta una compra, un pago, un ingreso o un abono.
 final cuentasProvider = FutureProvider<List<Cuenta>>((ref) {
-  ref.alActualizarse(['/api/cuentas'], ref.invalidateSelf);
+  ref.alActualizarse([
+    '/api/cuentas',
+    '/api/meses',
+    '/api/gastos',
+    '/api/sueldo',
+    '/api/deudas',
+    '/api/creditos',
+    '/api/ahorro',
+  ], ref.invalidateSelf);
   return ref.watch(repositorioCuentasProvider).listar();
 });
 

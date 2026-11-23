@@ -309,7 +309,17 @@ class _FilaCuenta extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final dias = cuenta.diasSinActualizar;
-    final antiguedad = dias == 0
+    final cuando = dias == 0
+        ? 'hoy'
+        : dias == 1
+        ? 'ayer'
+        : 'el ${Formato.fechaCorta(cuenta.saldoAl)}';
+    // Si se apuntó algo después de anotar el saldo, se dice cuánto: así se entiende por qué la
+    // cifra no es la que se anotó.
+    final antiguedad = cuenta.cambio.abs() >= 1
+        ? 'Anotado ${Formato.pesos(cuenta.saldoAnotado)} $cuando · '
+              '${cuenta.cambio < 0 ? '−' : '+'}${Formato.pesos(cuenta.cambio.abs())} después'
+        : dias == 0
         ? 'Actualizado hoy'
         : dias == 1
         ? 'Actualizado ayer'

@@ -531,9 +531,14 @@ los movimientos.
 | `GET` · `POST` | `/api/cuentas` | Lista o registra una cuenta (`BANCO`, `BILLETERA`, `EFECTIVO`) |
 | `PATCH` · `DELETE` | `/api/cuentas/{id}` | Anota el saldo de hoy, renombra, archiva o elimina |
 
-El saldo **no** se calcula a partir de los movimientos: es la cifra que muestra el banco, anotada
-a mano, con la fecha en que se miró (`saldoAl`). La app suma las cuentas activas y la compara con
-el `disponibleHoy` del mes en curso para avisar de lo que falta por registrar.
+Cada cuenta parte de la cifra que mostraba el banco cuando se anotó (`saldoAnotado`, el día
+`saldoAl`, en el instante `anotadoEn`) y sigue a lo que se apunta después (`cambio`): `saldo` es
+lo que debería haber hoy. Las compras en efectivo mueven la cuenta de efectivo; las compras con
+débito, los gastos pagados, los ingresos recibidos (salvo el saldo con que abre el mes), los
+pagos de sueldo, los abonos y cobros, las cuotas y los movimientos de ahorro mueven la cuenta
+principal (el primer banco). Anotar el saldo real pone el cambio en cero. La app suma las
+cuentas activas y la compara con el `disponibleHoy` del mes para avisar de lo que falta por
+registrar.
 
 ## Sueldo en otra moneda
 
@@ -561,6 +566,49 @@ Reglas del cálculo (`sueldo/CalculadoraSueldo`):
 - La TRM se consulta en `datos.gov.co/resource/32sa-8pi3.json` (Superfinanciera) una vez al día,
   eligiendo el registro cuya vigencia cubre la fecha: los viernes se publica una sola para el
   fin de semana.
+
+## Movimientos detectados (registro automático)
+
+La bandeja «Por revisar»: avisos del banco y extractos que se convierten en propuestas. Nada se
+registra solo. Ver [REGISTRO-AUTOMATICO.md](REGISTRO-AUTOMATICO.md).
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/detectados?estado=PENDIENTE` | La bandeja; `estado` se puede repetir |
+| `POST` | `/api/detectados/avisos` | Recibe un aviso (`origen`: `CORREO`, `SMS` o `NOTIFICACION`; `texto`) |
+| `POST` | `/api/detectados/extractos` | Importa el PDF «Movimientos» de Bancolombia (`pdf` en base64) |
+| `POST` | `/api/detectados/{id}/descartar` | Lo saca de la bandeja (`motivo` opcional) |
+| `POST` | `/api/detectados/{id}/ya-registrado` | Ya estaba apuntado |
+| `POST` | `/api/detectados/{id}/reabrir` | Lo devuelve a la bandeja |
+| `GET` · `POST` | `/api/detectados/reglas` | Reglas para contrapartes conocidas |
+| `DELETE` | `/api/detectados/reglas/{id}` | |
+
+```json
+{
+  "resultado": "NUEVO",
+  "detectado": {
+    "id": "…", "origen": "SMS", "banco": "BANCOLOMBIA", "clase": "COMPRA",
+    "monto": -12500.00, "fecha": "2026-08-14", "hora": "18:05:00",
+    "cuenta": "4321", "contraparte": "TIENDA LA ESQUINA", "referencia": null,
+    "estado": "PENDIENTE", "motivo": null,
+    "sugerenciaDestino": "COMPRA", "sugerenciaCategoria": null, "sugerenciaNombre": null
+  }
+}
+```
+
+- `resultado`: `NUEVO` (201), `REPETIDO` (ese mismo aviso ya había llegado) o `IGNORADO` (no
+  es un movimiento: un código, un pago rechazado, activar la tarjeta…).
+- `estado` al llegar: `PENDIENTE`; `DUPLICADO` si el mismo movimiento ya llegó por otro canal
+  (mismo banco, signo e importe exacto, a un día como mucho; cada original se empareja con un
+  solo aviso de cada canal); `YA_REGISTRADO` si coincide con algo apuntado en la app;
+  `DESCARTADO` por una regla, por ser intereses o un retiro de cajero; `NO_RECONOCIDO` si no
+  encaja en ninguna plantilla (se guarda para revisar la plantilla).
+- El extracto devuelve un resumen: `leidos`, `yaEstaban` (importarlo dos veces no repite nada),
+  `pendientes`, `duplicados`, `yaRegistrados`, `descartados`, `desde` y `hasta`.
+- Una regla (`campo`: `REFERENCIA` o `CONTRAPARTE`; `accion`: `DESCARTAR` o `SUGERIR` con
+  `destino` `GASTO`/`COMPRA`/`INGRESO`/`ABONO`, `categoria` y `nombre`) se aplica también a lo que
+  ya estaba pendiente. La referencia compara sin espacios; la contraparte, por contenido y sin
+  tildes ni mayúsculas.
 
 ## Festivos
 

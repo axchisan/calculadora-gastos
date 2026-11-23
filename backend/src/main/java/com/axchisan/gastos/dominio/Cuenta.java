@@ -20,8 +20,9 @@ import java.util.UUID;
 /**
  * Un sitio donde hay dinero, con el saldo que tenía la última vez que se miró.
  *
- * <p>No se calcula a partir de los movimientos: es la cifra que muestra el banco, o la que hay
- * en la billetera. Su valor está en compararla con el disponible que calcula la aplicación.
+ * <p>El saldo guardado es la cifra que mostraba el banco, o la que había en la billetera, cuando
+ * se anotó. Lo que se apunta después (compras, pagos, ingresos) lo mueve: ese {@link #getCambio()
+ * cambio} se calcula al leer, y {@link #getSaldoEstimado()} es lo que debería haber hoy.
  */
 @Entity
 @Table(name = "accounts")
@@ -46,6 +47,13 @@ public class Cuenta {
 
     @Column(name = "saldo_al", nullable = false)
     private LocalDate saldoAl;
+
+    @Column(name = "saldo_anotado_en", nullable = false)
+    private OffsetDateTime saldoAnotadoEn;
+
+    /** Lo apuntado después de anotar el saldo; no se guarda, se calcula al leer. */
+    @jakarta.persistence.Transient
+    private BigDecimal cambio = BigDecimal.ZERO;
 
     @Column(nullable = false)
     private boolean activa = true;
@@ -82,6 +90,9 @@ public class Cuenta {
         if (this.saldoAl == null) {
             this.saldoAl = LocalDate.now();
         }
+        if (this.saldoAnotadoEn == null) {
+            this.saldoAnotadoEn = ahora;
+        }
     }
 
     @PreUpdate
@@ -105,6 +116,25 @@ public class Cuenta {
         }
         this.saldo = saldo;
         this.saldoAl = fecha != null ? fecha : LocalDate.now();
+        this.saldoAnotadoEn = OffsetDateTime.now();
+        this.cambio = BigDecimal.ZERO;
+    }
+
+    public OffsetDateTime getSaldoAnotadoEn() {
+        return saldoAnotadoEn;
+    }
+
+    public BigDecimal getCambio() {
+        return cambio;
+    }
+
+    public void setCambio(BigDecimal cambio) {
+        this.cambio = cambio == null ? BigDecimal.ZERO : cambio;
+    }
+
+    /** El saldo anotado más lo apuntado después: lo que debería haber hoy. */
+    public BigDecimal getSaldoEstimado() {
+        return saldo.add(cambio);
     }
 
     public UUID getId() {

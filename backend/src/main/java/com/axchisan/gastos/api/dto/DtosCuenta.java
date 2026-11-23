@@ -9,6 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /** Datos de entrada y salida de las cuentas con su saldo real. */
@@ -17,12 +18,20 @@ public final class DtosCuenta {
     private DtosCuenta() {
     }
 
+    /**
+     * @param saldo         lo que debería haber hoy: el saldo anotado más lo apuntado después
+     * @param saldoAnotado  la cifra que se anotó el día {@code saldoAl}
+     * @param cambio        lo apuntado después de anotarlo ({@code saldo − saldoAnotado})
+     */
     public record CuentaDto(UUID id, String nombre, TipoCuenta tipo, BigDecimal saldo,
-                            LocalDate saldoAl, boolean activa, int orden) {
+                            LocalDate saldoAl, boolean activa, int orden,
+                            BigDecimal saldoAnotado, BigDecimal cambio,
+                            OffsetDateTime anotadoEn) {
 
         public static CuentaDto de(Cuenta c) {
-            return new CuentaDto(c.getId(), c.getNombre(), c.getTipo(), c.getSaldo(),
-                    c.getSaldoAl(), c.isActiva(), c.getOrden());
+            return new CuentaDto(c.getId(), c.getNombre(), c.getTipo(), c.getSaldoEstimado(),
+                    c.getSaldoAl(), c.isActiva(), c.getOrden(), c.getSaldo(), c.getCambio(),
+                    c.getSaldoAnotadoEn());
         }
     }
 
