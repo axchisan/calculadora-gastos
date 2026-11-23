@@ -7,6 +7,7 @@ import 'cuentas.dart';
 import 'deudas.dart';
 import 'graficas.dart';
 import 'inicio.dart';
+import 'movimientos.dart';
 import 'mes.dart';
 import 'proveedores.dart';
 
@@ -32,5 +33,6 @@ final precargaProvider = Provider<void>((ref) {
     ..watch(fuentesIngresoProvider)
     ..watch(tarjetasProvider)
     ..watch(evolucionProvider)
-    ..watch(inicioProvider);
+    ..watch(inicioProvider)
+    ..watch(movimientosProvider);
 });

@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.14.1+22** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.15.0+23** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V8** | Neon, proyecto de la Calculadora (3b y 3c no necesitaron migración) |
-| Pruebas | backend **287**, app **137** | todas en verde |
+| Esquema de base de datos | migración **V9** | Neon, proyecto de la Calculadora (tipo y notas de ingresos, categoría Mascota) |
+| Pruebas | backend **293**, app **143** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -34,8 +34,8 @@ uso personal, no para un contador. Documentos:
 | 3b. Cola para apuntar sin conexión | Publicada (1.12.0) |
 | 3c. ETag y `GET /api/inicio` con próximos pagos | Publicada (1.13.0) |
 | 4. Navegación de 4 pestañas e Inicio nuevo | Publicada (1.14.0) |
-| **5. Movimientos** | **Siguiente** |
-| 6. Deudas (total real, proyección) | Pendiente |
+| 5. Movimientos | Publicada (1.15.0) |
+| **6. Deudas (total real, proyección)** | **Siguiente** |
 | 7. Análisis | Pendiente |
 | 8. Pantallas secundarias | Pendiente |
 | 9. Pulido y versión 2.0.0 (también en el Mac) | Pendiente |
@@ -94,8 +94,17 @@ Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por d
   (lo vencido o lo que falta pagar y cuánto queda hasta el sueldo), próximos pagos con «Mismo
   día», entró/salió del mes, las cuentas y el próximo sueldo. El «+» abre Apuntar: compra,
   ingreso o gasto fijo, siempre en el mes en curso. Los cálculos están en `DatosInicio`.
-- **Movimientos**, de momento, junta las pantallas de antes con un selector Mes / Día a día
-  (`/movimientos` y `/movimientos?ver=dia`). La línea de tiempo unificada es la fase 5.
+- **Movimientos** (`ui/movimientos/`, lee `GET /api/meses/{id}/movimientos`): Entró / Salió /
+  Queda, «Por pagar este mes» con botón Pagar, filtro Todo / Entradas / Salidas, búsqueda sin
+  tildes y la lista por día. Cada movimiento abre su detalle: corregir (ingresos y compras),
+  «No lo he pagado» (gastos), eliminar con deshacer o ir a Deudas / Mi sueldo / Ahorro. El ⋮
+  lleva a la pantalla del mes de antes (`/movimientos/mes`: sueldo base, gastos fijos, cierre)
+  y al día a día (`/movimientos/dia`: tarjetas y compras detectadas).
+- **Apuntar** (`ui/apuntar/hoja_apuntar.dart`): una sola hoja para compra, ingreso (con tipo)
+  o gasto fijo (pagado o por pagar), con teclado numérico propio, sugerencias, categoría,
+  medio de pago, fecha y nota. Se abre desde el «+» de Inicio y de Movimientos y funciona sin
+  conexión: la cola guarda superposiciones en varias lecturas (`Superposicion.tambien`).
+- Todas las hojas se abren por encima de la barra de pestañas (`useRootNavigator`).
 - **Análisis** es aún la pantalla de Gráficas (fase 7).
 
 - **Mes**: sueldo base, ingresos extra, gastos fijos con estado (pendiente/parcial/pagado),

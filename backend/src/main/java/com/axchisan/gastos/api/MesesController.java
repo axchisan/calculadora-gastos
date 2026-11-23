@@ -1,5 +1,6 @@
 package com.axchisan.gastos.api;
 
+import com.axchisan.gastos.api.dto.DtosMes.ActualizarIngresoRequest;
 import com.axchisan.gastos.api.dto.DtosMes.ActualizarMesRequest;
 import com.axchisan.gastos.api.dto.DtosMes.CrearIngresoRequest;
 import com.axchisan.gastos.api.dto.DtosMes.CrearMesRequest;
@@ -15,6 +16,7 @@ import com.axchisan.gastos.servicio.IdentificadorEnUso;
 import com.axchisan.gastos.servicio.RecursoNoEncontrado;
 import com.axchisan.gastos.servicio.ResumenMensual;
 import com.axchisan.gastos.servicio.ServicioMeses;
+import com.axchisan.gastos.servicio.ServicioMovimientos;
 import com.axchisan.gastos.servicio.ServicioResumen;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,13 +48,16 @@ public class MesesController {
     private final ServicioResumen resumen;
     private final MesPresupuestalRepository repositorio;
     private final IngresoRepository ingresos;
+    private final ServicioMovimientos movimientos;
 
     public MesesController(ServicioMeses meses, ServicioResumen resumen,
-                           MesPresupuestalRepository repositorio, IngresoRepository ingresos) {
+                           MesPresupuestalRepository repositorio, IngresoRepository ingresos,
+                           ServicioMovimientos movimientos) {
         this.meses = meses;
         this.resumen = resumen;
         this.repositorio = repositorio;
         this.ingresos = ingresos;
+        this.movimientos = movimientos;
     }
 
     @GetMapping
@@ -85,6 +90,12 @@ public class MesesController {
     @Operation(summary = "Estado financiero completo del mes")
     public ResumenMensual resumen(@PathVariable UUID mesId) {
         return resumen.del(UsuarioActual.id(), mesId);
+    }
+
+    @GetMapping("/{mesId}/movimientos")
+    @Operation(summary = "Todo lo que entró y salió en el mes en una lista, y lo que falta pagar")
+    public ServicioMovimientos.MovimientosDelMes movimientos(@PathVariable UUID mesId) {
+        return movimientos.del(UsuarioActual.id(), mesId);
     }
 
     @GetMapping("/evolucion")
@@ -174,9 +185,42 @@ public class MesesController {
                 peticion.fecha() == null ? LocalDate.now() : peticion.fecha(),
                 Boolean.TRUE.equals(peticion.recibido()));
         ingreso.usarIdentificador(peticion.id());
+        ingreso.setTipo(peticion.tipo());
+        ingreso.setNotas(peticion.notas());
         mes.agregarIngreso(ingreso);
         repositorio.save(mes);
         return ResponseEntity.status(HttpStatus.CREATED).body(IngresoDto.de(ingreso));
+    }
+
+    @PatchMapping("/ingresos/{ingresoId}")
+    @Transactional
+    @Operation(summary = "Modifica un ingreso extra: concepto, monto, fecha, tipo o nota")
+    public IngresoDto actualizarIngreso(@PathVariable UUID ingresoId,
+                                        @Valid @RequestBody ActualizarIngresoRequest peticion) {
+        Ingreso ingreso = ingresos.buscarDelUsuario(UsuarioActual.id(), ingresoId)
+                .orElseThrow(() -> new RecursoNoEncontrado("el ingreso", ingresoId));
+        if (ingreso.getMes().isCerrado()) {
+            throw new ServicioMeses.MesCerrado(ingreso.getMes().periodo());
+        }
+        if (peticion.concepto() != null) {
+            ingreso.setConcepto(peticion.concepto().trim());
+        }
+        if (peticion.monto() != null) {
+            ingreso.setMonto(peticion.monto());
+        }
+        if (peticion.fecha() != null) {
+            ingreso.setFecha(peticion.fecha());
+        }
+        if (peticion.recibido() != null) {
+            ingreso.setRecibido(peticion.recibido());
+        }
+        if (peticion.tipo() != null) {
+            ingreso.setTipo(peticion.tipo());
+        }
+        if (peticion.notas() != null) {
+            ingreso.setNotas(peticion.notas());
+        }
+        return IngresoDto.de(ingresos.save(ingreso));
     }
 
     @PatchMapping("/ingresos/{ingresoId}/recibido")

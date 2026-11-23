@@ -535,6 +535,9 @@ Future<T?> abrirHoja<T>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
+    // Por encima de la barra de pestañas: dentro de su navegador, la barra tapaba el final de
+    // la hoja (y con él, el botón de guardar).
+    useRootNavigator: true,
     builder: (contexto) {
       final textos = Theme.of(contexto).textTheme;
       return Padding(
@@ -542,7 +545,12 @@ Future<T?> abrirHoja<T>(
           bottom: MediaQuery.viewInsetsOf(contexto).bottom,
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            0,
+            20,
+            24 + MediaQuery.paddingOf(contexto).bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

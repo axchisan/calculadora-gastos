@@ -103,6 +103,7 @@ class IngresosExtra extends ConsumerWidget {
   static Future<void> apuntar(BuildContext context, WidgetRef ref) async {
     final datos = await showModalBottomSheet<_DatosIngreso>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => _Formulario(periodo: ref.read(periodoProvider)),
     );

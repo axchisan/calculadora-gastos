@@ -136,6 +136,14 @@ public class ServicioInicio {
         return calendario.atDay(Math.min(dia, calendario.lengthOfMonth()));
     }
 
+    private static final String[] MESES = {"ene", "feb", "mar", "abr", "may", "jun", "jul",
+            "ago", "sep", "oct", "nov", "dic"};
+
+    /** «4 dic». */
+    public static String diaYMes(LocalDate fecha) {
+        return fecha.getDayOfMonth() + " " + MESES[fecha.getMonthValue() - 1];
+    }
+
     /** Lo vencido primero, después lo del mes sin fecha y luego por fecha. */
     private static final Comparator<ProximoPago> ORDEN = Comparator
             .comparing((ProximoPago p) -> !p.vencido())

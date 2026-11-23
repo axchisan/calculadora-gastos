@@ -218,6 +218,7 @@ class _FilaGasto extends ConsumerWidget {
   Future<void> _menuGasto(BuildContext context, WidgetRef ref) async {
     final accion = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       builder: (_) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

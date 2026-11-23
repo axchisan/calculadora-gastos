@@ -28,5 +28,7 @@ public enum CategoriaGasto {
     OCIO,
     ROPA,
     HOGAR,
+    /** Comida, aseo y accesorios de la mascota. */
+    MASCOTA,
     OTRO
 }

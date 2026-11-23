@@ -30,14 +30,21 @@ class PantallaMes extends ConsumerWidget {
         // El título es un botón: con solo las flechas, plantarse en un mes lejano costaba
         // muchos toques, y volver al de hoy tras curiosear el año que viene, otros tantos.
         title: InkWell(
-          onTap: () => _elegirMes(context, ref),
+          onTap: () => elegirMes(context, ref),
           borderRadius: BorderRadius.circular(8),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(Formato.mesYAnio(periodo)),
+                // Flexible: con la flecha de volver y los botones, en un teléfono angosto el
+                // nombre del mes no siempre cabe entero.
+                Flexible(
+                  child: Text(
+                    Formato.mesYAnio(periodo),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 const SizedBox(width: 4),
                 const Icon(Icons.arrow_drop_down, size: 22),
               ],
@@ -226,7 +233,7 @@ class PantallaMes extends ConsumerWidget {
   ///
   /// Hace falta porque el mes presupuestal y el del calendario no coinciden: se puede estar
   /// trabajando en septiembre mientras el teléfono dice 31 de agosto.
-  Future<void> _elegirMes(BuildContext context, WidgetRef ref) async {
+  static Future<void> elegirMes(BuildContext context, WidgetRef ref) async {
     final actual = ref.read(periodoProvider);
     final hoy = DateTime.now();
 
@@ -251,6 +258,7 @@ class PantallaMes extends ConsumerWidget {
   static Future<void> nuevoGasto(BuildContext context, WidgetRef ref) async {
     final resultado = await showModalBottomSheet<_NuevoGasto>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => const _FormularioGasto(),
     );

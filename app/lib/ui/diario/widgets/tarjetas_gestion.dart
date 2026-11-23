@@ -91,6 +91,7 @@ class GestionTarjetas extends ConsumerWidget {
   Future<void> _nueva(BuildContext context, WidgetRef ref) async {
     final datos = await showModalBottomSheet<_DatosTarjeta>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => const _FormularioTarjeta(),
     );
@@ -158,6 +159,7 @@ class _FilaTarjeta extends ConsumerWidget {
             tooltip: 'Cómo se reconoce en las notificaciones',
             onPressed: () => showModalBottomSheet<void>(
               context: context,
+              useRootNavigator: true,
               isScrollControlled: true,
               builder: (_) => _AliasDeTarjeta(tarjeta: tarjeta),
             ),
@@ -422,6 +424,7 @@ class _PermisoDeCapturas extends ConsumerWidget {
             ? null
             : () => showModalBottomSheet<void>(
                 context: context,
+                useRootNavigator: true,
                 isScrollControlled: true,
                 builder: (_) => const GuiaPermiso(),
               ),

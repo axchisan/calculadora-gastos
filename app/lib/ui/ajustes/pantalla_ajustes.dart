@@ -106,6 +106,7 @@ class PantallaAjustes extends ConsumerWidget {
                       'Tarjetas',
                       () => showModalBottomSheet<void>(
                         context: context,
+                        useRootNavigator: true,
                         isScrollControlled: true,
                         builder: (_) => const GestionTarjetas(),
                       ),

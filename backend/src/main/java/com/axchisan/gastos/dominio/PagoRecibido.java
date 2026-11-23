@@ -106,4 +106,8 @@ public class PagoRecibido {
     public LocalDate getFecha() {
         return fecha;
     }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

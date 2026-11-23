@@ -43,6 +43,7 @@ class PantallaAhorro extends ConsumerWidget {
   Future<void> _nuevaMeta(BuildContext context, WidgetRef ref) async {
     final nueva = await showModalBottomSheet<DatosNuevaMeta>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => const FormularioMeta(),
     );
@@ -358,6 +359,7 @@ class _TarjetaMeta extends ConsumerWidget {
   Future<void> _movimiento(BuildContext context, WidgetRef ref) async {
     final accion = await showModalBottomSheet<TipoMovimiento>(
       context: context,
+      useRootNavigator: true,
       builder: (contexto) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

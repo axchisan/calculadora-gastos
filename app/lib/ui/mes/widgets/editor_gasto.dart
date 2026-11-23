@@ -33,6 +33,7 @@ class EditorGasto extends StatefulWidget {
   static Future<DatosGastoEditado?> abrir(BuildContext context, Gasto gasto) =>
       showModalBottomSheet<DatosGastoEditado>(
         context: context,
+        useRootNavigator: true,
         isScrollControlled: true,
         builder: (_) => EditorGasto(gasto: gasto),
       );

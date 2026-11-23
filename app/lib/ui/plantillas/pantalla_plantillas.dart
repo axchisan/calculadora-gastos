@@ -46,6 +46,7 @@ class PantallaPlantillas extends ConsumerWidget {
   ) async {
     final datos = await showModalBottomSheet<_DatosPlantilla>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => _Formulario(plantilla: plantilla),
     );

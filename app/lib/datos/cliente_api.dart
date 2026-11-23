@@ -356,8 +356,9 @@ class ClienteApi {
     _ultimoCambio = _ahora();
     _publicarEstadoCola();
     _cambiosLocales.add(null);
-    final ruta = operacion.superposicion?.ruta;
-    if (ruta != null) _actualizaciones.add(ruta);
+    for (final s in operacion.superposicion?.todas ?? const <Superposicion>[]) {
+      _actualizaciones.add(s.ruta);
+    }
   }
 
   /// Envía en orden lo que quedó en la cola. Se para en cuanto falta la red; lo que el servidor
@@ -415,14 +416,15 @@ class ClienteApi {
   Future<void> descartar(String operacionId) async {
     final usuario = _sesion?.usuarioId;
     if (usuario == null) return;
-    final ruta = pendientes
+    final rutas = pendientes
         .where((o) => o.id == operacionId)
         .firstOrNull
         ?.superposicion
-        ?.ruta;
+        ?.todas
+        .map((s) => s.ruta);
     await _quitarDeLaCola(usuario, operacionId);
     _publicarEstadoCola();
-    if (ruta != null) _actualizaciones.add(ruta);
+    rutas?.forEach(_actualizaciones.add);
   }
 
   Future<void> _quitarDeLaCola(String usuario, String id) async {
@@ -457,6 +459,7 @@ class ClienteApi {
     final propias = pendientes
         .map((o) => o.superposicion)
         .whereType<Superposicion>()
+        .expand((s) => s.todas)
         .where((s) => s.ruta == ruta)
         .toList();
     if (propias.isEmpty) return datos;
@@ -475,7 +478,12 @@ class ClienteApi {
         }
       } else {
         final i = lista.indexWhere((e) => e is Map && e['id'] == s.reemplazaId);
-        if (i >= 0) lista[i] = s.datos;
+        if (i < 0) continue;
+        if (s.quitar) {
+          lista.removeAt(i);
+        } else {
+          lista[i] = s.datos;
+        }
       }
     }
     return copia as T;

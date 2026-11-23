@@ -168,6 +168,7 @@ class _Contenido extends ConsumerWidget {
   ) async {
     await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => DetalleDia(dia: dia),
     );

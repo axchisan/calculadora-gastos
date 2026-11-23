@@ -39,4 +39,17 @@ public interface CuotaCreditoRepository extends JpaRepository<CuotaCredito, UUID
             """)
     List<CuotaCredito> pendientesHasta(@Param("usuarioId") UUID usuarioId,
                                        @Param("hasta") java.time.LocalDate hasta);
+
+    /** Cuotas pagadas de créditos activos que vencían entre dos fechas, con su crédito. */
+    @Query("""
+            SELECT q FROM CuotaCredito q JOIN FETCH q.credito c
+             WHERE c.usuario.id = :usuarioId
+               AND c.activo = true
+               AND q.pagada = true
+               AND q.fecha BETWEEN :inicio AND :fin
+             ORDER BY q.fecha
+            """)
+    List<CuotaCredito> pagadasEntre(@Param("usuarioId") UUID usuarioId,
+                                    @Param("inicio") java.time.LocalDate inicio,
+                                    @Param("fin") java.time.LocalDate fin);
 }

@@ -24,6 +24,7 @@ enum CategoriaGasto {
   ocio('OCIO', 'Ocio'),
   ropa('ROPA', 'Ropa'),
   hogar('HOGAR', 'Hogar'),
+  mascota('MASCOTA', 'Mascota'),
   otro('OTRO', 'Otro');
 
   const CategoriaGasto(this.codigo, this.etiqueta);
@@ -41,6 +42,7 @@ enum CategoriaGasto {
   static const List<CategoriaGasto> deCompras = [
     antojos,
     alimentacion,
+    mascota,
     transporte,
     salud,
     cuidadoPersonal,
@@ -223,6 +225,35 @@ class Mes {
 /// Una prima, un trabajo suelto, lo que devuelve alguien de una compra compartida. Se distingue
 /// entre cobrado y por cobrar porque no es lo mismo tener el dinero que esperarlo: lo cobrado
 /// sube el disponible de hoy, lo pendiente solo la proyección del cierre.
+/// De dónde vino un ingreso extra. Lo importante es separar lo ganado de lo prestado.
+enum TipoIngreso {
+  trabajo('TRABAJO', 'Trabajo'),
+  familia('FAMILIA', 'Familia'),
+  prestamo('PRESTAMO', 'Préstamo'),
+  intereses('INTERESES', 'Intereses'),
+  saldo('SALDO', 'Saldo inicial'),
+  otro('OTRO', 'Otro');
+
+  const TipoIngreso(this.codigo, this.etiqueta);
+
+  final String codigo;
+  final String etiqueta;
+
+  static TipoIngreso desde(String? codigo) => TipoIngreso.values.firstWhere(
+    (t) => t.codigo == codigo,
+    orElse: () => TipoIngreso.otro,
+  );
+
+  /// Los que se eligen al apuntar; el saldo inicial lo pone la sincronización del mes.
+  static const List<TipoIngreso> alApuntar = [
+    trabajo,
+    familia,
+    prestamo,
+    intereses,
+    otro,
+  ];
+}
+
 class IngresoExtra {
   const IngresoExtra({
     required this.id,
@@ -230,6 +261,8 @@ class IngresoExtra {
     required this.monto,
     required this.fecha,
     required this.recibido,
+    this.tipo = TipoIngreso.otro,
+    this.notas,
     this.pendiente = false,
   });
 
@@ -238,6 +271,8 @@ class IngresoExtra {
   final double monto;
   final DateTime fecha;
   final bool recibido;
+  final TipoIngreso tipo;
+  final String? notas;
 
   /// Apuntado sin conexión y aún no enviado al servidor.
   final bool pendiente;
@@ -248,6 +283,8 @@ class IngresoExtra {
     monto: (j['monto'] as num).toDouble(),
     fecha: DateTime.parse(j['fecha'] as String),
     recibido: j['recibido'] as bool,
+    tipo: TipoIngreso.desde(j['tipo'] as String?),
+    notas: j['notas'] as String?,
     pendiente: j['_pendiente'] == true,
   );
 }

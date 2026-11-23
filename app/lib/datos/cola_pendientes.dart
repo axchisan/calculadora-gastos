@@ -12,6 +12,8 @@ class Superposicion {
     required this.datos,
     this.campoLista,
     this.reemplazaId,
+    this.quitar = false,
+    this.tambien = const [],
   });
 
   /// Ruta de la lectura donde debe aparecer: `/api/meses/<id>/compras`.
@@ -26,11 +28,28 @@ class Superposicion {
   /// El elemento tal como lo devolvería el servidor, marcado con `_pendiente`.
   final Map<String, dynamic> datos;
 
+  /// Con [reemplazaId]: en lugar de sustituirlo, lo quita (un gasto pagado sale de «por pagar»).
+  final bool quitar;
+
+  /// Otras lecturas donde el mismo cambio debe verse: una compra aparece en las compras del mes
+  /// y también en la lista de movimientos.
+  final List<Superposicion> tambien;
+
+  /// Esta y las de [tambien], en una sola lista.
+  Iterable<Superposicion> get todas sync* {
+    yield this;
+    for (final s in tambien) {
+      yield* s.todas;
+    }
+  }
+
   Map<String, dynamic> aJson() => {
     'ruta': ruta,
     'campoLista': campoLista,
     'reemplazaId': reemplazaId,
     'datos': datos,
+    if (quitar) 'quitar': true,
+    if (tambien.isNotEmpty) 'tambien': [for (final s in tambien) s.aJson()],
   };
 
   static Superposicion deJson(Map<String, dynamic> j) => Superposicion(
@@ -38,6 +57,11 @@ class Superposicion {
     campoLista: j['campoLista'] as String?,
     reemplazaId: j['reemplazaId'] as String?,
     datos: (j['datos'] as Map).cast<String, dynamic>(),
+    quitar: j['quitar'] == true,
+    tambien: [
+      for (final t in (j['tambien'] as List<dynamic>? ?? const []))
+        Superposicion.deJson((t as Map).cast<String, dynamic>()),
+    ],
   );
 }
 

@@ -15,6 +15,8 @@ import 'ui/deudas/pantalla_deudas.dart';
 import 'ui/graficas/pantalla_graficas.dart';
 import 'ui/inicio/pantalla_inicio.dart';
 import 'ui/movimientos/pantalla_movimientos.dart';
+import 'ui/mes/pantalla_mes.dart';
+import 'ui/diario/pantalla_diario.dart';
 import 'ui/ajustes/pantalla_ajustes.dart';
 import 'ui/navegacion.dart';
 import 'ui/plantillas/pantalla_plantillas.dart';
@@ -29,8 +31,11 @@ class Rutas {
   static const String inicio = '/';
   static const String movimientos = '/movimientos';
 
-  /// Movimientos con las compras del día a día a la vista.
-  static const String diario = '/movimientos?ver=dia';
+  /// Sueldo, ingresos y gastos fijos del mes, con el cierre: la pantalla del mes de antes.
+  static const String detalleMes = '/movimientos/mes';
+
+  /// Compras del día a día, tarjetas y la bandeja de compras detectadas.
+  static const String diario = '/movimientos/dia';
   static const String deudas = '/deudas';
   static const String analisis = '/analisis';
   static const String ajustes = '/ajustes';
@@ -102,9 +107,11 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: Rutas.movimientos,
-            builder: (_, estado) => PantallaMovimientos(
-              verDiario: estado.uri.queryParameters['ver'] == 'dia',
-            ),
+            builder: (_, _) => const PantallaMovimientos(),
+            routes: [
+              GoRoute(path: 'mes', builder: (_, _) => const PantallaMes()),
+              GoRoute(path: 'dia', builder: (_, _) => const PantallaDiario()),
+            ],
           ),
           GoRoute(
             path: Rutas.deudas,

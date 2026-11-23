@@ -67,15 +67,30 @@ public final class DtosMes {
             java.time.LocalDate fecha,
             Boolean recibido,
             // Identificador generado por la app al apuntar sin conexión. Opcional.
-            UUID id) {
+            UUID id,
+            // De dónde vino; OTRO si no se indica.
+            com.axchisan.gastos.dominio.TipoIngreso tipo,
+            @jakarta.validation.constraints.Size(max = 500) String notas) {
+    }
+
+    /** Cambios sobre un ingreso extra; lo que no se envía se queda como estaba. */
+    public record ActualizarIngresoRequest(
+            @jakarta.validation.constraints.Size(min = 1, max = 120) String concepto,
+            @jakarta.validation.constraints.Positive BigDecimal monto,
+            java.time.LocalDate fecha,
+            Boolean recibido,
+            com.axchisan.gastos.dominio.TipoIngreso tipo,
+            @jakarta.validation.constraints.Size(max = 500) String notas) {
     }
 
     public record IngresoDto(UUID id, String concepto, BigDecimal monto,
-                             java.time.LocalDate fecha, boolean recibido) {
+                             java.time.LocalDate fecha, boolean recibido,
+                             com.axchisan.gastos.dominio.TipoIngreso tipo, String notas) {
 
         public static IngresoDto de(com.axchisan.gastos.dominio.Ingreso ingreso) {
             return new IngresoDto(ingreso.getId(), ingreso.getConcepto(), ingreso.getMonto(),
-                    ingreso.getFecha(), ingreso.isRecibido());
+                    ingreso.getFecha(), ingreso.isRecibido(), ingreso.getTipo(),
+                    ingreso.getNotas());
         }
     }
 }

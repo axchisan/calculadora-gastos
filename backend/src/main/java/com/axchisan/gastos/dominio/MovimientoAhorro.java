@@ -106,4 +106,8 @@ public class MovimientoAhorro {
     public void setNota(String nota) {
         this.nota = nota;
     }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }

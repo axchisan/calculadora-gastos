@@ -277,6 +277,7 @@ class _DetalleDeudaState extends ConsumerState<DetalleDeuda> {
   Future<void> _editar(BuildContext context) async {
     final datos = await showModalBottomSheet<DatosNuevaDeuda>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => FormularioDeuda(deuda: widget.deuda),
     );

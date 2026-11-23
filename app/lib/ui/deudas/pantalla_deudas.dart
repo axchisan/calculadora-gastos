@@ -60,6 +60,7 @@ class PantallaDeudas extends ConsumerWidget {
   Future<void> _nuevaDeuda(BuildContext context, WidgetRef ref) async {
     final nueva = await showModalBottomSheet<DatosNuevaDeuda>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => const FormularioDeuda(),
     );
@@ -382,6 +383,7 @@ class _TarjetaDeuda extends ConsumerWidget {
       child: InkWell(
         onTap: () => showModalBottomSheet<void>(
           context: context,
+          useRootNavigator: true,
           isScrollControlled: true,
           builder: (_) => DetalleDeuda(deuda: deuda),
         ),

@@ -70,6 +70,16 @@ class Iconos {
   static const IconData mascota = IconData(0xe74a, fontFamily: _regular);
   static const IconData recibo = IconData(0xe3ec, fontFamily: _regular);
 
+  /// El icono de cada tipo de ingreso.
+  static IconData deIngreso(TipoIngreso tipo) => switch (tipo) {
+    TipoIngreso.trabajo => trabajo,
+    TipoIngreso.familia => familia,
+    TipoIngreso.prestamo => prestamo,
+    TipoIngreso.intereses => intereses,
+    TipoIngreso.saldo => banco,
+    TipoIngreso.otro => entro,
+  };
+
   /// El icono de cada categoría de gasto.
   static IconData deCategoria(CategoriaGasto categoria) => switch (categoria) {
     CategoriaGasto.vivienda => const IconData(0xe2c2, fontFamily: _regular),
@@ -95,6 +105,7 @@ class Iconos {
     CategoriaGasto.ocio => const IconData(0xe26e, fontFamily: _regular),
     CategoriaGasto.ropa => const IconData(0xe670, fontFamily: _regular),
     CategoriaGasto.hogar => const IconData(0xe7f6, fontFamily: _regular),
+    CategoriaGasto.mascota => mascota,
     CategoriaGasto.otro => const IconData(0xe416, fontFamily: _regular),
   };
 }

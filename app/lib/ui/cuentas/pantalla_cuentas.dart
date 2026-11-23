@@ -326,6 +326,7 @@ class _FilaCuenta extends ConsumerWidget {
   Future<void> _opciones(BuildContext context, WidgetRef ref) async {
     final opcion = await showModalBottomSheet<String>(
       context: context,
+      useRootNavigator: true,
       builder: (contexto) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,

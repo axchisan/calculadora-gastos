@@ -2,6 +2,8 @@ package com.axchisan.gastos.dominio;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -42,6 +44,13 @@ public class Ingreso {
 
     @Column(nullable = false)
     private boolean recibido = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 12)
+    private TipoIngreso tipo = TipoIngreso.OTRO;
+
+    @Column
+    private String notas;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
@@ -121,5 +130,25 @@ public class Ingreso {
 
     public void setRecibido(boolean recibido) {
         this.recibido = recibido;
+    }
+
+    public TipoIngreso getTipo() {
+        return tipo;
+    }
+
+    public void setTipo(TipoIngreso tipo) {
+        this.tipo = tipo == null ? TipoIngreso.OTRO : tipo;
+    }
+
+    public String getNotas() {
+        return notas;
+    }
+
+    public void setNotas(String notas) {
+        this.notas = notas == null || notas.isBlank() ? null : notas.trim();
+    }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
     }
 }

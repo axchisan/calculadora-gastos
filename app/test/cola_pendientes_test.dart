@@ -49,6 +49,14 @@ class _Servidor implements HttpClientAdapter {
         'mensaje': 'El monto no es válido',
       }, 400);
     }
+    if (o.method == 'GET' && o.path.endsWith('/movimientos')) {
+      return _json({
+        'movimientos': <dynamic>[],
+        'porPagar': [
+          {'id': 'g1', 'nombre': 'Internet'},
+        ],
+      }, 200);
+    }
     if (o.method == 'GET') return _json({'compras': compras}, 200);
 
     final datos = (o.data as Map).cast<String, dynamic>();
@@ -236,6 +244,54 @@ void main() {
     );
     expect(api.pendientes, isEmpty);
   });
+
+  test(
+    'un cambio sin red se ve en todas las lecturas a las que toca',
+    () async {
+      await api.obtener<Object>('/api/meses/m1/movimientos');
+      servidor.sinRed = true;
+      await api.publicar<Map<String, dynamic>>(
+        '/api/gastos/g1/pagar',
+        cuerpo: {'fecha': '2026-08-10'},
+        sinConexion: const Superposicion(
+          ruta: '/api/meses/m1/compras',
+          campoLista: 'compras',
+          datos: {
+            'id': 'c9',
+            'descripcion': 'Otra lectura',
+            '_pendiente': true,
+          },
+          tambien: [
+            Superposicion(
+              ruta: '/api/meses/m1/movimientos',
+              campoLista: 'porPagar',
+              reemplazaId: 'g1',
+              quitar: true,
+              datos: {},
+            ),
+            Superposicion(
+              ruta: '/api/meses/m1/movimientos',
+              campoLista: 'movimientos',
+              datos: {'id': 'g1', 'titulo': 'Internet', '_pendiente': true},
+            ),
+          ],
+        ),
+      );
+
+      final movimientos = await api.obtener<Map<String, dynamic>>(
+        '/api/meses/m1/movimientos',
+      );
+      expect(movimientos['porPagar'], isEmpty);
+      expect((movimientos['movimientos'] as List).single['titulo'], 'Internet');
+      expect((await listaVisible()).single['descripcion'], 'Otra lectura');
+
+      // Y la cola guarda las superposiciones anidadas al cerrar la app.
+      final otra = await crear();
+      final guardadas = otra.pendientes.single.superposicion!.todas.toList();
+      expect(guardadas, hasLength(3));
+      expect(guardadas[1].quitar, isTrue);
+    },
+  );
 
   test('el identificador es un UUID v7', () {
     final id = nuevoIdentificador(ahora: DateTime.utc(2026, 11, 22));

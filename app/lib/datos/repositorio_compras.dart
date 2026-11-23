@@ -63,6 +63,27 @@ class RepositorioCompras {
           'nota': nota,
           '_pendiente': true,
         },
+        tambien: [
+          Superposicion(
+            ruta: '/api/meses/$mesId/movimientos',
+            campoLista: 'movimientos',
+            datos: {
+              'tipo': 'COMPRA',
+              'id': id,
+              'fecha': dia,
+              'titulo': descripcion,
+              'categoria': categoria.codigo,
+              'monto': -monto,
+              'cuenta': (medio ?? MedioPago.efectivo) != MedioPago.credito,
+              'etiqueta': (medio ?? MedioPago.efectivo) == MedioPago.credito
+                  ? 'CREDITO'
+                  : null,
+              'detalle': (medio ?? MedioPago.efectivo).etiqueta,
+              'notas': nota,
+              '_pendiente': true,
+            },
+          ),
+        ],
       ),
     );
     return Compra.deJson(datos);

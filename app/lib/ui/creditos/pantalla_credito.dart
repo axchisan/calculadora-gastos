@@ -54,6 +54,7 @@ class PantallaCredito extends ConsumerWidget {
           : FloatingActionButton.extended(
               onPressed: () => showModalBottomSheet<void>(
                 context: context,
+                useRootNavigator: true,
                 isScrollControlled: true,
                 builder: (_) => SimuladorAbono(credito: actual),
               ),

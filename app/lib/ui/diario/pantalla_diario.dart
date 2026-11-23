@@ -35,6 +35,7 @@ class PantallaDiario extends ConsumerWidget {
             icon: const Icon(Icons.credit_card_outlined),
             onPressed: () => showModalBottomSheet<void>(
               context: context,
+              useRootNavigator: true,
               isScrollControlled: true,
               builder: (_) => const GestionTarjetas(),
             ),
@@ -76,6 +77,7 @@ class PantallaDiario extends ConsumerWidget {
 
     final nueva = await showModalBottomSheet<DatosCompra>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) =>
           FormularioCompra(periodo: periodo, sugerencias: sugerencias),
@@ -472,6 +474,7 @@ class _FilaCompra extends ConsumerWidget {
   Future<void> _editar(BuildContext context, WidgetRef ref) async {
     final cambios = await showModalBottomSheet<DatosCompra>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => FormularioCompra(
         periodo: DateTime(compra.fecha.year, compra.fecha.month),

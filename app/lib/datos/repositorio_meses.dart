@@ -1,4 +1,5 @@
 import '../dominio/modelos.dart';
+import '../dominio/movimientos.dart';
 import '../core/identificadores.dart';
 import 'cliente_api.dart';
 import 'cola_pendientes.dart';
@@ -72,12 +73,22 @@ class RepositorioMeses {
         .toList();
   }
 
+  /// Todo lo que entró y salió en el mes, y lo que falta pagar.
+  Future<MovimientosDelMes> movimientos(String mesId) async =>
+      MovimientosDelMes.deJson(
+        await _api.obtener<Map<String, dynamic>>(
+          '/api/meses/$mesId/movimientos',
+        ),
+      );
+
   Future<IngresoExtra> crearIngreso(
     String mesId, {
     required String concepto,
     required double monto,
     required DateTime fecha,
     required bool recibido,
+    TipoIngreso tipo = TipoIngreso.otro,
+    String? notas,
   }) async {
     final id = nuevoIdentificador();
     final dia = _formatear(fecha);
@@ -89,6 +100,8 @@ class RepositorioMeses {
         'monto': monto,
         'fecha': dia,
         'recibido': recibido,
+        'tipo': tipo.codigo,
+        'notas': ?notas,
       },
       descripcion: 'Ingreso · $concepto',
       sinConexion: Superposicion(
@@ -99,9 +112,52 @@ class RepositorioMeses {
           'monto': monto,
           'fecha': dia,
           'recibido': recibido,
+          'tipo': tipo.codigo,
+          'notas': notas,
           '_pendiente': true,
         },
+        tambien: [
+          if (recibido)
+            Superposicion(
+              ruta: '/api/meses/$mesId/movimientos',
+              campoLista: 'movimientos',
+              datos: {
+                'tipo': 'INGRESO',
+                'id': id,
+                'fecha': dia,
+                'titulo': concepto,
+                'categoria': tipo.codigo,
+                'monto': monto,
+                'cuenta': true,
+                'etiqueta': tipo == TipoIngreso.prestamo ? 'PRESTAMO' : null,
+                'notas': notas,
+                '_pendiente': true,
+              },
+            ),
+        ],
       ),
+    );
+    return IngresoExtra.deJson(datos);
+  }
+
+  /// Corrige un ingreso: concepto, monto, fecha, tipo o nota.
+  Future<IngresoExtra> editarIngreso(
+    String ingresoId, {
+    String? concepto,
+    double? monto,
+    DateTime? fecha,
+    TipoIngreso? tipo,
+    String? notas,
+  }) async {
+    final datos = await _api.modificar<Map<String, dynamic>>(
+      '/api/meses/ingresos/$ingresoId',
+      cuerpo: {
+        'concepto': ?concepto,
+        'monto': ?monto,
+        if (fecha != null) 'fecha': _formatear(fecha),
+        if (tipo != null) 'tipo': tipo.codigo,
+        'notas': ?notas,
+      },
     );
     return IngresoExtra.deJson(datos);
   }
@@ -189,6 +245,22 @@ class RepositorioMeses {
           'notas': notas,
           '_pendiente': true,
         },
+        tambien: [
+          if (monto > 0)
+            Superposicion(
+              ruta: '/api/meses/$mesId/movimientos',
+              campoLista: 'porPagar',
+              datos: {
+                'id': id,
+                'nombre': nombre,
+                'categoria': categoria.codigo,
+                'monto': monto,
+                'pendiente': monto,
+                'fijo': false,
+                '_pendiente': true,
+              },
+            ),
+        ],
       ),
     );
     return Gasto.deJson(datos);
@@ -243,6 +315,29 @@ class RepositorioMeses {
                 'fechaPago': dia,
                 '_pendiente': true,
               },
+              tambien: [
+                Superposicion(
+                  ruta: '/api/meses/$mesId/movimientos',
+                  campoLista: 'porPagar',
+                  reemplazaId: gastoId,
+                  quitar: true,
+                  datos: const {},
+                ),
+                Superposicion(
+                  ruta: '/api/meses/$mesId/movimientos',
+                  campoLista: 'movimientos',
+                  datos: {
+                    'tipo': 'GASTO',
+                    'id': gastoId,
+                    'fecha': dia,
+                    'titulo': actual.nombre,
+                    'categoria': actual.categoria.codigo,
+                    'monto': -actual.monto,
+                    'cuenta': true,
+                    '_pendiente': true,
+                  },
+                ),
+              ],
             ),
     );
     return Gasto.deJson(datos);

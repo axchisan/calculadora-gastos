@@ -16,9 +16,7 @@ import '../../estado/modulos.dart';
 import '../../estado/proveedores.dart';
 import '../comun/componentes.dart';
 import '../comun/iconos.dart';
-import '../diario/pantalla_diario.dart';
-import '../mes/pantalla_mes.dart';
-import '../mes/widgets/ingresos_extra.dart';
+import '../apuntar/hoja_apuntar.dart';
 
 /// Inicio: cuánto tienes, qué tienes que pagar pronto y cómo va el mes, sin hacer cuentas.
 ///
@@ -62,50 +60,17 @@ class PantallaInicio extends ConsumerWidget {
     WidgetRef ref,
     DatosInicio datos,
   ) async {
-    final opcion = await abrirHoja<_Apunte>(
-      context,
-      titulo: 'Apuntar',
-      contenido: (contexto) => Panel.lista(
-        filas: [
-          for (final a in _Apunte.values)
-            Fila(
-              inicio: IconoCaja(a.icono),
-              titulo: a.titulo,
-              subtitulo: a.detalle,
-              alTocar: () => Navigator.pop(contexto, a),
-            ),
-        ],
-      ),
-    );
-    if (opcion == null || !context.mounted) return;
-
-    ref.read(periodoProvider.notifier).state = datos.periodo;
-    switch (opcion) {
-      case _Apunte.compra:
-        await PantallaDiario.registrarCompra(context, ref);
-      case _Apunte.ingreso:
-        await IngresosExtra.apuntar(context, ref);
-      case _Apunte.gasto:
-        await PantallaMes.nuevoGasto(context, ref);
+    final mesId = datos.resumen?.mesId;
+    if (mesId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Abre el mes en Movimientos antes de apuntar en él'),
+        ),
+      );
+      return;
     }
+    await HojaApuntar.abrir(context, mesId: mesId, periodo: datos.periodo);
   }
-}
-
-enum _Apunte {
-  compra('Compra del día a día', 'Comida, antojos, lo de la casa'),
-  ingreso('Ingreso', 'Lo que te llegó este mes'),
-  gasto('Gasto fijo del mes', 'Algo que se paga una vez al mes');
-
-  const _Apunte(this.titulo, this.detalle);
-
-  final String titulo;
-  final String detalle;
-
-  IconData get icono => switch (this) {
-    _Apunte.compra => Iconos.deCategoria(CategoriaGasto.alimentacion),
-    _Apunte.ingreso => Iconos.entro,
-    _Apunte.gasto => Iconos.recibo,
-  };
 }
 
 class _Contenido extends ConsumerWidget {

@@ -143,6 +143,7 @@ class _Detalle extends ConsumerWidget {
                 TextButton.icon(
                   onPressed: () => showModalBottomSheet<void>(
                     context: context,
+                    useRootNavigator: true,
                     isScrollControlled: true,
                     builder: (_) => const GuiaPermiso(),
                   ),

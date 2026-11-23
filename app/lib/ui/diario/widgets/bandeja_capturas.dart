@@ -205,6 +205,7 @@ class _TarjetaPago extends ConsumerWidget {
 
     final datos = await showModalBottomSheet<DatosCompra>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       builder: (_) => FormularioCompra(
         periodo: periodo,

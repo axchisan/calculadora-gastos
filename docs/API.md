@@ -287,10 +287,46 @@ poder avisar, no para sumarlo.
 | Método | Ruta |
 |---|---|
 | `GET` · `POST` | `/api/meses/{id}/ingresos` |
+| `PATCH` | `/api/meses/ingresos/{id}` (concepto, monto, fecha, recibido, tipo, notas) |
 | `PATCH` | `/api/meses/ingresos/{id}/recibido?recibido=true` |
 | `DELETE` | `/api/meses/ingresos/{id}` |
 
-Un ingreso no cobrado suma a `ingresoProyectado` pero **no** a `ingresoTotal`.
+Un ingreso no cobrado suma a `ingresoProyectado` pero **no** a `ingresoTotal`. Cada ingreso
+lleva `tipo` (`TRABAJO`, `FAMILIA`, `PRESTAMO`, `INTERESES`, `SALDO`, `OTRO`; por defecto
+`OTRO`) y `notas` opcionales. Un `PRESTAMO` entra a la cuenta pero no es dinero ganado.
+
+### Movimientos del mes
+
+`GET /api/meses/{id}/movimientos`: todo lo que entró y salió en el mes, en una lista del más
+reciente al más antiguo, y lo que falta pagar. Usa las mismas reglas que el resumen: la suma
+de los movimientos con `cuenta: true` es exactamente `disponibleHoy`.
+
+```json
+{
+  "mesId": "…", "periodo": "2026-08", "cerrado": false,
+  "entro": 1050000, "salio": 595000, "queda": 455000,
+  "porPagar": [
+    { "id": "…", "nombre": "Internet", "categoria": "SERVICIOS", "monto": 70000,
+      "pendiente": 70000, "vence": "2026-08-15", "fijo": true }
+  ],
+  "movimientos": [
+    { "tipo": "COMPRA", "id": "…", "fecha": "2026-08-08", "titulo": "Zapatos",
+      "categoria": "ROPA", "monto": -90000, "cuenta": false, "etiqueta": "CREDITO",
+      "detalle": "Visa · se paga el 5 sep" }
+  ]
+}
+```
+
+| `tipo` | Qué es |
+|---|---|
+| `SUELDO` | El sueldo base: con la fecha de su pago anotado, o al empezar el mes |
+| `INGRESO` | Un ingreso cobrado; `categoria` es su tipo |
+| `GASTO` | Lo pagado de un gasto del mes, en la fecha del pago (`FIJO` si viene de una plantilla) |
+| `COMPRA` | Una compra del día a día; a crédito lleva `cuenta: false` porque sale con el corte |
+| `ABONO` | Un pago a una deuda imputado al mes |
+| `CUOTA` | Una cuota de crédito pagada que vencía en el mes calendario |
+| `AHORRO` | Aporte (negativo) o retiro (positivo) de una meta |
+| `TARJETA` | Lo pagado este mes de compras a crédito anteriores, por tarjeta |
 
 ## Gastos
 

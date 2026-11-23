@@ -286,4 +286,8 @@ public class Gasto {
     public void setOrden(short orden) {
         this.orden = orden;
     }
+
+    public OffsetDateTime getCreatedAt() {
+        return createdAt;
+    }
 }
