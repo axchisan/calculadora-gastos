@@ -599,8 +599,8 @@ String _mesEje(DateTime f) =>
 /// «feb 2028».
 String _mesYAnioCorto(DateTime f) => '${_mesCorto(f)} ${f.year}';
 
-/// Sin lo que va entre paréntesis ni números de operación: «RapiFlex #78 (RapiCredit)» →
-/// «RapiFlex».
+/// Sin lo que va entre paréntesis ni números de operación: «Préstamo #123 (Banco)» →
+/// «Préstamo».
 String _corto(String nombre) => nombre
     .replaceAll(RegExp(r'\s*\(.*?\)'), '')
     .replaceAll(RegExp(r'\s*#\S+'), '')
