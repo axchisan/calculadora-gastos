@@ -6,10 +6,9 @@ el teléfono Android, en el Mac y en la web.
 
 **Estado actual y lo pendiente: [docs/ESTADO.md](docs/ESTADO.md).** Léelo antes de cambiar nada.
 
-**En curso: rediseño v2** por fases ([docs/rediseno/PLAN.md](docs/rediseno/PLAN.md), con la
-auditoría al lado). La referencia visual es el prototipo aprobado, en `privado/prototipo-v2.html`
-(ignorado por git). Cada fase se prueba en el emulador con los datos de producción, se publica y
-se instala en el teléfono; en el Mac solo al terminar todo.
+**Rediseño v2 terminado** (versión 2.0.0, 23 nov 2026; ver [docs/rediseno/PLAN.md](docs/rediseno/PLAN.md)).
+La referencia visual sigue siendo el prototipo aprobado, en `privado/prototipo-v2.html` (ignorado
+por git). Cada cambio se prueba en el emulador con los datos de producción antes de publicarse.
 
 ## Stack y dónde vive cada cosa
 

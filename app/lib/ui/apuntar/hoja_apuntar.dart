@@ -33,8 +33,13 @@ class HojaApuntar extends ConsumerStatefulWidget {
     required this.periodo,
     this.tipoInicial = TipoApunte.compra,
     this.editando,
+    this.mensajero,
     super.key,
   });
+
+  /// Dónde enseñar el aviso de «Apuntado»: el de la pantalla que abrió la hoja, para que salga
+  /// encima de su barra y aparte su botón «+».
+  final ScaffoldMessengerState? mensajero;
 
   final String mesId;
 
@@ -61,6 +66,7 @@ class HojaApuntar extends ConsumerStatefulWidget {
         periodo: periodo,
         tipoInicial: tipo,
         editando: editando,
+        mensajero: ScaffoldMessenger.maybeOf(context),
       ),
     );
     return guardado ?? false;
@@ -83,6 +89,9 @@ class _EstadoHojaApuntar extends ConsumerState<HojaApuntar> {
   bool _yaPagado = true;
   late DateTime _fecha;
   bool _guardando = false;
+
+  /// Se intentó guardar sin importe: se avisa dentro de la hoja, donde se ve.
+  bool _faltaImporte = false;
 
   DateTime get _inicio =>
       DateTime(widget.periodo.year, widget.periodo.month - 1, 28);
@@ -126,6 +135,7 @@ class _EstadoHojaApuntar extends ConsumerState<HojaApuntar> {
 
   void _tecla(String t) {
     setState(() {
+      _faltaImporte = false;
       if (t == '⌫') {
         if (_cifras.isNotEmpty) {
           _cifras = _cifras.substring(0, _cifras.length - 1);
@@ -233,6 +243,15 @@ class _EstadoHojaApuntar extends ConsumerState<HojaApuntar> {
                 textAlign: TextAlign.center,
               ),
             ),
+            if (_faltaImporte)
+              Padding(
+                padding: const EdgeInsets.only(top: Espacio.xs),
+                child: Text(
+                  'Escribe cuánto fue con el teclado de abajo',
+                  textAlign: TextAlign.center,
+                  style: textos.bodySmall?.copyWith(color: c.negativo),
+                ),
+              ),
             const SizedBox(height: Espacio.l),
             TextField(
               controller: _que,
@@ -403,11 +422,9 @@ class _EstadoHojaApuntar extends ConsumerState<HojaApuntar> {
   }
 
   Future<void> _guardar() async {
-    final mensajero = ScaffoldMessenger.of(context);
+    final mensajero = widget.mensajero ?? ScaffoldMessenger.of(context);
     if (_monto <= 0) {
-      mensajero.showSnackBar(
-        const SnackBar(content: Text('Escribe cuánto fue')),
-      );
+      setState(() => _faltaImporte = true);
       return;
     }
     final que = _que.text.trim().isEmpty

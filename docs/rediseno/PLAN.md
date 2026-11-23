@@ -65,7 +65,7 @@ commit y despliegue.
 | **6. Deudas** | Total consolidado, proyección mes a mes, tarjeta de crédito como deuda, cuadro de cuotas compacto, «Te deben». | Arreglar la deuda total del resumen; proyección; saldo de tarjeta; cuentas por cobrar | Hecha (v1.17.0) |
 | **7. Análisis** | Gráficas nuevas sin artefactos y frases con lo importante del mes. | No hizo falta: la evolución de la deuda está en Deudas | Hecha (v1.18.0) |
 | **8. Secundarias** | Mis cuentas, Mi sueldo (próximo pago destacado, sueldo base automático), Gastos fijos, Transporte y Ahorro como módulos opcionales. | Sueldo base automático | Hecha (v1.19.0) |
-| **9. Pulido y publicación** | Accesibilidad (contraste, tamaños de toque, lector de pantalla), escritorio y web, versión 2.0.0 en teléfono, Mac y web. | — | Pendiente |
+| **9. Pulido y publicación** | Accesibilidad (contraste, tamaños de toque, lector de pantalla), escritorio y web, versión 2.0.0 en teléfono, Mac y web. | — | Hecha (v2.0.0) |
 
 El arreglo de la deuda total (G2) puede adelantarse si se quiere ver el dato correcto antes de
 la fase 6.

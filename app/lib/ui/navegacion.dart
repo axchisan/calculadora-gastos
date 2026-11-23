@@ -85,7 +85,9 @@ class _EstadoNavegacion extends ConsumerState<Navegacion> {
     final hijo = Column(
       children: [
         const AvisoDeRed(),
-        Expanded(child: widget.hijo),
+        // Cada pestaña con su propio gestor de avisos: así un aviso con «Deshacer» sale en la
+        // pantalla de la pestaña, encima de la barra, y aparta su botón «+» en vez de taparlo.
+        Expanded(child: ScaffoldMessenger(child: widget.hijo)),
       ],
     );
 

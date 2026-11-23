@@ -73,15 +73,17 @@ class Colores extends ThemeExtension<Colores> {
     superficie2: Color(0xFFECEEEA),
     tinta: Color(0xFF151816),
     tinta2: Color(0xFF5C635F),
-    tinta3: Color(0xFF8F9692),
+    // Gris de lo secundario: 4,5:1 sobre el fondo (antes 2,8:1, por debajo del mínimo de
+    // contraste para texto pequeño, y parte de la sensación de letra «delgada»).
+    tinta3: Color(0xFF6B726E),
     linea: Color(0xFFE3E5E0),
     acento: Color(0xFF151816),
     sobreAcento: Color(0xFFFFFFFF),
     positivo: Color(0xFF2C7650),
     positivoFondo: Color(0xFFE4F1E9),
-    negativo: Color(0xFFBE3F2B),
+    negativo: Color(0xFFB53C29),
     negativoFondo: Color(0xFFF8E7E3),
-    aviso: Color(0xFF9A6412),
+    aviso: Color(0xFF8C5A0E),
     avisoFondo: Color(0xFFF6ECD8),
     sombra: [
       BoxShadow(color: Color(0x0D151816), blurRadius: 2, offset: Offset(0, 1)),
@@ -95,7 +97,7 @@ class Colores extends ThemeExtension<Colores> {
     superficie2: Color(0xFF1F2321),
     tinta: Color(0xFFEDF0EE),
     tinta2: Color(0xFFA4ABA7),
-    tinta3: Color(0xFF737A76),
+    tinta3: Color(0xFF868D89),
     linea: Color(0xFF262A28),
     acento: Color(0xFFEDF0EE),
     sobreAcento: Color(0xFF0E100F),
@@ -250,10 +252,10 @@ class Tema {
   static const Color positivo = Color(0xFF2C7650);
 
   /// Ámbar: pendiente de pagar. No es un error, pero exige atención.
-  static const Color pendiente = Color(0xFF9A6412);
+  static const Color pendiente = Color(0xFF8C5A0E);
 
   /// Rojo: saldo negativo, pagos vencidos.
-  static const Color negativo = Color(0xFFBE3F2B);
+  static const Color negativo = Color(0xFFB53C29);
 
   /// Azul: información neutra, como los días de trabajo remoto.
   static const Color neutro = Color(0xFF3456D6);

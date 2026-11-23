@@ -7,13 +7,13 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.19.0+28** | APK instalado por cable · gastos.axchisan.com |
-| App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
+| App en el teléfono y la web | **2.0.0+29** | APK instalado por cable · gastos.axchisan.com |
+| App en el Mac | **2.0.0+29** | `/Applications/Mis gastos.app` |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V11** | Neon, proyecto de la Calculadora (V11: sueldo automático) |
-| Pruebas | backend **301**, app **154** | todas en verde |
+| Pruebas | backend **301**, app **158** | todas en verde |
 
-## En curso: rediseño v2
+## Rediseño v2 (terminado el 23 nov 2026)
 
 El usuario pidió una reestructuración completa del diseño: claro, minimalista y pensado para
 uso personal, no para un contador. Documentos:
@@ -38,13 +38,18 @@ uso personal, no para un contador. Documentos:
 | 6. Deudas (total real, proyección, «Te deben») | Publicada (1.17.0) |
 | 7. Análisis | Publicada (1.18.0) |
 | 8. Pantallas secundarias | Publicada (1.19.0) |
-| **9. Pulido y versión 2.0.0 (también en el Mac)** | **Siguiente** |
+| 9. Pulido y versión 2.0.0 (también en el Mac) | Publicada (2.0.0) |
 
 **Forma de trabajar acordada**: cada fase se prueba en el emulador (`prueba35b`, el usuario
 inicia sesión) con los datos de producción, se publica (push a `main`) y se instala en el
 teléfono. En el Mac se instala solo al terminar todo el rediseño.
 
-**Después del rediseño**: investigar a fondo cómo registrar movimientos solos (Bancolombia
+**Pulido (fase 9)**: contraste de los textos ≥ 4,5:1 en los dos temas (prueba en
+`test/contraste_test.dart`; el gris secundario del tema claro estaba en 2,8:1), cada pestaña con
+su propio gestor de avisos (el «Deshacer» ya no tapa el «+») y los avisos de la hoja de Apuntar
+dentro de la propia hoja.
+
+**Lo siguiente**: investigar a fondo cómo registrar movimientos solos (Bancolombia
 primero). La captura por notificaciones no ha funcionado en el uso real (ver PLAN, apartado 6).
 
 ## Cómo está hecho lo nuevo
