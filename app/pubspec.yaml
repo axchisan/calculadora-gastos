@@ -38,7 +38,10 @@ dependencies:
   # Lee la versión y el número de compilación del propio paquete instalado, para poder mostrarlos
   # dentro de la aplicación sin duplicar el número en el código.
   package_info_plus: ^9.0.1
-  file_picker: ^11.0.3
+
+  # Para elegir el extracto en PDF en la web (un <input type="file">). Ya venía como dependencia
+  # indirecta; file_picker no compila en Android con Flutter 3.44.
+  web: ^1.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -1,5 +1,6 @@
 import Cocoa
 import FlutterMacOS
+import UniformTypeIdentifiers
 
 class MainFlutterWindow: NSWindow {
   /// Tamaño con el que se abre la ventana la primera vez, en puntos.
@@ -32,7 +33,32 @@ class MainFlutterWindow: NSWindow {
     }
 
     RegisterGeneratedPlugins(registry: flutterViewController)
+    registrarExtractos(flutterViewController.engine.binaryMessenger)
 
     super.awakeFromNib()
+  }
+
+  /// Elegir el extracto en PDF que se importa en «Por revisar».
+  private func registrarExtractos(_ mensajero: FlutterBinaryMessenger) {
+    let canal = FlutterMethodChannel(
+      name: "com.axchisan.calculadora_gastos/extractos", binaryMessenger: mensajero)
+    canal.setMethodCallHandler { llamada, respuesta in
+      guard llamada.method == "elegirPdf" else {
+        respuesta(FlutterMethodNotImplemented)
+        return
+      }
+      let panel = NSOpenPanel()
+      panel.allowedContentTypes = [UTType.pdf]
+      panel.allowsMultipleSelection = false
+      panel.canChooseDirectories = false
+      panel.message = "Elige el extracto «Movimientos» del banco"
+      panel.begin { eleccion in
+        guard eleccion == .OK, let url = panel.url, let datos = try? Data(contentsOf: url) else {
+          respuesta(nil)
+          return
+        }
+        respuesta(FlutterStandardTypedData(bytes: datos))
+      }
+    }
   }
 }

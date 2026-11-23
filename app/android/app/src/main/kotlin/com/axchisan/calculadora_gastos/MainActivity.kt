@@ -26,6 +26,9 @@ class MainActivity : FlutterActivity() {
 
     private var canalExtractos: MethodChannel? = null
 
+    /** La respuesta que espera el PDF elegido con el selector de documentos. */
+    private var eleccionPendiente: MethodChannel.Result? = null
+
     override fun onCreate(estado: android.os.Bundle?) {
         super.onCreate(estado)
         abiertaDesdeElAviso = intent?.getBooleanExtra(
@@ -41,6 +44,26 @@ class MainActivity : FlutterActivity() {
             abiertaDesdeElAviso = true
         }
         if (recogerPdf(nuevo)) canalExtractos?.invokeMethod("pdfRecibido", null)
+    }
+
+    @Deprecated("Basta para un único selector; no hace falta la API de resultados")
+    override fun onActivityResult(codigo: Int, resultado: Int, datos: Intent?) {
+        @Suppress("DEPRECATION")
+        super.onActivityResult(codigo, resultado, datos)
+        if (codigo != CODIGO_ELEGIR_PDF) return
+        val respuesta = eleccionPendiente ?: return
+        eleccionPendiente = null
+        val uri = datos?.data
+        if (resultado != RESULT_OK || uri == null) {
+            respuesta.success(null)
+            return
+        }
+        val bytes = try {
+            contentResolver.openInputStream(uri)?.use { it.readBytes() }
+        } catch (e: Exception) {
+            null
+        }
+        respuesta.success(if (bytes != null && bytes.size <= MAXIMO_PDF) bytes else null)
     }
 
     /**
@@ -87,6 +110,15 @@ class MainActivity : FlutterActivity() {
                     "tomarPdf" -> {
                         respuesta.success(pdfPendiente)
                         pdfPendiente = null
+                    }
+                    "elegirPdf" -> {
+                        eleccionPendiente?.success(null)
+                        eleccionPendiente = respuesta
+                        val elegir = Intent(Intent.ACTION_OPEN_DOCUMENT)
+                            .addCategory(Intent.CATEGORY_OPENABLE)
+                            .setType("application/pdf")
+                        @Suppress("DEPRECATION")
+                        startActivityForResult(elegir, CODIGO_ELEGIR_PDF)
                     }
                     else -> respuesta.notImplemented()
                 }
@@ -324,6 +356,7 @@ class MainActivity : FlutterActivity() {
     private companion object {
         const val CANAL = "com.axchisan.calculadora_gastos/capturas"
         const val CANAL_EXTRACTOS = "com.axchisan.calculadora_gastos/extractos"
+        const val CODIGO_ELEGIR_PDF = 4127
         // Viaja en base64 dentro del JSON y Lambda acepta hasta 6 MB por petición.
         const val MAXIMO_PDF = 4 * 1024 * 1024
 

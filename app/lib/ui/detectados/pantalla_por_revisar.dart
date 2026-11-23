@@ -1,12 +1,12 @@
 import 'dart:typed_data';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
+import '../../datos/selector_pdf.dart';
 import '../../dominio/detectados.dart';
 import '../../estado/detectados.dart';
 import '../../estado/movimientos.dart';
@@ -45,12 +45,7 @@ class _EstadoPorRevisar extends ConsumerState<PantallaPorRevisar> {
   }
 
   Future<void> _elegirPdf() async {
-    final r = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: const ['pdf'],
-      withData: true,
-    );
-    final bytes = r?.files.single.bytes;
+    final bytes = await elegirPdf();
     if (bytes != null) await _importar(bytes);
   }
 
