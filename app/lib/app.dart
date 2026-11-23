@@ -12,9 +12,10 @@ import 'ui/catalogo/pantalla_catalogo.dart';
 import 'ui/autenticacion/pantalla_acceso.dart';
 import 'ui/cuenta/pantalla_cuenta.dart';
 import 'ui/deudas/pantalla_deudas.dart';
-import 'ui/diario/pantalla_diario.dart';
 import 'ui/graficas/pantalla_graficas.dart';
 import 'ui/inicio/pantalla_inicio.dart';
+import 'ui/movimientos/pantalla_movimientos.dart';
+import 'ui/ajustes/pantalla_ajustes.dart';
 import 'ui/navegacion.dart';
 import 'ui/plantillas/pantalla_plantillas.dart';
 import 'ui/cuentas/pantalla_cuentas.dart';
@@ -26,11 +27,15 @@ class Rutas {
   const Rutas._();
 
   static const String inicio = '/';
-  static const String diario = '/diario';
-  static const String transporte = '/transporte';
+  static const String movimientos = '/movimientos';
+
+  /// Movimientos con las compras del día a día a la vista.
+  static const String diario = '/movimientos?ver=dia';
   static const String deudas = '/deudas';
+  static const String analisis = '/analisis';
+  static const String ajustes = '/ajustes';
+  static const String transporte = '/transporte';
   static const String ahorro = '/ahorro';
-  static const String graficas = '/graficas';
   static const String cuenta = '/cuenta';
   static const String plantillas = '/plantillas';
   static const String cuentas = '/cuentas';
@@ -75,6 +80,13 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Rutas.cuentas, builder: (_, _) => const PantallaCuentas()),
       GoRoute(path: Rutas.sueldo, builder: (_, _) => const PantallaSueldo()),
+      GoRoute(path: Rutas.ajustes, builder: (_, _) => const PantallaAjustes()),
+      // Secciones opcionales: se encienden en Ajustes y se abren desde Inicio.
+      GoRoute(
+        path: Rutas.transporte,
+        builder: (_, _) => const PantallaTransporte(),
+      ),
+      GoRoute(path: Rutas.ahorro, builder: (_, _) => const PantallaAhorro()),
       if (PantallaCatalogo.habilitado)
         GoRoute(
           path: Rutas.catalogo,
@@ -89,23 +101,17 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const PantallaInicio(),
           ),
           GoRoute(
-            path: Rutas.diario,
-            builder: (_, _) => const PantallaDiario(),
-          ),
-          GoRoute(
-            path: Rutas.transporte,
-            builder: (_, _) => const PantallaTransporte(),
+            path: Rutas.movimientos,
+            builder: (_, estado) => PantallaMovimientos(
+              verDiario: estado.uri.queryParameters['ver'] == 'dia',
+            ),
           ),
           GoRoute(
             path: Rutas.deudas,
             builder: (_, _) => const PantallaDeudas(),
           ),
           GoRoute(
-            path: Rutas.ahorro,
-            builder: (_, _) => const PantallaAhorro(),
-          ),
-          GoRoute(
-            path: Rutas.graficas,
+            path: Rutas.analisis,
             builder: (_, _) => const PantallaGraficas(),
           ),
         ],

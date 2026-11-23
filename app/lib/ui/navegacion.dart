@@ -6,32 +6,28 @@ import '../core/tema.dart';
 import '../estado/proveedores.dart';
 import '../estado/red.dart';
 import 'comun/aviso_red.dart';
+import 'comun/iconos.dart';
 
-/// Secciones principales de la aplicación.
-enum Seccion {
-  mes(
-    '/',
-    Icons.account_balance_wallet_outlined,
-    Icons.account_balance_wallet,
-    'Mes',
+/// Las cuatro pestañas del rediseño v2. Transporte y Ahorro pasaron a ser secciones
+/// opcionales que se encienden en Ajustes; Mi sueldo, Mis cuentas y los gastos fijos se abren
+/// desde Inicio o desde Ajustes.
+enum SeccionPrincipal {
+  inicio('/', Iconos.inicio, Iconos.inicioActivo, 'Inicio'),
+  movimientos(
+    '/movimientos',
+    Iconos.movimientos,
+    Iconos.movimientosActivo,
+    'Movimientos',
   ),
-  diario(
-    '/diario',
-    Icons.shopping_basket_outlined,
-    Icons.shopping_basket,
-    'Diario',
-  ),
-  transporte(
-    '/transporte',
-    Icons.calendar_month_outlined,
-    Icons.calendar_month,
-    'Transporte',
-  ),
-  deudas('/deudas', Icons.credit_card_outlined, Icons.credit_card, 'Deudas'),
-  ahorro('/ahorro', Icons.savings_outlined, Icons.savings, 'Ahorro'),
-  graficas('/graficas', Icons.insights_outlined, Icons.insights, 'Gráficas');
+  deudas('/deudas', Iconos.deudas, Iconos.deudasActivo, 'Deudas'),
+  analisis('/analisis', Iconos.analisis, Iconos.analisisActivo, 'Análisis');
 
-  const Seccion(this.ruta, this.icono, this.iconoActivo, this.etiqueta);
+  const SeccionPrincipal(
+    this.ruta,
+    this.icono,
+    this.iconoActivo,
+    this.etiqueta,
+  );
 
   final String ruta;
   final IconData icono;
@@ -100,7 +96,7 @@ class _EstadoNavegacion extends ConsumerState<Navegacion> {
           selectedIndex: indice,
           onDestinationSelected: (i) => _ir(context, i),
           destinations: [
-            for (final seccion in Seccion.values)
+            for (final seccion in SeccionPrincipal.values)
               NavigationDestination(
                 icon: Icon(seccion.icono),
                 selectedIcon: Icon(seccion.iconoActivo),
@@ -119,7 +115,7 @@ class _EstadoNavegacion extends ConsumerState<Navegacion> {
             onDestinationSelected: (i) => _ir(context, i),
             labelType: NavigationRailLabelType.all,
             destinations: [
-              for (final seccion in Seccion.values)
+              for (final seccion in SeccionPrincipal.values)
                 NavigationRailDestination(
                   icon: Icon(seccion.icono),
                   selectedIcon: Icon(seccion.iconoActivo),
@@ -139,13 +135,15 @@ class _EstadoNavegacion extends ConsumerState<Navegacion> {
   /// Se compara por prefijo para que las pantallas de detalle mantengan resaltada su sección.
   static int _indiceActual(BuildContext context) {
     final ruta = GoRouterState.of(context).matchedLocation;
-    for (var i = Seccion.values.length - 1; i >= 0; i--) {
-      final seccion = Seccion.values[i];
-      if (seccion != Seccion.mes && ruta.startsWith(seccion.ruta)) return i;
+    for (var i = SeccionPrincipal.values.length - 1; i >= 0; i--) {
+      final seccion = SeccionPrincipal.values[i];
+      if (seccion != SeccionPrincipal.inicio && ruta.startsWith(seccion.ruta)) {
+        return i;
+      }
     }
     return 0;
   }
 
   static void _ir(BuildContext context, int indice) =>
-      context.go(Seccion.values[indice].ruta);
+      context.go(SeccionPrincipal.values[indice].ruta);
 }

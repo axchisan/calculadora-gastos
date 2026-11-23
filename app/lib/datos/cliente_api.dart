@@ -83,6 +83,12 @@ class ClienteApi {
   final StreamController<String> _actualizaciones =
       StreamController<String>.broadcast();
 
+  /// Se emite tras cada cambio hecho desde esta app (enviado o en cola). Lo escuchan las
+  /// lecturas que juntan datos de varias secciones, como Inicio, que no tienen otra forma de
+  /// enterarse de que algo se apuntó en otra pantalla.
+  final StreamController<void> _cambiosLocales =
+      StreamController<void>.broadcast();
+
   final StreamController<EstadoRed> _cambiosDeRed =
       StreamController<EstadoRed>.broadcast();
 
@@ -252,6 +258,9 @@ class ClienteApi {
     }
   }
 
+  /// Cada vez que la app cambia algo en el servidor o lo deja en cola.
+  Stream<void> get cambiosLocales => _cambiosLocales.stream;
+
   /// Rutas leídas cuya versión guardada cambió; `*` cuando hay que revisar todo.
   Stream<String> get actualizaciones => _actualizaciones.stream;
 
@@ -315,6 +324,7 @@ class ClienteApi {
       final resultado = await _peticion<T>(enviar);
       _ultimoCambio = _ahora();
       _revalidadoEn.clear();
+      _cambiosLocales.add(null);
       return resultado;
     } on ErrorApi catch (e) {
       if (encolable == null || !e.esDeConexion) rethrow;
@@ -345,6 +355,7 @@ class ClienteApi {
     await cola.guardar(usuario, [...cola.leer(usuario), operacion]);
     _ultimoCambio = _ahora();
     _publicarEstadoCola();
+    _cambiosLocales.add(null);
     final ruta = operacion.superposicion?.ruta;
     if (ruta != null) _actualizaciones.add(ruta);
   }

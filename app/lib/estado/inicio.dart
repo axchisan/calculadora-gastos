@@ -20,5 +20,10 @@ final inicioProvider = FutureProvider<DatosInicio>((ref) {
     '/api/deudas',
     '/api/creditos',
   ], ref.invalidateSelf);
+  final cambios = ref
+      .read(clienteApiProvider)
+      .cambiosLocales
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(cambios.cancel);
   return ref.watch(repositorioInicioProvider).obtener();
 });

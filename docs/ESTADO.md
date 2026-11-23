@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.13.0+20** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.14.0+21** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V8** | Neon, proyecto de la Calculadora (3b y 3c no necesitaron migración) |
-| Pruebas | backend **287**, app **129** | todas en verde |
+| Pruebas | backend **287**, app **137** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -33,8 +33,8 @@ uso personal, no para un contador. Documentos:
 | 3a. Lectura local de todo, precarga, aviso sin conexión | Publicada (1.11.0) |
 | 3b. Cola para apuntar sin conexión | Publicada (1.12.0) |
 | 3c. ETag y `GET /api/inicio` con próximos pagos | Publicada (1.13.0) |
-| **4. Navegación de 4 pestañas e Inicio nuevo** | **Siguiente** |
-| 5. Movimientos | Pendiente |
+| 4. Navegación de 4 pestañas e Inicio nuevo | Publicada (1.14.0) |
+| **5. Movimientos** | **Siguiente** |
 | 6. Deudas (total real, proyección) | Pendiente |
 | 7. Análisis | Pendiente |
 | 8. Pantallas secundarias | Pendiente |
@@ -84,9 +84,19 @@ primero). La captura por notificaciones no ha funcionado en el uso real (ver PLA
 
 ## Qué hace la app (funciones)
 
-Pestañas actuales (cambian en la fase 4): **Mes**, **Diario**, **Transporte**, **Deudas**,
-**Ahorro**, **Gráficas**. Desde el menú ⋮ del inicio: **Mis cuentas y efectivo**, **Mi sueldo**,
-gastos fijos, cerrar el mes y **Mi cuenta**.
+Pestañas (fase 4): **Inicio**, **Movimientos**, **Deudas** y **Análisis**. El avatar de Inicio
+abre **Ajustes** (tema, secciones opcionales, Mis cuentas, Mi sueldo, gastos fijos, tarjetas y
+Mi cuenta). **Transporte** y **Ahorro** son secciones opcionales, apagadas por defecto
+(`estado/modulos.dart`); encendidas aparecen en Inicio, en «Más».
+
+- **Inicio** (`ui/inicio/pantalla_inicio.dart`, lee `GET /api/inicio`): «Tienes hoy» (suma de
+  las cuentas) con el cuadre frente a la app, días para cerrar el mes, un aviso en una frase
+  (lo vencido o lo que falta pagar y cuánto queda hasta el sueldo), próximos pagos con «Mismo
+  día», entró/salió del mes, las cuentas y el próximo sueldo. El «+» abre Apuntar: compra,
+  ingreso o gasto fijo, siempre en el mes en curso. Los cálculos están en `DatosInicio`.
+- **Movimientos**, de momento, junta las pantallas de antes con un selector Mes / Día a día
+  (`/movimientos` y `/movimientos?ver=dia`). La línea de tiempo unificada es la fase 5.
+- **Análisis** es aún la pantalla de Gráficas (fase 7).
 
 - **Mes**: sueldo base, ingresos extra, gastos fijos con estado (pendiente/parcial/pagado),
   disponible hoy y saldo al cerrar. El mes presupuestal va **del 28 al 27**.

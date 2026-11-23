@@ -1,14 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
 import '../../estado/autenticacion.dart';
-import '../../app.dart';
-import '../catalogo/pantalla_catalogo.dart';
-import '../comun/componentes.dart';
-import '../comun/selector_tema.dart';
 import 'widgets/acerca_de.dart';
 
 /// Ajustes de la cuenta.
@@ -109,18 +104,6 @@ class PantallaCuenta extends ConsumerWidget {
                   ],
                 ),
               ),
-
-              // Mientras no exista la pantalla de Ajustes del rediseño, el tema se elige aquí.
-              const Seccion(
-                titulo: 'Apariencia',
-                arriba: 20,
-                child: SelectorTema(),
-              ),
-              if (PantallaCatalogo.habilitado)
-                TextButton(
-                  onPressed: () => context.push(Rutas.catalogo),
-                  child: const Text('Ver los componentes del rediseño'),
-                ),
 
               const SizedBox(height: 20),
               const TarjetaVersion(),

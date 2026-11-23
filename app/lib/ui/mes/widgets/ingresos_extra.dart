@@ -88,7 +88,7 @@ class IngresosExtra extends ConsumerWidget {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: cerrado ? null : () => _anadir(context, ref),
+                onPressed: cerrado ? null : () => apuntar(context, ref),
                 icon: const Icon(Icons.add, size: 18),
                 label: const Text('Apuntar un ingreso'),
               ),
@@ -99,7 +99,8 @@ class IngresosExtra extends ConsumerWidget {
     );
   }
 
-  Future<void> _anadir(BuildContext context, WidgetRef ref) async {
+  /// Abre el formulario y apunta un ingreso en el mes elegido. Se usa también desde Inicio.
+  static Future<void> apuntar(BuildContext context, WidgetRef ref) async {
     final datos = await showModalBottomSheet<_DatosIngreso>(
       context: context,
       isScrollControlled: true,

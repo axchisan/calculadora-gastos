@@ -3,332 +3,701 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../app.dart';
-import '../../core/dinero.dart';
 import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
+import '../../dominio/cuentas_y_sueldo.dart';
+import '../../dominio/inicio.dart';
 import '../../dominio/modelos.dart';
+import '../../estado/autenticacion.dart';
+import '../../estado/inicio.dart';
 import '../../estado/mes.dart';
-import '../../estado/modo_vista.dart';
-import '../cuentas/pantalla_cuentas.dart';
-import 'widgets/editor_ingreso.dart';
-import 'widgets/ingresos_extra.dart';
-import 'widgets/lista_gastos.dart';
-import 'widgets/tarjeta_saldo.dart';
+import '../../estado/modulos.dart';
+import '../../estado/proveedores.dart';
+import '../comun/componentes.dart';
+import '../comun/iconos.dart';
+import '../diario/pantalla_diario.dart';
+import '../mes/pantalla_mes.dart';
+import '../mes/widgets/ingresos_extra.dart';
 
-/// Pantalla principal: el estado del mes en curso.
+/// Inicio: cuánto tienes, qué tienes que pagar pronto y cómo va el mes, sin hacer cuentas.
+///
+/// Todo sale de una sola lectura (`GET /api/inicio`), que se enseña al instante desde la copia
+/// local y se actualiza por detrás.
 class PantallaInicio extends ConsumerWidget {
   const PantallaInicio({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final periodo = ref.watch(periodoProvider);
-    final datos = ref.watch(mesProvider);
+    final datos = ref.watch(inicioProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        // El título es un botón: con solo las flechas, plantarse en un mes lejano costaba
-        // muchos toques, y volver al de hoy tras curiosear el año que viene, otros tantos.
-        title: InkWell(
-          onTap: () => _elegirMes(context, ref),
-          borderRadius: BorderRadius.circular(8),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(Formato.mesYAnio(periodo)),
-                const SizedBox(width: 4),
-                const Icon(Icons.arrow_drop_down, size: 22),
-              ],
-            ),
+      body: SafeArea(
+        bottom: false,
+        child: datos.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, _) => _Error(
+            mensaje: error is ErrorApi
+                ? error.mensaje
+                : 'No se pudo cargar el inicio',
+            alReintentar: () => ref.invalidate(inicioProvider),
           ),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            tooltip: 'Mes anterior',
-            onPressed: () => _moverMes(ref, -1),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            tooltip: 'Mes siguiente',
-            onPressed: () => _moverMes(ref, 1),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (opcion) => _menu(context, ref, opcion, datos),
-            itemBuilder: (_) {
-              final cerrado = datos.valueOrNull?.resumen.cerrado ?? false;
-              return [
-                const PopupMenuItem(
-                  value: 'cuentas',
-                  child: Text('Mis cuentas y efectivo'),
-                ),
-                const PopupMenuItem(value: 'sueldo', child: Text('Mi sueldo')),
-                const PopupMenuDivider(),
-                const PopupMenuItem(
-                  value: 'aplicar',
-                  child: Text('Traer mis gastos fijos'),
-                ),
-                const PopupMenuItem(
-                  value: 'plantillas',
-                  child: Text('Configurar gastos fijos'),
-                ),
-                PopupMenuItem(
-                  value: cerrado ? 'reabrir' : 'cerrar',
-                  child: Text(cerrado ? 'Reabrir el mes' : 'Cerrar el mes'),
-                ),
-                const PopupMenuDivider(),
-                const PopupMenuItem(value: 'recargar', child: Text('Recargar')),
-                const PopupMenuItem(value: 'cuenta', child: Text('Mi cuenta')),
-              ];
-            },
-          ),
-        ],
-      ),
-      body: datos.when(
-        loading: () => const _Cargando(),
-        error: (error, _) => _Error(
-          mensaje: error is ErrorApi
-              ? error.mensaje
-              : 'No se pudo cargar el mes',
-          alReintentar: () => ref.read(mesProvider.notifier).cargar(),
-        ),
-        data: (d) => _Contenido(
-          datos: d,
-          alEditarIngreso: () =>
-              _editarIngreso(context, ref, d.resumen.ingresoBase),
+          data: (d) => _Contenido(datos: d),
         ),
       ),
       floatingActionButton: datos.hasValue
-          ? FloatingActionButton.extended(
-              onPressed: () => _nuevoGasto(context, ref),
-              icon: const Icon(Icons.add),
-              label: const Text('Gasto'),
+          ? FloatingActionButton(
+              tooltip: 'Apuntar',
+              onPressed: () => _apuntar(context, ref, datos.requireValue),
+              child: const Icon(Iconos.anadir),
             )
           : null,
     );
   }
 
-  Future<void> _menu(
+  /// Un solo botón para apuntar cualquier cosa. Va al mes en curso, no al que se esté viendo
+  /// en Movimientos: lo que se apunta desde Inicio es de hoy.
+  Future<void> _apuntar(
     BuildContext context,
     WidgetRef ref,
-    String opcion,
-    AsyncValue<DatosMes> datos,
+    DatosInicio datos,
   ) async {
-    switch (opcion) {
-      case 'cuenta':
-        context.push(Rutas.cuenta);
-      case 'cuentas':
-        context.push(Rutas.cuentas);
-      case 'sueldo':
-        context.push(Rutas.sueldo);
-      case 'plantillas':
-        context.push(Rutas.plantillas);
-      case 'aplicar':
-        await _aplicarPlantillas(context, ref);
-      case 'recargar':
-        await ref.read(mesProvider.notifier).cargar();
-      case 'cerrar':
-        await _cerrarMes(context, ref);
-      case 'reabrir':
-        await _ejecutar(
-          context,
-          () => ref.read(mesProvider.notifier).reabrir(),
-        );
-    }
-  }
-
-  /// Añade al mes los gastos fijos que falten.
-  ///
-  /// Hace falta porque las plantillas se copian al crear el mes: una configurada después no
-  /// aparece sola en los meses que ya existían.
-  Future<void> _aplicarPlantillas(BuildContext context, WidgetRef ref) async {
-    try {
-      final anadidos = await ref.read(mesProvider.notifier).aplicarPlantillas();
-      if (!context.mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            anadidos == 0
-                ? 'Este mes ya tiene todos tus gastos fijos'
-                : anadidos == 1
-                ? 'Se añadió 1 gasto fijo'
-                : 'Se añadieron $anadidos gastos fijos',
-          ),
-        ),
-      );
-    } on ErrorApi catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
-      }
-    }
-  }
-
-  Future<void> _cerrarMes(BuildContext context, WidgetRef ref) async {
-    final confirmado = await showDialog<bool>(
-      context: context,
-      builder: (contexto) => AlertDialog(
-        title: const Text('Cerrar el mes'),
-        content: const Text(
-          'El mes queda como registro histórico y deja de admitir cambios. Puedes reabrirlo '
-          'cuando quieras desde el mismo menú.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(contexto, false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(contexto, true),
-            child: const Text('Cerrar'),
-          ),
+    final opcion = await abrirHoja<_Apunte>(
+      context,
+      titulo: 'Apuntar',
+      contenido: (contexto) => Panel.lista(
+        filas: [
+          for (final a in _Apunte.values)
+            Fila(
+              inicio: IconoCaja(a.icono),
+              titulo: a.titulo,
+              subtitulo: a.detalle,
+              alTocar: () => Navigator.pop(contexto, a),
+            ),
         ],
       ),
     );
+    if (opcion == null || !context.mounted) return;
 
-    if (!(confirmado ?? false) || !context.mounted) return;
-    await _ejecutar(context, () => ref.read(mesProvider.notifier).cerrar());
-  }
-
-  Future<void> _editarIngreso(
-    BuildContext context,
-    WidgetRef ref,
-    double actual,
-  ) async {
-    final nuevo = await EditorIngreso.abrir(context, actual);
-    if (nuevo == null || !context.mounted) return;
-    await _ejecutar(
-      context,
-      () => ref.read(mesProvider.notifier).actualizarIngreso(nuevo),
-    );
-  }
-
-  Future<void> _ejecutar(
-    BuildContext context,
-    Future<void> Function() accion,
-  ) async {
-    try {
-      await accion();
-    } on ErrorApi catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
-      }
-    }
-  }
-
-  /// Salta a cualquier mes, o vuelve al de hoy.
-  ///
-  /// Hace falta porque el mes presupuestal y el del calendario no coinciden: se puede estar
-  /// trabajando en septiembre mientras el teléfono dice 31 de agosto.
-  Future<void> _elegirMes(BuildContext context, WidgetRef ref) async {
-    final actual = ref.read(periodoProvider);
-    final hoy = DateTime.now();
-
-    final elegido = await showDialog<DateTime>(
-      context: context,
-      builder: (contexto) => _SelectorDeMes(actual: actual, hoy: hoy),
-    );
-    if (elegido != null) {
-      ref.read(periodoProvider.notifier).state = elegido;
-    }
-  }
-
-  void _moverMes(WidgetRef ref, int desplazamiento) {
-    final actual = ref.read(periodoProvider);
-    ref.read(periodoProvider.notifier).state = DateTime(
-      actual.year,
-      actual.month + desplazamiento,
-    );
-  }
-
-  Future<void> _nuevoGasto(BuildContext context, WidgetRef ref) async {
-    final resultado = await showModalBottomSheet<_NuevoGasto>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const _FormularioGasto(),
-    );
-    if (resultado == null) return;
-
-    try {
-      await ref
-          .read(mesProvider.notifier)
-          .crearGasto(
-            nombre: resultado.nombre,
-            categoria: resultado.categoria,
-            monto: resultado.monto,
-          );
-    } on ErrorApi catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.mensaje)));
-      }
+    ref.read(periodoProvider.notifier).state = datos.periodo;
+    switch (opcion) {
+      case _Apunte.compra:
+        await PantallaDiario.registrarCompra(context, ref);
+      case _Apunte.ingreso:
+        await IngresosExtra.apuntar(context, ref);
+      case _Apunte.gasto:
+        await PantallaMes.nuevoGasto(context, ref);
     }
   }
 }
 
-class _Contenido extends ConsumerWidget {
-  const _Contenido({required this.datos, required this.alEditarIngreso});
+enum _Apunte {
+  compra('Compra del día a día', 'Comida, antojos, lo de la casa'),
+  ingreso('Ingreso', 'Lo que te llegó este mes'),
+  gasto('Gasto fijo del mes', 'Algo que se paga una vez al mes');
 
-  final DatosMes datos;
-  final VoidCallback alEditarIngreso;
+  const _Apunte(this.titulo, this.detalle);
+
+  final String titulo;
+  final String detalle;
+
+  IconData get icono => switch (this) {
+    _Apunte.compra => Iconos.deCategoria(CategoriaGasto.alimentacion),
+    _Apunte.ingreso => Iconos.entro,
+    _Apunte.gasto => Iconos.recibo,
+  };
+}
+
+class _Contenido extends ConsumerWidget {
+  const _Contenido({required this.datos});
+
+  final DatosInicio datos;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final anchoMaximo = Pantalla.esEscritorio(context)
-        ? 760.0
-        : double.infinity;
+    final modulos = ref.watch(modulosProvider);
+    final ancho = Pantalla.esEscritorio(context) ? 640.0 : double.infinity;
 
     return RefreshIndicator(
-      onRefresh: () => ref.read(mesProvider.notifier).refrescar(),
+      onRefresh: () async {
+        ref.read(clienteApiProvider).revisarTodo();
+        await ref.refresh(inicioProvider.future).catchError((_) => datos);
+      },
       child: Align(
         alignment: Alignment.topCenter,
         child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: anchoMaximo),
+          constraints: BoxConstraints(maxWidth: ancho),
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+            padding: const EdgeInsets.fromLTRB(
+              Espacio.lateral,
+              Espacio.m,
+              Espacio.lateral,
+              96,
+            ),
             children: [
-              TarjetaSaldo(
-                resumen: datos.resumen,
-                modo: ref.watch(modoVistaProvider),
-                // Un mes cerrado no admite cambios.
-                alEditarIngreso: datos.resumen.cerrado ? null : alEditarIngreso,
-                alAlternarModo: () =>
-                    ref.read(modoVistaProvider.notifier).alternar(),
-              ),
-              const SizedBox(height: 12),
-              TarjetaCuadre(alTocar: () => context.push(Rutas.cuentas)),
-              const SizedBox(height: 20),
-              IngresosExtra(datos: datos),
-              const SizedBox(height: 20),
-              ListaGastos(datos: datos),
+              _Cabecera(datos: datos),
+              const SizedBox(height: Espacio.xl),
+              _Cifra(datos: datos),
+              ..._aviso(context),
+              _ProximosPagos(datos: datos),
+              _EsteMes(datos: datos),
+              if (datos.tieneCuentas) _MisCuentas(cuentas: datos.cuentas),
+              if (datos.proximoSueldo != null)
+                _TuSueldo(pago: datos.proximoSueldo!),
+              if (modulos.isNotEmpty) _Modulos(modulos: modulos),
             ],
           ),
         ),
       ),
     );
   }
+
+  /// Una frase con lo que antes había que deducir de varias cifras.
+  List<Widget> _aviso(BuildContext context) {
+    final negrita = TextStyle(
+      fontWeight: FontWeight.w700,
+      color: context.colores.tinta,
+    );
+    final vencidos = datos.vencidos;
+    if (vencidos.isNotEmpty) {
+      final total = vencidos.fold<double>(0, (s, p) => s + p.monto);
+      return [
+        const SizedBox(height: Espacio.xl),
+        CajaAviso(
+          tono: Tono.negativo,
+          icono: Iconos.atencion,
+          texto: TextSpan(
+            children: [
+              TextSpan(
+                text: vencidos.length == 1
+                    ? 'Se pasó la fecha de '
+                    : 'Se pasó la fecha de ${vencidos.length} pagos: ',
+              ),
+              TextSpan(
+                text:
+                    '${_lista(vencidos.map((p) => p.titulo))} '
+                    '(${Formato.pesos(total)})',
+                style: negrita,
+              ),
+              const TextSpan(text: '. Si ya lo pagaste, márcalo como pagado.'),
+            ],
+          ),
+        ),
+      ];
+    }
+
+    final pendientes = datos.pendientesDelMes;
+    if (pendientes.isEmpty) return const [];
+    final total = pendientes.fold<double>(0, (s, p) => s + p.monto);
+    final queda = datos.quedaHastaElSueldo;
+    final hasta = datos.proximoSueldo != null
+        ? 'hasta que llegue tu sueldo'
+        : 'hasta cerrar el mes';
+
+    return [
+      const SizedBox(height: Espacio.xl),
+      CajaAviso(
+        icono: Iconos.atencion,
+        tono: queda < 0 ? Tono.aviso : Tono.suave,
+        texto: TextSpan(
+          children: [
+            const TextSpan(text: 'Te falta pagar '),
+            TextSpan(
+              text: pendientes.length == 1
+                  ? '«${_corto(pendientes.first.titulo)}» '
+                        '(${Formato.pesos(total)})'
+                  : '${pendientes.length} gastos del mes '
+                        '(${Formato.pesos(total)})',
+              style: negrita,
+            ),
+            TextSpan(
+              text: queda < 0
+                  ? '. Con lo que tienes, te faltarían '
+                  : '. Después de pagar lo que vence te quedan ',
+            ),
+            TextSpan(text: Formato.pesos(queda.abs()), style: negrita),
+            TextSpan(text: ' $hasta.'),
+          ],
+        ),
+      ),
+    ];
+  }
 }
 
-class _Cargando extends StatelessWidget {
-  const _Cargando();
+class _Cabecera extends ConsumerWidget {
+  const _Cabecera({required this.datos});
+
+  final DatosInicio datos;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = context.colores;
+    final textos = Theme.of(context).textTheme;
+    final sesion = ref.watch(sesionProvider);
+    final nombre = sesion is SesionAbierta ? sesion.sesion.nombre.trim() : '';
+    final pila = nombre.split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+    final iniciales = pila.take(2).map((p) => p[0].toUpperCase()).join();
+
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                pila.isEmpty ? 'Hola' : 'Hola, ${pila.first}',
+                style: textos.headlineSmall,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${Formato.nombreDeMes(datos.periodo.month)} · '
+                '${_diaYMes(datos.inicioDelMes)} – ${_diaYMes(datos.finDelMes)}',
+                style: textos.bodyMedium?.copyWith(color: c.tinta2),
+              ),
+            ],
+          ),
+        ),
+        Semantics(
+          button: true,
+          label: 'Ajustes',
+          child: Material(
+            color: c.superficie2,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: () => context.push(Rutas.ajustes),
+              child: SizedBox(
+                width: 44,
+                height: 44,
+                child: Center(
+                  child: iniciales.isEmpty
+                      ? Icon(Iconos.ajustes, color: c.tinta2)
+                      : Text(
+                          iniciales,
+                          style: Tipo.estilo(15, 700, color: c.tinta),
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _Cifra extends StatelessWidget {
+  const _Cifra({required this.datos});
+
+  final DatosInicio datos;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    final diferencia = datos.diferenciaConLaApp;
+    final dias = datos.diasParaCerrar;
+
+    return CifraPrincipal(
+      etiqueta: datos.tieneCuentas ? 'Tienes hoy' : 'Disponible hoy',
+      valor: datos.tienesHoy,
+      debajo: [
+        if (diferencia != null)
+          datos.cuadra
+              ? Etiqueta(
+                  'Cuadra con tus bancos',
+                  tono: Tono.positivo,
+                  icono: Iconos.listo,
+                  grande: true,
+                  alTocar: () => context.push(Rutas.cuentas),
+                )
+              : Etiqueta(
+                  diferencia > 0
+                      ? 'Tienes ${Formato.pesos(diferencia)} más que la app'
+                      : 'Te faltan ${Formato.pesos(-diferencia)} frente a la app',
+                  tono: Tono.aviso,
+                  icono: Iconos.atencion,
+                  grande: true,
+                  alTocar: () => context.push(Rutas.cuentas),
+                )
+        else if (!datos.tieneCuentas)
+          Etiqueta(
+            'Anota tus cuentas para cuadrar',
+            icono: Iconos.banco,
+            grande: true,
+            alTocar: () => context.push(Rutas.cuentas),
+          ),
+        if (dias >= 0)
+          Etiqueta(
+            dias == 0
+                ? 'Hoy cierra el mes'
+                : dias == 1
+                ? 'Mañana cierra el mes'
+                : 'Faltan $dias días para cerrar el mes',
+            icono: Iconos.calendario,
+            grande: true,
+          ),
+      ],
+    );
+  }
+}
+
+class _ProximosPagos extends ConsumerWidget {
+  const _ProximosPagos({required this.datos});
+
+  final DatosInicio datos;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pagos = datos.proximosPagos;
+    final juntos = datos.pagosJuntos;
+    final textos = Theme.of(context).textTheme;
+    final c = context.colores;
+
+    if (pagos.isEmpty) {
+      return Seccion(
+        titulo: 'Próximos pagos',
+        accion: '30 días',
+        child: Panel(
+          child: Text(
+            'Nada por pagar en los próximos 30 días.',
+            style: textos.bodyMedium?.copyWith(color: c.tinta2),
+          ),
+        ),
+      );
+    }
+
+    final notas = <String>[
+      for (final dia in juntos.entries.take(1))
+        'El ${_diaYMes(dia.key)} pagas '
+            '${Formato.pesos(dia.value.fold<double>(0, (s, p) => s + p.monto))} '
+            'entre ${_lista(dia.value.map((p) => _corto(p.titulo)))}.',
+      if (datos.proximoSueldo case final sueldo?)
+        if (sueldo.fecha != null)
+          sueldo.fechaHasta == null || sueldo.fechaHasta == sueldo.fecha
+              ? 'Tu sueldo llega el ${_diaYMes(sueldo.fecha!)}.'
+              : 'Tu sueldo llega entre el ${sueldo.fecha!.day} y el '
+                    '${_diaYMes(sueldo.fechaHasta!)}.',
+    ];
+
+    return Seccion(
+      titulo: 'Próximos pagos',
+      accion: '30 días',
       child: Column(
-        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 20),
-          // La primera petición del día puede coincidir con el arranque en frío del servidor.
-          Text('Preparando tu mes…'),
+          Panel.lista(
+            filas: [
+              for (final p in pagos)
+                _FilaPago(
+                  pago: p,
+                  mesDelPeriodo: datos.periodo,
+                  mismoDia:
+                      p.fecha != null &&
+                      juntos.containsKey(
+                        DateTime(p.fecha!.year, p.fecha!.month, p.fecha!.day),
+                      ),
+                ),
+            ],
+          ),
+          if (notas.isNotEmpty) ...[
+            const SizedBox(height: Espacio.m),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                notas.join(' '),
+                style: textos.bodySmall?.copyWith(color: c.tinta2),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _FilaPago extends ConsumerWidget {
+  const _FilaPago({
+    required this.pago,
+    required this.mesDelPeriodo,
+    required this.mismoDia,
+  });
+
+  final ProximoPago pago;
+  final DateTime mesDelPeriodo;
+  final bool mismoDia;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fecha = pago.fecha;
+    final hasta = pago.fechaHasta;
+    final dia = fecha == null
+        ? '—'
+        : hasta != null && hasta != fecha && hasta.month == fecha.month
+        ? '${fecha.day}–${hasta.day}'
+        : '${fecha.day}';
+    final mes = _mesCorto((fecha ?? mesDelPeriodo).month);
+
+    return Fila(
+      inicio: FechaCorta(dia: dia, mes: mes),
+      titulo: pago.titulo,
+      subtitulo: pago.detalle.isEmpty ? null : pago.detalle,
+      etiqueta: pago.vencido
+          ? const Etiqueta('Vencido', tono: Tono.negativo)
+          : mismoDia
+          ? const Etiqueta('Mismo día', tono: Tono.aviso)
+          : null,
+      importe: pago.monto,
+      importeConSigno: pago.ingreso,
+      debajoDelImporte: pago.ingreso ? 'estimado' : null,
+      alTocar: () => _abrir(context, ref),
+    );
+  }
+
+  void _abrir(BuildContext context, WidgetRef ref) {
+    switch (pago.tipo) {
+      case TipoProximoPago.gasto:
+        // El gasto puede ser del mes siguiente: se abre el mes al que pertenece.
+        final f = pago.fecha;
+        ref.read(periodoProvider.notifier).state = f == null
+            ? mesDelPeriodo
+            : DateTime(f.year, f.month + (f.day >= 28 ? 1 : 0));
+        context.go(Rutas.movimientos);
+      case TipoProximoPago.cuotaCredito || TipoProximoPago.deuda:
+        context.go(Rutas.deudas);
+      case TipoProximoPago.sueldo:
+        context.push(Rutas.sueldo);
+    }
+  }
+}
+
+class _EsteMes extends StatelessWidget {
+  const _EsteMes({required this.datos});
+
+  final DatosInicio datos;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final textos = Theme.of(context).textTheme;
+    final r = datos.resumen;
+
+    void verMovimientos() => context.go(Rutas.movimientos);
+
+    if (r == null) {
+      return Seccion(
+        titulo: 'Este mes',
+        child: Panel(
+          child: Text(
+            '${Formato.nombreDeMes(datos.periodo.month)} aún no está creado. '
+            'Ábrelo en Movimientos para empezar.',
+            style: textos.bodyMedium?.copyWith(color: c.tinta2),
+          ),
+        ),
+      );
+    }
+
+    final entro = r.ingresoTotal;
+    final salio = entro - r.disponibleHoy;
+    final proporcion = entro <= 0 ? 0.0 : (salio / entro).clamp(0.0, 1.0);
+
+    Widget cifra(IconData icono, String etiqueta, double valor) => Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icono, size: 16, color: c.tinta2),
+            const SizedBox(width: 6),
+            Text(etiqueta, style: textos.bodyMedium?.copyWith(color: c.tinta2)),
+          ],
+        ),
+        const SizedBox(height: Espacio.xs),
+        Text(Formato.pesos(valor), style: textos.titleLarge),
+      ],
+    );
+
+    return Seccion(
+      titulo: 'Este mes',
+      accion: 'Ver movimientos',
+      alTocarAccion: verMovimientos,
+      child: Panel(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(child: cifra(Iconos.entro, 'Entró', entro)),
+                Expanded(child: cifra(Iconos.salio, 'Salió', salio)),
+              ],
+            ),
+            if (entro > 0) ...[
+              const SizedBox(height: Espacio.l),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(99),
+                child: LinearProgressIndicator(
+                  value: proporcion,
+                  minHeight: 8,
+                  backgroundColor: c.superficie2,
+                  color: salio > entro ? c.negativo : c.tinta,
+                ),
+              ),
+              const SizedBox(height: Espacio.m),
+              Text(
+                salio > entro
+                    ? 'Salió más de lo que entró este mes.'
+                    : 'Gastaste el ${(salio / entro * 100).round()} % de lo '
+                          'que entró.',
+                style: textos.bodySmall?.copyWith(color: c.tinta2),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MisCuentas extends StatelessWidget {
+  const _MisCuentas({required this.cuentas});
+
+  final List<Cuenta> cuentas;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = context.colores;
+    final textos = Theme.of(context).textTheme;
+    final activas = cuentas.where((x) => x.activa).toList();
+
+    return Seccion(
+      titulo: 'Mis cuentas',
+      accion: 'Actualizar',
+      alTocarAccion: () => context.push(Rutas.cuentas),
+      child: LayoutBuilder(
+        builder: (context, limites) {
+          final columnas = limites.maxWidth > 480 ? 3 : 2;
+          final ancho =
+              (limites.maxWidth - Espacio.m * (columnas - 1)) / columnas;
+          return Wrap(
+            spacing: Espacio.m,
+            runSpacing: Espacio.m,
+            children: [
+              for (final cuenta in activas)
+                SizedBox(
+                  width: ancho,
+                  child: Panel(
+                    relleno: EdgeInsets.zero,
+                    child: InkWell(
+                      onTap: () => context.push(Rutas.cuentas),
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  _iconoCuenta(cuenta.tipo),
+                                  size: 16,
+                                  color: c.tinta2,
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    cuenta.nombre,
+                                    style: textos.bodySmall?.copyWith(
+                                      color: c.tinta2,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: Espacio.s),
+                            Text(
+                              cuenta.saldo > 0 && cuenta.saldo < 1
+                                  ? Formato.dinero(cuenta.saldo)
+                                  : Formato.pesos(cuenta.saldo),
+                              style: textos.titleMedium,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  static IconData _iconoCuenta(TipoCuenta tipo) => switch (tipo) {
+    TipoCuenta.banco => Iconos.banco,
+    TipoCuenta.billetera => Iconos.billetera,
+    TipoCuenta.efectivo => Iconos.efectivo,
+  };
+}
+
+class _TuSueldo extends StatelessWidget {
+  const _TuSueldo({required this.pago});
+
+  final ProximoPago pago;
+
+  @override
+  Widget build(BuildContext context) {
+    final fecha = pago.fecha;
+    final hasta = pago.fechaHasta;
+    final cuando = fecha == null
+        ? null
+        : hasta != null && hasta != fecha
+        ? '${fecha.day}–${_diaYMes(hasta)}'
+        : _diaYMes(fecha);
+
+    return Seccion(
+      titulo: 'Tu sueldo',
+      child: Panel.lista(
+        filas: [
+          Fila(
+            inicio: const IconoCaja(Iconos.dolar),
+            titulo: fecha == null
+                ? pago.titulo
+                : '${pago.titulo} · ${Formato.nombreDeMes(fecha.month).toLowerCase()}',
+            subtitulo: pago.detalle.isEmpty ? null : pago.detalle,
+            importe: pago.monto,
+            importeConSigno: true,
+            debajoDelImporte: cuando,
+            alTocar: () => context.push(Rutas.sueldo),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Modulos extends StatelessWidget {
+  const _Modulos({required this.modulos});
+
+  final Set<Modulo> modulos;
+
+  @override
+  Widget build(BuildContext context) {
+    return Seccion(
+      titulo: 'Más',
+      child: Panel.lista(
+        filas: [
+          for (final m in Modulo.values.where(modulos.contains))
+            Fila(
+              inicio: IconoCaja(
+                m == Modulo.ahorro
+                    ? Iconos.ahorro
+                    : Iconos.deCategoria(CategoriaGasto.transporte),
+              ),
+              titulo: m.nombre,
+              final_: Icon(Iconos.entrar, color: context.colores.tinta3),
+              alTocar: () => context.push(
+                m == Modulo.ahorro ? Rutas.ahorro : Rutas.transporte,
+              ),
+            ),
         ],
       ),
     );
@@ -343,257 +712,34 @@ class _Error extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.cloud_off_outlined,
-              size: 48,
-              color: Tema.pendiente,
-            ),
-            const SizedBox(height: 16),
-            Text(mensaje, textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-            FilledButton.tonal(
-              onPressed: alReintentar,
-              child: const Text('Reintentar'),
-            ),
-          ],
-        ),
-      ),
+    return EstadoVacio(
+      icono: Iconos.sinConexion,
+      titulo: 'No se pudo abrir el inicio',
+      texto: mensaje,
+      accion: 'Reintentar',
+      alTocarAccion: alReintentar,
     );
   }
 }
 
-// --- formulario de gasto puntual ---
+// --- textos ---
 
-class _NuevoGasto {
-  const _NuevoGasto(this.nombre, this.categoria, this.monto);
+const _meses = [
+  'ene', 'feb', 'mar', 'abr', 'may', 'jun', //
+  'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
+];
 
-  final String nombre;
-  final CategoriaGasto categoria;
-  final double monto;
+String _mesCorto(int mes) => _meses[mes - 1];
+
+String _diaYMes(DateTime f) => '${f.day} ${_mesCorto(f.month)}';
+
+/// «A, B y C».
+String _lista(Iterable<String> partes) {
+  final l = partes.toList();
+  if (l.length <= 1) return l.join();
+  return '${l.sublist(0, l.length - 1).join(', ')} y ${l.last}';
 }
 
-class _FormularioGasto extends StatefulWidget {
-  const _FormularioGasto();
-
-  @override
-  State<_FormularioGasto> createState() => _FormularioGastoState();
-}
-
-class _FormularioGastoState extends State<_FormularioGasto> {
-  final _formulario = GlobalKey<FormState>();
-  final _nombre = TextEditingController();
-  final _monto = TextEditingController();
-  CategoriaGasto _categoria = CategoriaGasto.otro;
-
-  @override
-  void dispose() {
-    _nombre.dispose();
-    _monto.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 20,
-        bottom: MediaQuery.viewInsetsOf(context).bottom + 20,
-      ),
-      child: Form(
-        key: _formulario,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Nuevo gasto', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 20),
-            TextFormField(
-              controller: _nombre,
-              autofocus: true,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: const InputDecoration(labelText: 'Concepto'),
-              validator: (v) => (v == null || v.trim().isEmpty)
-                  ? 'Escribe un concepto'
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _monto,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              inputFormatters: const [FormatoDeImporte()],
-              decoration: const InputDecoration(
-                labelText: 'Monto',
-                prefixText: r'$ ',
-              ),
-              validator: (v) {
-                final valor = Dinero.interpretar(v ?? '');
-                if (valor == null) return 'Escribe un monto válido';
-                if (valor < 0) return 'No puede ser negativo';
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<CategoriaGasto>(
-              initialValue: _categoria,
-              decoration: const InputDecoration(labelText: 'Categoría'),
-              items: CategoriaGasto.values
-                  .map(
-                    (c) => DropdownMenuItem(value: c, child: Text(c.etiqueta)),
-                  )
-                  .toList(),
-              onChanged: (v) =>
-                  setState(() => _categoria = v ?? CategoriaGasto.otro),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: () {
-                if (!_formulario.currentState!.validate()) return;
-                Navigator.pop(
-                  context,
-                  _NuevoGasto(
-                    _nombre.text.trim(),
-                    _categoria,
-                    Dinero.interpretar(_monto.text)!,
-                  ),
-                );
-              },
-              child: const Text('Añadir'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Elige un mes de los que tienen sentido: unos atrás y unos adelante.
-///
-/// Se limita el rango a propósito. Un selector de fecha completo obligaría a navegar por días
-/// que aquí no significan nada, y de todas formas nadie presupuesta a cinco años vista.
-class _SelectorDeMes extends StatefulWidget {
-  const _SelectorDeMes({required this.actual, required this.hoy});
-
-  final DateTime actual;
-  final DateTime hoy;
-
-  @override
-  State<_SelectorDeMes> createState() => _SelectorDeMesState();
-}
-
-class _SelectorDeMesState extends State<_SelectorDeMes> {
-  late int _anio = widget.actual.year;
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-    final esteMes = DateTime(widget.hoy.year, widget.hoy.month);
-
-    return AlertDialog(
-      contentPadding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
-      title: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
-            onPressed: () => setState(() => _anio--),
-          ),
-          Expanded(
-            child: Text(
-              '$_anio',
-              textAlign: TextAlign.center,
-              style: tema.textTheme.titleLarge,
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
-            onPressed: () => setState(() => _anio++),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: 320,
-        child: GridView.count(
-          crossAxisCount: 3,
-          shrinkWrap: true,
-          childAspectRatio: 2.1,
-          mainAxisSpacing: 6,
-          crossAxisSpacing: 6,
-          children: [
-            for (var mes = 1; mes <= 12; mes++)
-              _Mes(
-                periodo: DateTime(_anio, mes),
-                seleccionado:
-                    _anio == widget.actual.year && mes == widget.actual.month,
-                esElDeHoy: DateTime(_anio, mes) == esteMes,
-              ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, esteMes),
-          child: const Text('Ir al mes de hoy'),
-        ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-      ],
-    );
-  }
-}
-
-class _Mes extends StatelessWidget {
-  const _Mes({
-    required this.periodo,
-    required this.seleccionado,
-    required this.esElDeHoy,
-  });
-
-  final DateTime periodo;
-  final bool seleccionado;
-  final bool esElDeHoy;
-
-  @override
-  Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-
-    return Material(
-      color: seleccionado
-          ? tema.colorScheme.primaryContainer
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: () => Navigator.pop(context, periodo),
-        child: Container(
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            // El mes del calendario se marca con un borde, para poder distinguirlo del que se
-            // está viendo cuando no son el mismo.
-            border: esElDeHoy && !seleccionado
-                ? Border.all(color: tema.colorScheme.outline)
-                : null,
-          ),
-          child: Text(
-            Formato.nombreDeMes(periodo.month),
-            style: tema.textTheme.bodyMedium?.copyWith(
-              fontWeight: seleccionado ? FontWeight.w700 : null,
-              color: seleccionado ? tema.colorScheme.onPrimaryContainer : null,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
+/// Sin lo que va entre paréntesis: «Tarjeta Nu (corte 14 nov)» → «Tarjeta Nu».
+String _corto(String titulo) =>
+    titulo.replaceAll(RegExp(r'\s*\(.*?\)'), '').trim();

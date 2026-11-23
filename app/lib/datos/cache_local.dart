@@ -68,6 +68,13 @@ class CacheLocal {
     await _prefs.setString(_claveTema, tema);
   }
 
+  /// Si una sección opcional (`transporte`, `ahorro`) está a la vista. Como el tema, es una
+  /// preferencia: no caduca ni se borra al cerrar sesión.
+  Future<void> guardarModulo(String modulo, {required bool visible}) =>
+      _prefs.setBool('modulo.$modulo', visible);
+
+  bool leerModulo(String modulo) => _prefs.getBool('modulo.$modulo') ?? false;
+
   /// El tema elegido, o null si nunca se eligió.
   String? leerTema() => _prefs.getString(_claveTema);
 

@@ -90,6 +90,82 @@ class DatosInicio {
   double get dineroReal =>
       cuentas.where((c) => c.activa).fold(0, (suma, c) => suma + c.saldo);
 
+  /// Si hay cuentas anotadas. Sin ellas, la cifra de Inicio es el disponible de la app.
+  bool get tieneCuentas => cuentas.any((c) => c.activa);
+
+  /// La cifra protagonista: lo que hay en los bancos y el efectivo o, si no se han anotado,
+  /// lo que la app calcula como disponible.
+  double get tienesHoy =>
+      tieneCuentas ? dineroReal : (resumen?.disponibleHoy ?? 0);
+
+  /// Diferencia entre lo que hay en los bancos y lo que la app calcula. Null si falta alguno
+  /// de los dos. Positiva: hay más dinero del que la app cree.
+  double? get diferenciaConLaApp {
+    final r = resumen;
+    if (r == null || !tieneCuentas) return null;
+    return dineroReal - r.disponibleHoy;
+  }
+
+  /// Menos de mil pesos de diferencia se considera cuadrado: son redondeos y el 4×1000.
+  static const double toleranciaCuadre = 1000;
+
+  bool get cuadra {
+    final diferencia = diferenciaConLaApp;
+    return diferencia != null && diferencia.abs() < toleranciaCuadre;
+  }
+
+  /// Último día del mes presupuestal en curso: el 27 del mes que le da nombre.
+  DateTime get finDelMes => DateTime(periodo.year, periodo.month, 27);
+
+  /// Primer día del mes presupuestal en curso: el 28 del mes anterior.
+  DateTime get inicioDelMes => DateTime(periodo.year, periodo.month - 1, 28);
+
+  int get diasParaCerrar => _dia(finDelMes).difference(_dia(hoy)).inDays;
+
+  /// Lo vencido sin pagar.
+  List<ProximoPago> get vencidos =>
+      proximosPagos.where((p) => p.vencido && !p.ingreso).toList();
+
+  /// Lo que falta pagar de este mes: gastos sin día fijo o que vencen antes de cerrarlo.
+  List<ProximoPago> get pendientesDelMes => proximosPagos
+      .where(
+        (p) =>
+            !p.ingreso &&
+            !p.vencido &&
+            p.tipo == TipoProximoPago.gasto &&
+            (p.fecha == null || !p.fecha!.isAfter(finDelMes)),
+      )
+      .toList();
+
+  /// El próximo sueldo que se espera, si hay alguno en el horizonte.
+  ProximoPago? get proximoSueldo =>
+      proximosPagos.where((p) => p.ingreso).firstOrNull;
+
+  /// Lo que quedaría después de pagar todo lo que vence antes de que llegue el sueldo (o
+  /// antes de cerrar el mes, si no hay sueldo a la vista). Negativo: no alcanza.
+  double get quedaHastaElSueldo {
+    final limite =
+        proximoSueldo?.fecha ?? finDelMes.add(const Duration(days: 1));
+    final porPagar = proximosPagos
+        .where(
+          (p) => !p.ingreso && (p.fecha == null || p.fecha!.isBefore(limite)),
+        )
+        .fold<double>(0, (suma, p) => suma + p.monto);
+    return tienesHoy - porPagar;
+  }
+
+  /// Días en los que vencen dos pagos o más, con lo que se paga ese día.
+  Map<DateTime, List<ProximoPago>> get pagosJuntos {
+    final porDia = <DateTime, List<ProximoPago>>{};
+    for (final p in proximosPagos) {
+      if (p.ingreso || p.fecha == null) continue;
+      porDia.putIfAbsent(_dia(p.fecha!), () => []).add(p);
+    }
+    return Map.fromEntries(porDia.entries.where((e) => e.value.length > 1));
+  }
+
+  static DateTime _dia(DateTime f) => DateTime(f.year, f.month, f.day);
+
   static DatosInicio deJson(Map<String, dynamic> j) {
     final partes = (j['periodo'] as String).split('-');
     return DatosInicio(

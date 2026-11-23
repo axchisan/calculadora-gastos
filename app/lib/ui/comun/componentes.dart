@@ -321,7 +321,13 @@ class Fila extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Importe(importe!, conSigno: importeConSigno),
+                // Solo lo que entra (lo que lleva «+») va en verde: un pago pendiente no es
+                // una buena noticia.
+                Importe(
+                  importe!,
+                  conSigno: importeConSigno,
+                  colorear: importeConSigno,
+                ),
                 if (debajoDelImporte != null) ...[
                   const SizedBox(height: 2),
                   Text(debajoDelImporte!, style: textos.bodySmall),
@@ -408,12 +414,15 @@ class Etiqueta extends StatelessWidget {
             Icon(icono, size: grande ? 15 : 12, color: frente),
             const SizedBox(width: 6),
           ],
-          Text(
-            texto,
-            style: Tipo.estilo(
-              grande ? 13 : 11,
-              grande ? 600 : 700,
-              color: frente,
+          // Flexible: en pantallas angostas una etiqueta larga baja de línea en vez de salirse.
+          Flexible(
+            child: Text(
+              texto,
+              style: Tipo.estilo(
+                grande ? 13 : 11,
+                grande ? 600 : 700,
+                color: frente,
+              ),
             ),
           ),
         ],
