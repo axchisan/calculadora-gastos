@@ -61,6 +61,9 @@ dependencies {
     // Terraform.
     implementation("io.awspring.cloud:spring-cloud-aws-starter-parameter-store")
 
+    // Lee los extractos en PDF que el usuario descarga del banco (registro automático).
+    implementation("org.apache.pdfbox:pdfbox:3.0.5")
+
     // --- Documentación de la API ---
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.8.6")
 
