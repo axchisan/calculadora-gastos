@@ -30,6 +30,11 @@ class SesionAbierta extends EstadoSesion {
 class ControladorSesion extends StateNotifier<EstadoSesion> {
   ControladorSesion(this._cliente, this._cache)
     : super(const SesionComprobando()) {
+    // Si la sesión caduca y no se puede renovar, el cliente la borra; sin este aviso la app
+    // seguía en las pantallas mostrando «Se requiere iniciar sesión» en lugar de ir al login.
+    _cliente.alPerderSesion = () {
+      if (mounted) state = const SesionCerrada();
+    };
     _restaurar();
   }
 

@@ -107,7 +107,10 @@ class ClienteApi {
   static const Duration _respiroEntreRevalidaciones = Duration(seconds: 20);
 
   /// Se invoca cuando la sesión ya no puede renovarse, para que la app lleve al login.
-  final void Function()? alPerderSesion;
+  ///
+  /// Se puede asignar después de crear el cliente: quien lo conecta es el controlador de la
+  /// sesión, que se crea más tarde y depende del propio cliente.
+  void Function()? alPerderSesion;
 
   SesionGuardada? _sesion;
 

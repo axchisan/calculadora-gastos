@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.17.0+25** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.17.1+26** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V10** | Neon, proyecto de la Calculadora (V10: deudas «a favor») |
-| Pruebas | backend **298**, app **145** | todas en verde |
+| Pruebas | backend **298**, app **146** | todas en verde |
 
 ## En curso: rediseño v2
 
