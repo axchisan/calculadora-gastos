@@ -19,7 +19,13 @@ final cuentasProvider = FutureProvider<List<Cuenta>>((ref) {
     '/api/deudas',
     '/api/creditos',
     '/api/ahorro',
+    '/api/detectados',
   ], ref.invalidateSelf);
+  final cambios = ref
+      .read(clienteApiProvider)
+      .cambiosLocales
+      .listen((_) => ref.invalidateSelf());
+  ref.onDispose(cambios.cancel);
   return ref.watch(repositorioCuentasProvider).listar();
 });
 

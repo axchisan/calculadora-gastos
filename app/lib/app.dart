@@ -22,6 +22,8 @@ import 'ui/navegacion.dart';
 import 'ui/plantillas/pantalla_plantillas.dart';
 import 'ui/cuentas/pantalla_cuentas.dart';
 import 'ui/sueldo/pantalla_sueldo.dart';
+import 'ui/detectados/pantalla_por_revisar.dart';
+import 'ui/detectados/recepcion_extractos.dart';
 import 'ui/transporte/pantalla_transporte.dart';
 
 /// Rutas de la aplicación.
@@ -36,6 +38,9 @@ class Rutas {
 
   /// Compras del día a día, tarjetas y la bandeja de compras detectadas.
   static const String diario = '/movimientos/dia';
+
+  /// Lo que llegó del banco (avisos y extractos) y falta revisar.
+  static const String porRevisar = '/movimientos/por-revisar';
   static const String deudas = '/deudas';
   static const String analisis = '/analisis';
   static const String ajustes = '/ajustes';
@@ -111,6 +116,10 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(path: 'mes', builder: (_, _) => const PantallaMes()),
               GoRoute(path: 'dia', builder: (_, _) => const PantallaDiario()),
+              GoRoute(
+                path: 'por-revisar',
+                builder: (_, _) => const PantallaPorRevisar(),
+              ),
             ],
           ),
           GoRoute(
@@ -158,7 +167,10 @@ class AplicacionGastos extends ConsumerWidget {
             DestinoDeLaBandeja(() => enrutador.go(Rutas.diario)),
           ),
         ],
-        child: SaltoALaBandeja(hijo: hijo ?? const SizedBox.shrink()),
+        child: RecepcionDeExtractos(
+          ir: () => enrutador.go(Rutas.porRevisar),
+          hijo: SaltoALaBandeja(hijo: hijo ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

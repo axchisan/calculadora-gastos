@@ -115,6 +115,9 @@ public class MovimientoDetectado {
     @Column(name = "sugerencia_nombre", length = 120)
     private String sugerenciaNombre;
 
+    @Column(name = "sugerencia_objetivo")
+    private UUID sugerenciaObjetivo;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -201,7 +204,20 @@ public class MovimientoDetectado {
             descartar(regla.getNombre() != null ? regla.getNombre() : "Regla: se descarta");
         } else {
             sugerir(regla.getDestino(), regla.getCategoria(), regla.getNombre());
+            this.sugerenciaObjetivo = regla.getObjetivoId();
         }
+    }
+
+    /** Ya se registró en la app como {@code tipo} con ese identificador. */
+    public void aceptar(String tipo, UUID id, String descripcion) {
+        if (estado != Estado.PENDIENTE) {
+            throw new IllegalStateException("Solo se puede aceptar algo pendiente");
+        }
+        this.estado = Estado.ACEPTADO;
+        this.coincideTipo = tipo;
+        this.coincideId = id;
+        this.motivo = recortar("Registrado: " + descripcion, 200);
+        this.resueltoAt = OffsetDateTime.now();
     }
 
     public void sugerir(ReglaDeteccion.Destino destino, String categoria, String nombre) {
@@ -309,6 +325,10 @@ public class MovimientoDetectado {
 
     public String getSugerenciaNombre() {
         return sugerenciaNombre;
+    }
+
+    public UUID getSugerenciaObjetivo() {
+        return sugerenciaObjetivo;
     }
 
     public OffsetDateTime getCreatedAt() {

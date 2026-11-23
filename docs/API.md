@@ -577,7 +577,8 @@ registra solo. Ver [REGISTRO-AUTOMATICO.md](REGISTRO-AUTOMATICO.md).
 | `GET` | `/api/detectados?estado=PENDIENTE` | La bandeja; `estado` se puede repetir |
 | `POST` | `/api/detectados/avisos` | Recibe un aviso (`origen`: `CORREO`, `SMS` o `NOTIFICACION`; `texto`) |
 | `POST` | `/api/detectados/extractos` | Importa el PDF «Movimientos» de Bancolombia (`pdf` en base64) |
-| `POST` | `/api/detectados/{id}/descartar` | Lo saca de la bandeja (`motivo` opcional) |
+| `POST` | `/api/detectados/{id}/aceptar` | Lo registra: `destino` (`COMPRA`, `GASTO`, `INGRESO`, `ABONO`), `descripcion`, `categoria`, `tipoIngreso`, `medio`, `deudaId`, `mesId` y `siempre` |
+| `POST` | `/api/detectados/{id}/descartar` | Lo saca de la bandeja (`motivo` opcional; `siempre` crea una regla que descarta lo siguiente de ahí) |
 | `POST` | `/api/detectados/{id}/ya-registrado` | Ya estaba apuntado |
 | `POST` | `/api/detectados/{id}/reabrir` | Lo devuelve a la bandeja |
 | `GET` · `POST` | `/api/detectados/reglas` | Reglas para contrapartes conocidas |
@@ -604,7 +605,16 @@ registra solo. Ver [REGISTRO-AUTOMATICO.md](REGISTRO-AUTOMATICO.md).
   `DESCARTADO` por una regla, por ser intereses o un retiro de cajero; `NO_RECONOCIDO` si no
   encaja en ninguna plantilla (se guarda para revisar la plantilla).
 - El extracto devuelve un resumen: `leidos`, `yaEstaban` (importarlo dos veces no repite nada),
-  `pendientes`, `duplicados`, `yaRegistrados`, `descartados`, `desde` y `hasta`.
+  `pendientes`, `duplicados`, `yaRegistrados`, `descartados`, `anteriores`, `desde` y `hasta`.
+  Solo se importa desde el último día en que se anotó el saldo del banco principal (lo anterior
+  ya se cuadró a mano); sin cuentas, desde una semana antes del mes en curso. Si el PDF trae el
+  nombre del titular, se crea una regla que descarta las transferencias entre sus cuentas.
+- Aceptar crea la compra (débito o efectivo, nunca crédito), el gasto ya pagado, el ingreso
+  recibido o el abono, en el mes de la fecha del movimiento, y lo deja `ACEPTADO`. El signo
+  manda: lo que entró no puede ser compra ni gasto, y lo que salió no puede ser ingreso; un
+  abono a una deuda «a favor» es un cobro y tiene que ser plata que entra. Con `siempre`, la
+  regla se guarda por la referencia (cuenta, llave o celular) o, si no hay, por la contraparte,
+  y solo sugiere a movimientos de la misma dirección.
 - Una regla (`campo`: `REFERENCIA` o `CONTRAPARTE`; `accion`: `DESCARTAR` o `SUGERIR` con
   `destino` `GASTO`/`COMPRA`/`INGRESO`/`ABONO`, `categoria` y `nombre`) se aplica también a lo que
   ya estaba pendiente. La referencia compara sin espacios; la contraparte, por contenido y sin

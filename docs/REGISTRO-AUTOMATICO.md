@@ -123,3 +123,20 @@ desde Nequi, entre otros) solo se puede recuperar con el PDF.
 - **Queda para la fase C**: hoy los avisos entran con el token de sesión. El Apps Script de
   Gmail necesitará un secreto propio con firma HMAC, y faltará borrar el texto crudo pasado un
   tiempo.
+
+## Fase B: lo construido
+
+- **Bandeja «Por revisar»** (Movimientos → aviso «N movimientos por revisar», o el menú «Lo que
+  llegó del banco»): cada movimiento se registra como compra, gasto, ingreso o abono a una
+  deuda, se marca como ya apuntado o se descarta. «Hacerlo siempre así» guarda la regla, y lo
+  que una regla ya sabe registrar se acepta en bloque.
+- **Importar el PDF**: en Android, «Compartir» desde WhatsApp, Gmail o Archivos → «Mis gastos»
+  (o «Abrir con»); en la web y el Mac, el botón de la bandeja abre el selector de archivos.
+- **Desde cuándo**: solo desde el último cuadre (el día en que se anotó el saldo del banco
+  principal). Lo anterior se cuadró a mano con otras convenciones y llenaría la bandeja.
+- **Cuentas propias**: el extracto trae el nombre del titular; con él se crea sola una regla
+  que descarta las transferencias a su nombre.
+- Probado con una copia local de la base de producción y el extracto real: simulando un cuadre
+  el 28 oct, de 40 movimientos 17 se reconocieron como ya apuntados, 5 transferencias propias y
+  11 intereses se descartaron solos y quedaron 7 por revisar, que eran justo los que las
+  convenciones registran distinto (apoyo de la familia en neto, préstamos).

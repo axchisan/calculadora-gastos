@@ -21,11 +21,17 @@ class MainActivity : FlutterActivity() {
     /** Cierto cuando la aplicación se abrió tocando el aviso de una compra detectada. */
     private var abiertaDesdeElAviso = false
 
+    /** El PDF que se compartió con la aplicación y que Flutter aún no ha recogido. */
+    private var pdfPendiente: ByteArray? = null
+
+    private var canalExtractos: MethodChannel? = null
+
     override fun onCreate(estado: android.os.Bundle?) {
         super.onCreate(estado)
         abiertaDesdeElAviso = intent?.getBooleanExtra(
             EscuchaDeNotificaciones.EXTRA_BANDEJA, false,
         ) ?: false
+        recogerPdf(intent)
     }
 
     /** Con la aplicación ya abierta, tocar el aviso llega por aquí y no por onCreate. */
@@ -33,6 +39,35 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(nuevo)
         if (nuevo.getBooleanExtra(EscuchaDeNotificaciones.EXTRA_BANDEJA, false)) {
             abiertaDesdeElAviso = true
+        }
+        if (recogerPdf(nuevo)) canalExtractos?.invokeMethod("pdfRecibido", null)
+    }
+
+    /**
+     * Lee el PDF que llega con «Compartir» o «Abrir con». Se lee aquí y no después porque el
+     * permiso para leer el archivo dura lo que dura la actividad que lo recibió.
+     */
+    private fun recogerPdf(recibido: Intent?): Boolean {
+        if (recibido == null) return false
+        val uri: android.net.Uri? = when (recibido.action) {
+            Intent.ACTION_SEND -> if (Build.VERSION.SDK_INT >= 33) {
+                recibido.getParcelableExtra(Intent.EXTRA_STREAM, android.net.Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                recibido.getParcelableExtra(Intent.EXTRA_STREAM)
+            }
+            Intent.ACTION_VIEW -> recibido.data
+            else -> null
+        }
+        if (uri == null) return false
+        return try {
+            val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            // Un extracto pesa unos cientos de KB; algo enorme no es lo que se espera.
+            if (bytes == null || bytes.size > MAXIMO_PDF) return false
+            pdfPendiente = bytes
+            true
+        } catch (e: Exception) {
+            false
         }
     }
 
@@ -45,6 +80,18 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(motor: FlutterEngine) {
         super.configureFlutterEngine(motor)
+
+        canalExtractos = MethodChannel(motor.dartExecutor.binaryMessenger, CANAL_EXTRACTOS).also {
+            it.setMethodCallHandler { llamada, respuesta ->
+                when (llamada.method) {
+                    "tomarPdf" -> {
+                        respuesta.success(pdfPendiente)
+                        pdfPendiente = null
+                    }
+                    else -> respuesta.notImplemented()
+                }
+            }
+        }
 
         MethodChannel(motor.dartExecutor.binaryMessenger, CANAL).setMethodCallHandler {
             llamada, respuesta ->
@@ -276,6 +323,9 @@ class MainActivity : FlutterActivity() {
 
     private companion object {
         const val CANAL = "com.axchisan.calculadora_gastos/capturas"
+        const val CANAL_EXTRACTOS = "com.axchisan.calculadora_gastos/extractos"
+        // Viaja en base64 dentro del JSON y Lambda acepta hasta 6 MB por petición.
+        const val MAXIMO_PDF = 4 * 1024 * 1024
 
         /** Instaladores que Android considera una tienda y no dejan el ajuste restringido. */
         val TIENDAS = setOf(

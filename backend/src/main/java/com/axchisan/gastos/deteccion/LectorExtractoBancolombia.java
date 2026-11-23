@@ -34,9 +34,16 @@ public final class LectorExtractoBancolombia {
     public record Linea(AvisoBancario aviso, String descripcion) {
     }
 
-    /** El extracto: la cuenta a la que pertenece y sus movimientos, del más reciente al más viejo. */
-    public record Extracto(String cuenta, List<Linea> lineas) {
+    /**
+     * El extracto: la cuenta a la que pertenece, el nombre del titular (null si no se encontró)
+     * y sus movimientos, del más reciente al más viejo.
+     */
+    public record Extracto(String cuenta, String titular, List<Linea> lineas) {
     }
+
+    /** El nombre del titular va en mayúsculas justo debajo de la fecha en que se generó. */
+    private static final Pattern TITULAR = Pattern.compile(
+            "(?m)^\\s*\\p{L}+, \\d{1,2} de \\p{L}+ de \\d{4}[^\\n]*\\R\\s*([\\p{Lu} ]{5,80}?)\\s*$");
 
     private static final Pattern MOVIMIENTO = Pattern.compile(
             "(?<![\\d,])(?<dia>\\d{1,2}) (?<mes>ene|feb|mar|abr|may|jun|jul|ago|sept?|oct|nov|dic)"
@@ -101,7 +108,9 @@ public final class LectorExtractoBancolombia {
             lineas.add(new Linea(interpretar(descripcion, referencia, entra, valor, fecha, cuenta),
                     resto));
         }
-        return new Extracto(cuenta, lineas);
+        Matcher t = TITULAR.matcher(texto);
+        String titular = t.find() ? t.group(1).trim() : null;
+        return new Extracto(cuenta, titular, lineas);
     }
 
     private static AvisoBancario interpretar(String descripcion, String referencia, boolean entra,

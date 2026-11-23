@@ -48,6 +48,17 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            <!-- El extracto «Movimientos» del banco, compartido desde WhatsApp, Gmail o Archivos. -->
+            <intent-filter android:label="Importar a Mis gastos">
+                <action android:name="android.intent.action.SEND"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/pdf"/>
+            </intent-filter>
+            <intent-filter android:label="Importar a Mis gastos">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <data android:mimeType="application/pdf"/>
+            </intent-filter>
         </activity>
         <!-- Lee las notificaciones de pago del teléfono para poder registrar las compras
              solas. El permiso lo concede el usuario a mano en Ajustes; declararlo aquí no

@@ -30,7 +30,7 @@ public final class DtosDetectados {
                                String motivo, UUID duplicadoDe, String coincideTipo,
                                UUID coincideId, ReglaDeteccion.Destino sugerenciaDestino,
                                String sugerenciaCategoria, String sugerenciaNombre,
-                               String texto, OffsetDateTime creado) {
+                               UUID sugerenciaObjetivo, String texto, OffsetDateTime creado) {
 
         public static DetectadoDto de(MovimientoDetectado d) {
             return new DetectadoDto(d.getId(), d.getOrigen(), d.getBanco(), d.getClase(),
@@ -38,7 +38,8 @@ public final class DtosDetectados {
                     d.getContraparte(), d.getReferencia(), d.getEstado(), d.getMotivo(),
                     d.getDuplicadoDe(), d.getCoincideTipo(), d.getCoincideId(),
                     d.getSugerenciaDestino(), d.getSugerenciaCategoria(),
-                    d.getSugerenciaNombre(), d.getTexto(), d.getCreatedAt());
+                    d.getSugerenciaNombre(), d.getSugerenciaObjetivo(), d.getTexto(),
+                    d.getCreatedAt());
         }
     }
 
@@ -51,19 +52,21 @@ public final class DtosDetectados {
     }
 
     /** El PDF va en base64 dentro del JSON: Lambda y CloudFront tratan mal los binarios. */
-    public record ExtractoRequest(@NotBlank @Size(max = 8_000_000) String pdf) {
+    /** @param hoy solo para pruebas: el día desde el que se calcula qué es «el mes en curso» */
+    public record ExtractoRequest(@NotBlank @Size(max = 8_000_000) String pdf, LocalDate hoy) {
     }
 
-    public record DescartarRequest(@Size(max = 200) String motivo) {
+    /** @param siempre descartar solo lo siguiente de esa misma contraparte */
+    public record DescartarRequest(@Size(max = 200) String motivo, Boolean siempre) {
     }
 
     public record ReglaDto(UUID id, ReglaDeteccion.Campo campo, String valor,
                            ReglaDeteccion.Accion accion, ReglaDeteccion.Destino destino,
-                           String categoria, String nombre) {
+                           String categoria, String nombre, UUID objetivoId) {
 
         public static ReglaDto de(ReglaDeteccion r) {
             return new ReglaDto(r.getId(), r.getCampo(), r.getValor(), r.getAccion(),
-                    r.getDestino(), r.getCategoria(), r.getNombre());
+                    r.getDestino(), r.getCategoria(), r.getNombre(), r.getObjetivoId());
         }
     }
 
@@ -73,6 +76,18 @@ public final class DtosDetectados {
             @NotNull ReglaDeteccion.Accion accion,
             ReglaDeteccion.Destino destino,
             @Size(max = 30) String categoria,
-            @Size(max = 120) String nombre) {
+            @Size(max = 120) String nombre,
+            UUID objetivoId) {
+    }
+
+    public record AceptarRequest(
+            @NotNull ReglaDeteccion.Destino destino,
+            @Size(max = 120) String descripcion,
+            com.axchisan.gastos.dominio.CategoriaGasto categoria,
+            com.axchisan.gastos.dominio.TipoIngreso tipoIngreso,
+            com.axchisan.gastos.dominio.MedioPago medio,
+            UUID deudaId,
+            UUID mesId,
+            Boolean siempre) {
     }
 }

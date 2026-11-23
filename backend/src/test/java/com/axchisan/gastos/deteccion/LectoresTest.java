@@ -275,6 +275,7 @@ class LectoresTest {
         void lee_cada_linea_y_la_cuenta() {
             LectorExtractoBancolombia.Extracto e = LectorExtractoBancolombia.leerTexto(TEXTO);
             assertThat(e.cuenta()).isEqualTo("8901");
+            assertThat(e.titular()).isEqualTo("LAURA PEREZ");
             assertThat(e.lineas()).hasSize(11);
             assertThat(e.lineas()).extracting(l -> l.aviso().clase()).containsExactly(
                     ClaseMovimiento.INTERESES, ClaseMovimiento.COMPRA,

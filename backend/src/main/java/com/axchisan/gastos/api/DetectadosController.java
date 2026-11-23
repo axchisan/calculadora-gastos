@@ -1,5 +1,6 @@
 package com.axchisan.gastos.api;
 
+import com.axchisan.gastos.api.dto.DtosDetectados.AceptarRequest;
 import com.axchisan.gastos.api.dto.DtosDetectados.AvisoRequest;
 import com.axchisan.gastos.api.dto.DtosDetectados.AvisoResponse;
 import com.axchisan.gastos.api.dto.DtosDetectados.CrearReglaRequest;
@@ -11,6 +12,7 @@ import com.axchisan.gastos.dominio.MovimientoDetectado;
 import com.axchisan.gastos.seguridad.UsuarioActual;
 import com.axchisan.gastos.servicio.ServicioDetectados;
 import com.axchisan.gastos.servicio.ServicioDetectados.ResumenImportacion;
+import com.axchisan.gastos.servicio.ServicioSueldo;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -68,7 +70,17 @@ public class DetectadosController {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("El PDF no llegó bien codificado en base64");
         }
-        return servicio.importarExtracto(UsuarioActual.id(), pdf);
+        return servicio.importarExtracto(UsuarioActual.id(), pdf,
+                peticion.hoy() == null ? ServicioSueldo.hoy() : peticion.hoy());
+    }
+
+    @PostMapping("/{id}/aceptar")
+    @Operation(summary = "Lo registra como compra, gasto pagado, ingreso o abono")
+    public DetectadoDto aceptar(@PathVariable UUID id, @Valid @RequestBody AceptarRequest p) {
+        return DetectadoDto.de(servicio.aceptar(UsuarioActual.id(), id,
+                new ServicioDetectados.Aceptacion(p.destino(), p.descripcion(), p.categoria(),
+                        p.tipoIngreso(), p.medio(), p.deudaId(), p.mesId(),
+                        Boolean.TRUE.equals(p.siempre()))));
     }
 
     @PostMapping("/{id}/descartar")
@@ -76,7 +88,8 @@ public class DetectadosController {
     public DetectadoDto descartar(@PathVariable UUID id,
                                   @Valid @RequestBody(required = false) DescartarRequest peticion) {
         return DetectadoDto.de(servicio.descartar(UsuarioActual.id(), id,
-                peticion == null ? null : peticion.motivo()));
+                peticion == null ? null : peticion.motivo(),
+                peticion != null && Boolean.TRUE.equals(peticion.siempre())));
     }
 
     @PostMapping("/{id}/ya-registrado")
@@ -101,7 +114,7 @@ public class DetectadosController {
     @Operation(summary = "Crea una regla y la aplica a lo pendiente")
     public ResponseEntity<ReglaDto> crearRegla(@Valid @RequestBody CrearReglaRequest p) {
         var regla = servicio.crearRegla(UsuarioActual.id(), p.campo(), p.valor(), p.accion(),
-                p.destino(), p.categoria(), p.nombre());
+                p.destino(), p.categoria(), p.nombre(), p.objetivoId());
         return ResponseEntity.status(HttpStatus.CREATED).body(ReglaDto.de(regla));
     }
 

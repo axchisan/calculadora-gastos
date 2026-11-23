@@ -9,6 +9,7 @@ import '../../datos/cliente_api.dart';
 import '../../dominio/modelos.dart';
 import '../../dominio/movimientos.dart';
 import '../../estado/compras.dart';
+import '../../estado/detectados.dart';
 import '../../estado/mes.dart';
 import '../../estado/movimientos.dart';
 import '../../estado/proveedores.dart';
@@ -79,9 +80,14 @@ class _EstadoMovimientos extends ConsumerState<PantallaMovimientos> {
                     onSelected: (o) => switch (o) {
                       'mes' => context.push(Rutas.detalleMes),
                       'dia' => context.push(Rutas.diario),
+                      'banco' => context.push(Rutas.porRevisar),
                       _ => null,
                     },
                     itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'banco',
+                        child: Text('Lo que llegó del banco'),
+                      ),
                       PopupMenuItem(
                         value: 'mes',
                         child: Text('Sueldo, gastos fijos y cierre del mes'),
@@ -191,6 +197,7 @@ class _Lista extends ConsumerWidget {
             ),
             children: [
               _Resumen(datos: datos),
+              const _AvisoPorRevisar(),
               if (datos.cerrado) ...[
                 const SizedBox(height: Espacio.m),
                 const CajaAviso(
@@ -692,3 +699,30 @@ const _meses = [
 ];
 
 String _mesCorto(DateTime f) => _meses[f.month - 1];
+
+/// «N movimientos del banco por revisar»: lleva a la bandeja. No ocupa nada si no hay.
+class _AvisoPorRevisar extends ConsumerWidget {
+  const _AvisoPorRevisar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final cuantos = ref.watch(cuantosPorRevisarProvider);
+    if (cuantos == 0) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: Espacio.m),
+      child: Panel.lista(
+        filas: [
+          Fila(
+            inicio: const IconoCaja(Iconos.banco),
+            titulo: cuantos == 1
+                ? '1 movimiento por revisar'
+                : '$cuantos movimientos por revisar',
+            subtitulo: 'Llegaron del banco y no están en la app',
+            final_: const Icon(Iconos.entrar),
+            alTocar: () => context.push(Rutas.porRevisar),
+          ),
+        ],
+      ),
+    );
+  }
+}

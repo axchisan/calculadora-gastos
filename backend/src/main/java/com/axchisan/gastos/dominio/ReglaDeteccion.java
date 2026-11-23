@@ -58,6 +58,10 @@ public class ReglaDeteccion {
     @Column(length = 120)
     private String nombre;
 
+    /** La deuda a la que se abona, si el destino es un abono. */
+    @Column(name = "objetivo_id")
+    private UUID objetivoId;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private OffsetDateTime createdAt;
 
@@ -93,6 +97,25 @@ public class ReglaDeteccion {
      * contraparte basta con que contenga el valor, sin distinguir mayúsculas, porque cada canal
      * la escribe distinto («MARIO PEREZ GOMEZ» en el PDF, «Mario Pérez Gómez» en el SMS).
      */
+    /**
+     * Si la regla aplica a un movimiento con esa dirección. Una sugerencia solo vale si cuadra
+     * con hacia dónde fue la plata: un ingreso para lo que entra, una compra o un gasto para lo
+     * que sale. Así la regla «lo que manda mamá es apoyo» no toca lo que se le envía a ella.
+     */
+    public boolean aplica(String referencia, String contraparte, boolean entra) {
+        if (accion == Accion.SUGERIR && destino != null) {
+            boolean cuadra = switch (destino) {
+                case INGRESO -> entra;
+                case COMPRA, GASTO -> !entra;
+                case ABONO -> true;
+            };
+            if (!cuadra) {
+                return false;
+            }
+        }
+        return aplica(referencia, contraparte);
+    }
+
     public boolean aplica(String referencia, String contraparte) {
         if (campo == Campo.REFERENCIA) {
             return referencia != null
@@ -136,6 +159,14 @@ public class ReglaDeteccion {
 
     public String getNombre() {
         return nombre;
+    }
+
+    public UUID getObjetivoId() {
+        return objetivoId;
+    }
+
+    public void setObjetivoId(UUID objetivoId) {
+        this.objetivoId = objetivoId;
     }
 
     public OffsetDateTime getCreatedAt() {

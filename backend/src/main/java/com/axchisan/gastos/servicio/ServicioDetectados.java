@@ -4,12 +4,21 @@ import com.axchisan.gastos.deteccion.AvisoBancario;
 import com.axchisan.gastos.deteccion.ClaseMovimiento;
 import com.axchisan.gastos.deteccion.LectorAvisosBancolombia;
 import com.axchisan.gastos.deteccion.LectorExtractoBancolombia;
+import com.axchisan.gastos.dominio.CategoriaGasto;
+import com.axchisan.gastos.dominio.Deuda;
+import com.axchisan.gastos.dominio.Ingreso;
+import com.axchisan.gastos.dominio.MedioPago;
 import com.axchisan.gastos.dominio.MesPresupuestal;
+import com.axchisan.gastos.dominio.OrigenCompra;
+import com.axchisan.gastos.dominio.TipoIngreso;
 import com.axchisan.gastos.dominio.MovimientoDetectado;
 import com.axchisan.gastos.dominio.MovimientoDetectado.Estado;
 import com.axchisan.gastos.dominio.MovimientoDetectado.Origen;
 import com.axchisan.gastos.dominio.ReglaDeteccion;
 import com.axchisan.gastos.dominio.Usuario;
+import com.axchisan.gastos.dominio.Cuenta;
+import com.axchisan.gastos.dominio.TipoCuenta;
+import com.axchisan.gastos.repositorio.CuentaRepository;
 import com.axchisan.gastos.repositorio.MesPresupuestalRepository;
 import com.axchisan.gastos.repositorio.MovimientoDetectadoRepository;
 import com.axchisan.gastos.repositorio.ReglaDeteccionRepository;
@@ -53,15 +62,40 @@ public class ServicioDetectados {
     private final UsuarioRepository usuarios;
     private final MesPresupuestalRepository meses;
     private final ServicioMovimientos movimientos;
+    private final ServicioCompras compras;
+    private final ServicioGastos gastos;
+    private final ServicioDeudas deudas;
+    private final CuentaRepository cuentas;
 
     public ServicioDetectados(MovimientoDetectadoRepository detectados,
                               ReglaDeteccionRepository reglas, UsuarioRepository usuarios,
-                              MesPresupuestalRepository meses, ServicioMovimientos movimientos) {
+                              MesPresupuestalRepository meses, ServicioMovimientos movimientos,
+                              ServicioCompras compras, ServicioGastos gastos,
+                              ServicioDeudas deudas, CuentaRepository cuentas) {
         this.detectados = detectados;
         this.reglas = reglas;
         this.usuarios = usuarios;
         this.meses = meses;
         this.movimientos = movimientos;
+        this.compras = compras;
+        this.gastos = gastos;
+        this.deudas = deudas;
+        this.cuentas = cuentas;
+    }
+
+    /**
+     * Cómo registrar un movimiento detectado.
+     *
+     * @param categoria   de la compra o del gasto
+     * @param tipoIngreso del ingreso
+     * @param medio       de la compra; por defecto, débito (salió de la cuenta)
+     * @param deudaId     la deuda a la que se abona, o de la que se cobra
+     * @param mesId       por defecto, el mes presupuestal de la fecha del movimiento
+     * @param siempre     crear una regla para que lo siguiente de esa contraparte llegue igual
+     */
+    public record Aceptacion(ReglaDeteccion.Destino destino, String descripcion,
+                             CategoriaGasto categoria, TipoIngreso tipoIngreso, MedioPago medio,
+                             UUID deudaId, UUID mesId, boolean siempre) {
     }
 
     public enum Resultado { NUEVO, REPETIDO, IGNORADO }
@@ -76,7 +110,27 @@ public class ServicioDetectados {
      */
     public record ResumenImportacion(String cuenta, LocalDate desde, LocalDate hasta, int leidos,
                                      int yaEstaban, int pendientes, int duplicados,
-                                     int yaRegistrados, int descartados) {
+                                     int yaRegistrados, int descartados, int anteriores) {
+    }
+
+    /** Días antes del inicio del mes en curso que se importan si no hay cuentas anotadas. */
+    private static final int DIAS_ANTES_DEL_MES = 7;
+
+    /**
+     * Desde qué día se importa un extracto: el último día en que se anotó el saldo del banco
+     * principal, porque hasta ahí todo quedó cuadrado a mano (con otras convenciones, como lo
+     * que manda la familia en un solo ingreso neto) y traerlo llenaría la bandeja de ruido. Ese
+     * mismo día sí se importa: lo que ya estaba apuntado se reconoce solo. Sin cuentas anotadas,
+     * desde el inicio del mes presupuestal en curso con una semana de margen.
+     */
+    public LocalDate importarDesde(UUID usuarioId, LocalDate hoy) {
+        return cuentas.listarDelUsuario(usuarioId).stream()
+                .filter(Cuenta::isActiva)
+                .filter(c -> c.getTipo() == TipoCuenta.BANCO)
+                .min(Comparator.comparingInt(Cuenta::getOrden))
+                .map(Cuenta::getSaldoAl)
+                .orElseGet(() -> ServicioInicio.vencimientoEn(ServicioInicio.periodoDe(hoy), 28)
+                        .minusDays(DIAS_ANTES_DEL_MES));
     }
 
     // --- entrada ---
@@ -107,17 +161,20 @@ public class ServicioDetectados {
     }
 
     @Transactional
-    public ResumenImportacion importarExtracto(UUID usuarioId, byte[] pdf) {
-        return importar(usuarioId, LectorExtractoBancolombia.leer(pdf));
+    public ResumenImportacion importarExtracto(UUID usuarioId, byte[] pdf, LocalDate hoy) {
+        return importar(usuarioId, LectorExtractoBancolombia.leer(pdf),
+                importarDesde(usuarioId, hoy));
     }
 
     @Transactional
-    public ResumenImportacion importar(UUID usuarioId, LectorExtractoBancolombia.Extracto extracto) {
+    public ResumenImportacion importar(UUID usuarioId, LectorExtractoBancolombia.Extracto extracto,
+                                       LocalDate importarDesde) {
         if (extracto.lineas().isEmpty()) {
             throw new IllegalArgumentException(
                     "No se encontró ningún movimiento: ¿es el PDF «Movimientos» de Bancolombia?");
         }
         Usuario usuario = usuario(usuarioId);
+        reglaDeCuentasPropias(usuario, extracto.titular());
         Contexto contexto = new Contexto(usuarioId);
         // Dos compras iguales el mismo día son dos líneas idénticas: el número de aparición
         // las distingue, y como el extracto es siempre el mismo, la huella se repite al
@@ -128,12 +185,17 @@ public class ServicioDetectados {
         int duplicados = 0;
         int yaRegistrados = 0;
         int descartados = 0;
+        int anteriores = 0;
         LocalDate desde = null;
         LocalDate hasta = null;
         // Del más viejo al más reciente, para que los cruces sigan el orden en que ocurrieron.
         List<LectorExtractoBancolombia.Linea> lineas = extracto.lineas().reversed();
         for (LectorExtractoBancolombia.Linea linea : lineas) {
             AvisoBancario a = linea.aviso();
+            if (a.fecha().isBefore(importarDesde)) {
+                anteriores++;
+                continue;
+            }
             desde = desde == null || a.fecha().isBefore(desde) ? a.fecha() : desde;
             hasta = hasta == null || a.fecha().isAfter(hasta) ? a.fecha() : hasta;
             String clave = a.fecha() + "|" + (a.entra() ? "+" : "-") + a.monto() + "|"
@@ -161,7 +223,34 @@ public class ServicioDetectados {
             }
         }
         return new ResumenImportacion(extracto.cuenta(), desde, hasta, lineas.size(), yaEstaban,
-                pendientes, duplicados, yaRegistrados, descartados);
+                pendientes, duplicados, yaRegistrados, descartados, anteriores);
+    }
+
+    /**
+     * Las transferencias entre cuentas del mismo titular (de Bancolombia a su Nequi, a su Nu)
+     * no son ni gasto ni ingreso. El extracto trae el nombre completo del titular; con él se
+     * crea, una sola vez, una regla que las descarta. Se compara con las tres primeras palabras,
+     * la tercera recortada (seis letras como mucho, y nunca entera), porque el banco trunca
+     * los nombres de cuentas según el espacio que tiene.
+     */
+    private void reglaDeCuentasPropias(Usuario usuario, String titular) {
+        if (titular == null) {
+            return;
+        }
+        String[] palabras = titular.trim().toLowerCase(java.util.Locale.ROOT).split("\\s+");
+        if (palabras.length < 3) {
+            return;
+        }
+        String valor = palabras[0] + " " + palabras[1] + " "
+                + palabras[2].substring(0,
+                        Math.min(6, Math.max(3, palabras[2].length() - 1)));
+        boolean existe = reglas.listarDelUsuario(usuario.getId()).stream()
+                .anyMatch(r -> r.getCampo() == ReglaDeteccion.Campo.CONTRAPARTE
+                        && r.getValor().equalsIgnoreCase(valor));
+        if (!existe) {
+            reglas.saveAndFlush(new ReglaDeteccion(usuario, ReglaDeteccion.Campo.CONTRAPARTE,
+                    valor, ReglaDeteccion.Accion.DESCARTAR, null, null, "Entre tus cuentas"));
+        }
     }
 
     // --- la bandeja ---
@@ -174,8 +263,19 @@ public class ServicioDetectados {
 
     @Transactional
     public MovimientoDetectado descartar(UUID usuarioId, UUID id, String motivo) {
+        return descartar(usuarioId, id, motivo, false);
+    }
+
+    /** Con {@code siempre}, lo siguiente de esa contraparte se descarta solo. */
+    @Transactional
+    public MovimientoDetectado descartar(UUID usuarioId, UUID id, String motivo,
+                                         boolean siempre) {
         MovimientoDetectado d = buscar(usuarioId, id);
         d.descartar(motivo == null || motivo.isBlank() ? "Descartado a mano" : motivo);
+        if (siempre) {
+            recordar(usuarioId, d, ReglaDeteccion.Accion.DESCARTAR, null, null,
+                    "Se descarta siempre", null);
+        }
         return d;
     }
 
@@ -197,6 +297,142 @@ public class ServicioDetectados {
         return d;
     }
 
+    /** Lo registra en la app (compra, gasto pagado, ingreso o abono) y lo saca de la bandeja. */
+    @Transactional
+    public MovimientoDetectado aceptar(UUID usuarioId, UUID id, Aceptacion a) {
+        MovimientoDetectado d = buscar(usuarioId, id);
+        if (d.getEstado() != Estado.PENDIENTE) {
+            throw new IllegalArgumentException("Solo se puede registrar algo que esté por revisar");
+        }
+        if (a.destino() == null) {
+            throw new IllegalArgumentException("Falta decir cómo se registra");
+        }
+        boolean entra = Boolean.TRUE.equals(d.getEntra());
+        String descripcion = a.descripcion() == null || a.descripcion().isBlank()
+                ? (d.getContraparte() == null ? "Movimiento" : d.getContraparte())
+                : a.descripcion().trim();
+        UUID mesId = a.mesId() != null ? a.mesId() : mesDe(usuarioId, d.getFecha());
+        String tipo;
+        UUID creado;
+        String categoriaRegla;
+        switch (a.destino()) {
+            case COMPRA -> {
+                exigirQueSale(entra);
+                CategoriaGasto categoria = a.categoria() == null ? CategoriaGasto.OTRO
+                        : a.categoria();
+                MedioPago medio = a.medio() == null ? MedioPago.DEBITO : a.medio();
+                if (medio == MedioPago.CREDITO) {
+                    throw new IllegalArgumentException(
+                            "Lo que avisa el banco salió de la cuenta: no puede ser a crédito");
+                }
+                creado = compras.registrar(usuarioId, mesId, d.getFecha(), descripcion, categoria,
+                        d.getMonto(), medio, null, null, OrigenCompra.NOTIFICACION).getId();
+                tipo = "COMPRA";
+                categoriaRegla = categoria.name();
+            }
+            case GASTO -> {
+                exigirQueSale(entra);
+                CategoriaGasto categoria = a.categoria() == null ? CategoriaGasto.OTRO
+                        : a.categoria();
+                var gasto = gastos.crear(usuarioId, mesId, descripcion, categoria, d.getMonto(),
+                        null, null);
+                gastos.marcarPagado(usuarioId, gasto.getId(), d.getFecha());
+                creado = gasto.getId();
+                tipo = "GASTO";
+                categoriaRegla = categoria.name();
+            }
+            case INGRESO -> {
+                if (!entra) {
+                    throw new IllegalArgumentException("Esa plata salió: no puede ser un ingreso");
+                }
+                TipoIngreso tipoIngreso = a.tipoIngreso() == null ? TipoIngreso.OTRO
+                        : a.tipoIngreso();
+                MesPresupuestal mes = meses.buscarDelUsuario(usuarioId, mesId)
+                        .orElseThrow(() -> new RecursoNoEncontrado("el mes", mesId));
+                if (mes.isCerrado()) {
+                    throw new ServicioMeses.MesCerrado(mes.periodo());
+                }
+                Ingreso ingreso = new Ingreso(descripcion, d.getMonto(), d.getFecha(), true);
+                ingreso.setTipo(tipoIngreso);
+                mes.agregarIngreso(ingreso);
+                meses.saveAndFlush(mes);
+                creado = ingreso.getId();
+                tipo = "INGRESO";
+                categoriaRegla = tipoIngreso.name();
+            }
+            case ABONO -> {
+                if (a.deudaId() == null) {
+                    throw new IllegalArgumentException("Falta elegir la deuda");
+                }
+                Deuda deuda = deudas.buscar(usuarioId, a.deudaId());
+                if (deuda.isAFavor() != entra) {
+                    throw new IllegalArgumentException(deuda.isAFavor()
+                            ? "Un cobro de lo que te deben tiene que ser plata que entra"
+                            : "Un abono a una deuda tiene que ser plata que sale");
+                }
+                creado = deudas.registrarAbono(usuarioId, deuda.getId(), d.getMonto(),
+                        d.getFecha(), mesId, null).getId();
+                tipo = "ABONO";
+                categoriaRegla = null;
+                descripcion = (deuda.isAFavor() ? "Cobro a " : "Abono a ")
+                        + deuda.getAcreedor();
+            }
+            default -> throw new IllegalArgumentException("Destino desconocido");
+        }
+        d.aceptar(tipo, creado, descripcion);
+        if (a.siempre()) {
+            recordar(usuarioId, d, ReglaDeteccion.Accion.SUGERIR, a.destino(), categoriaRegla,
+                    a.destino() == ReglaDeteccion.Destino.ABONO ? null : descripcion,
+                    a.deudaId());
+        }
+        return d;
+    }
+
+    private static void exigirQueSale(boolean entra) {
+        if (entra) {
+            throw new IllegalArgumentException("Esa plata entró: regístrala como ingreso");
+        }
+    }
+
+    private UUID mesDe(UUID usuarioId, LocalDate fecha) {
+        YearMonth periodo = ServicioInicio.periodoDe(fecha);
+        return meses.buscarPorPeriodo(usuarioId, (short) periodo.getYear(),
+                        (short) periodo.getMonthValue())
+                .map(MesPresupuestal::getId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Todavía no existe el mes de " + periodo + ": créalo primero"));
+    }
+
+    /**
+     * «Hacerlo siempre así»: una regla por la referencia (cuenta, llave o celular), que es lo más
+     * preciso, o por la contraparte si no hay referencia. Reemplaza la que hubiera para lo mismo.
+     */
+    private void recordar(UUID usuarioId, MovimientoDetectado d, ReglaDeteccion.Accion accion,
+                          ReglaDeteccion.Destino destino, String categoria, String nombre,
+                          UUID objetivo) {
+        boolean porReferencia = d.getReferencia() != null && !d.getReferencia().isBlank();
+        String valor = porReferencia ? d.getReferencia() : d.getContraparte();
+        if (valor == null || valor.isBlank()) {
+            return;
+        }
+        ReglaDeteccion.Campo campo = porReferencia ? ReglaDeteccion.Campo.REFERENCIA
+                : ReglaDeteccion.Campo.CONTRAPARTE;
+        reglas.listarDelUsuario(usuarioId).stream()
+                .filter(r -> r.getCampo() == campo && r.getValor().equalsIgnoreCase(valor.trim()))
+                .forEach(reglas::delete);
+        reglas.flush();
+        ReglaDeteccion regla = new ReglaDeteccion(usuario(usuarioId), campo, valor, accion,
+                destino, categoria, nombre);
+        regla.setObjetivoId(objetivo);
+        reglas.save(regla);
+        for (MovimientoDetectado otro : detectados.listar(usuarioId, List.of(Estado.PENDIENTE))) {
+            if (regla.aplica(otro.getReferencia(), otro.getContraparte(),
+                    Boolean.TRUE.equals(otro.getEntra()))) {
+                otro.aplicarRegla(regla);
+            }
+        }
+    }
+
     // --- reglas ---
 
     @Transactional(readOnly = true)
@@ -208,11 +444,14 @@ public class ServicioDetectados {
     @Transactional
     public ReglaDeteccion crearRegla(UUID usuarioId, ReglaDeteccion.Campo campo, String valor,
                                      ReglaDeteccion.Accion accion, ReglaDeteccion.Destino destino,
-                                     String categoria, String nombre) {
-        ReglaDeteccion regla = reglas.save(new ReglaDeteccion(usuario(usuarioId), campo, valor,
-                accion, destino, categoria, nombre));
+                                     String categoria, String nombre, UUID objetivoId) {
+        ReglaDeteccion nueva = new ReglaDeteccion(usuario(usuarioId), campo, valor, accion,
+                destino, categoria, nombre);
+        nueva.setObjetivoId(objetivoId);
+        ReglaDeteccion regla = reglas.save(nueva);
         for (MovimientoDetectado d : detectados.listar(usuarioId, List.of(Estado.PENDIENTE))) {
-            if (regla.aplica(d.getReferencia(), d.getContraparte())) {
+            if (regla.aplica(d.getReferencia(), d.getContraparte(),
+                    Boolean.TRUE.equals(d.getEntra()))) {
                 d.aplicarRegla(regla);
             }
         }
@@ -261,7 +500,8 @@ public class ServicioDetectados {
             return;
         }
         for (ReglaDeteccion regla : contexto.reglasDelUsuario) {
-            if (regla.aplica(d.getReferencia(), d.getContraparte())) {
+            if (regla.aplica(d.getReferencia(), d.getContraparte(),
+                    Boolean.TRUE.equals(d.getEntra()))) {
                 d.aplicarRegla(regla);
                 if (regla.getAccion() == ReglaDeteccion.Accion.DESCARTAR) {
                     return;
