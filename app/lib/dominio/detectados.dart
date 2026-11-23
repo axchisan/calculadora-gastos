@@ -172,7 +172,7 @@ class ResumenImportacion {
   final int yaRegistrados;
   final int descartados;
 
-  /// Líneas de antes del mes en curso: ya se cuadraron a mano y no se importan.
+  /// Líneas de antes del último cuadre de las cuentas: ya están revisadas y no se importan.
   final int anteriores;
   final DateTime? desde;
   final DateTime? hasta;
@@ -185,6 +185,7 @@ class ResumenImportacion {
         duplicados: j['duplicados'] as int? ?? 0,
         yaRegistrados: j['yaRegistrados'] as int? ?? 0,
         descartados: j['descartados'] as int? ?? 0,
+        anteriores: j['anteriores'] as int? ?? 0,
         desde: j['desde'] == null ? null : DateTime.parse(j['desde'] as String),
         hasta: j['hasta'] == null ? null : DateTime.parse(j['hasta'] as String),
       );
@@ -201,7 +202,10 @@ class ResumenImportacion {
             ? '1 sin importancia (intereses o retiro)'
             : '$descartados sin importancia (intereses o retiros)',
       if (yaEstaban > 0) '$yaEstaban ya importados antes',
-      if (anteriores > 0) '$anteriores de meses anteriores, sin tocar',
+      if (anteriores > 0)
+        anteriores == 1
+            ? '1 de antes de tu último cuadre, sin tocar'
+            : '$anteriores de antes de tu último cuadre, sin tocar',
     ];
     return partes.isEmpty ? 'Nada nuevo' : partes.join(' · ');
   }

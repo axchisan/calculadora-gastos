@@ -107,6 +107,10 @@ void main() {
         ResumenImportacion.deJson({'leidos': 5, 'yaEstaban': 5}).frase,
         '5 ya importados antes',
       );
+      expect(
+        ResumenImportacion.deJson({'leidos': 2, 'anteriores': 2}).frase,
+        '2 de antes de tu último cuadre, sin tocar',
+      );
     });
   });
 
