@@ -173,6 +173,51 @@ El identificador de usuario se toma **siempre del token**, nunca de la URL ni de
 petición. No existe ningún endpoint que acepte un identificador de usuario como parámetro, así
 que no hay forma de consultar datos ajenos manipulando una petición.
 
+## Lecturas con `ETag`
+
+Todas las respuestas `GET` de `/api/*` con sesión llevan `ETag` y `Cache-Control: private,
+no-cache`. Si la petición envía `If-None-Match` con la huella que ya tiene, y nada cambió, el
+servidor responde **`304 Not Modified`** sin cuerpo. La app guarda la huella junto a cada lectura
+en su copia local y la usa al revalidar por detrás. La huella se calcula sobre la respuesta ya
+generada (`ShallowEtagHeaderFilter`): ahorra la transferencia, no la consulta. En la web, CORS
+expone `ETag` y admite `If-None-Match`.
+
+## Inicio
+
+### `GET /api/inicio`
+
+Todo lo de la pantalla de Inicio en una petición, para no encadenar varias en el arranque en
+frío. `fecha` (opcional, `aaaa-mm-dd`) permite ver cómo se veía otro día; la app no la envía.
+
+```json
+{
+  "hoy": "2026-08-20",
+  "periodo": "2026-08",
+  "resumen": { "...": "el resumen mensual del mes en curso; ausente si no existe" },
+  "cuentas": [ { "id": "…", "nombre": "Banco", "tipo": "BANCO", "saldo": 120000, "...": "…" } ],
+  "proximosPagos": [
+    { "tipo": "GASTO", "id": "…", "titulo": "Arriendo", "detalle": "Gasto fijo",
+      "fecha": "2026-08-05", "monto": 500000, "ingreso": false, "vencido": true },
+    { "tipo": "GASTO", "id": "…", "titulo": "Celular", "detalle": "Gasto fijo · este mes",
+      "monto": 50000, "ingreso": false, "vencido": false },
+    { "tipo": "SUELDO", "id": "…", "titulo": "Sueldo Empresa", "detalle": "1.000,00 USD",
+      "fecha": "2026-09-01", "fechaHasta": "2026-09-07", "monto": 3900000, "ingreso": true,
+      "vencido": false }
+  ]
+}
+```
+
+`proximosPagos` junta, hasta 30 días por delante:
+
+| `tipo` | Qué entra |
+|---|---|
+| `GASTO` | Lo que falta pagar de los gastos del mes en curso (con o sin día fijo) y los del mes siguiente que tienen día dentro del horizonte. El día se ubica en el mes presupuestal: en noviembre (28 oct – 27 nov), «el 30» es el 30 de octubre |
+| `CUOTA_CREDITO` | Cuotas sin pagar de los créditos activos, vencidas incluidas |
+| `DEUDA` | Deudas activas con fecha límite: la cuota pactada, o el saldo si es un pago único |
+| `SUELDO` | El próximo pago de cada sueldo en otra moneda que aún no se anotó como recibido, con su ventana (`fecha` a `fechaHasta`) |
+
+Orden: lo vencido primero, luego lo del mes sin día fijo y después por fecha.
+
 ## Meses
 
 | Método | Ruta | Descripción |

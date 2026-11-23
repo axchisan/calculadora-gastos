@@ -165,28 +165,37 @@ class ClienteApi {
     final clave = 'api|$usuario|$rutaCompleta';
     final guardado = cache.leer(clave);
 
-    Future<T> pedir() => _peticion<T>(
-      () => _dio.get(
-        ruta,
-        queryParameters: parametros,
-        options: Options(extra: {_lecturaRapida: guardado != null}),
-      ),
-    );
-
-    if (guardado == null) {
-      final respuesta = await pedir();
-      await cache.guardar(clave, respuesta as Object, guardadoEn: _ahora());
-      _revalidadoEn[clave] = _ahora();
-      return respuesta;
+    // Con una copia y su huella, el servidor contesta 304 sin cuerpo si nada cambió.
+    Future<_Lectura> pedir() async {
+      final etag = guardado?.etag;
+      final respuesta = await _respuesta(
+        () => _dio.get(
+          ruta,
+          queryParameters: parametros,
+          options: Options(
+            extra: {_lecturaRapida: guardado != null},
+            headers: {'If-None-Match': ?etag},
+          ),
+        ),
+      );
+      if (respuesta.statusCode == 304 && guardado != null) {
+        return _Lectura(guardado.datos, etag, sinCambios: true);
+      }
+      return _Lectura(respuesta.data, respuesta.headers.value('etag'));
     }
+
+    Future<T> pedirYGuardar() async {
+      final lectura = await pedir();
+      await _guardar(clave, lectura);
+      return lectura.datos as T;
+    }
+
+    if (guardado == null) return pedirYGuardar();
 
     final cambio = _ultimoCambio;
     if (cambio != null && guardado.guardadoEn.isBefore(cambio)) {
       try {
-        final respuesta = await pedir();
-        await cache.guardar(clave, respuesta as Object, guardadoEn: _ahora());
-        _revalidadoEn[clave] = _ahora();
-        return respuesta;
+        return await pedirYGuardar();
       } on ErrorApi catch (e) {
         if (!e.esDeConexion) rethrow;
         return guardado.datos as T;
@@ -197,11 +206,21 @@ class ClienteApi {
     return guardado.datos as T;
   }
 
-  Future<void> _revalidar<T>(
+  Future<void> _guardar(String clave, _Lectura lectura) async {
+    await _cache?.guardar(
+      clave,
+      lectura.datos as Object,
+      guardadoEn: _ahora(),
+      etag: lectura.etag,
+    );
+    _revalidadoEn[clave] = _ahora();
+  }
+
+  Future<void> _revalidar(
     String clave,
     String ruta,
     ContenidoCache guardado,
-    Future<T> Function() pedir,
+    Future<_Lectura> Function() pedir,
   ) async {
     final ultima = _revalidadoEn[clave];
     if (_revalidando.contains(clave) ||
@@ -211,10 +230,12 @@ class ClienteApi {
     }
     _revalidando.add(clave);
     try {
-      final respuesta = await pedir();
-      _revalidadoEn[clave] = _ahora();
-      final cambio = jsonEncode(respuesta) != jsonEncode(guardado.datos);
-      await _cache?.guardar(clave, respuesta as Object, guardadoEn: _ahora());
+      final lectura = await pedir();
+      // Un 304 confirma la copia: se renueva su fecha y no hay nada que repintar.
+      final cambio =
+          !lectura.sinCambios &&
+          jsonEncode(lectura.datos) != jsonEncode(guardado.datos);
+      await _guardar(clave, lectura);
       if (cambio) _actualizaciones.add(ruta);
     } on ErrorApi catch (e) {
       // Sin red, lo guardado sigue valiendo. Cualquier otra respuesta (lo pedido ya no existe,
@@ -486,7 +507,14 @@ class ClienteApi {
 
   // --- interno ---
 
-  Future<T> _peticion<T>(Future<Response<dynamic>> Function() enviar) async {
+  Future<T> _peticion<T>(Future<Response<dynamic>> Function() enviar) async =>
+      (await _respuesta(enviar)).data as T;
+
+  /// Envía la petición, renueva la sesión si hace falta y traduce los errores. Devuelve la
+  /// respuesta completa si fue correcta o un 304 (sin cambios).
+  Future<Response<dynamic>> _respuesta(
+    Future<Response<dynamic>> Function() enviar,
+  ) async {
     late Response<dynamic> respuesta;
     try {
       respuesta = await enviar();
@@ -515,9 +543,7 @@ class ClienteApi {
     }
 
     final codigo = respuesta.statusCode ?? 0;
-    if (codigo >= 200 && codigo < 300) {
-      return respuesta.data as T;
-    }
+    if ((codigo >= 200 && codigo < 300) || codigo == 304) return respuesta;
     throw _traducirError(respuesta);
   }
 
@@ -605,6 +631,15 @@ class ClienteApi {
     };
     return ErrorApi(codigo: 'sin_conexion', mensaje: mensaje);
   }
+}
+
+/// Lo que trae una lectura: los datos, su huella y si el servidor dijo que no cambiaron.
+class _Lectura {
+  const _Lectura(this.datos, this.etag, {this.sinCambios = false});
+
+  final dynamic datos;
+  final String? etag;
+  final bool sinCambios;
 }
 
 /// Si hay conexión con el servidor y qué queda por enviar.

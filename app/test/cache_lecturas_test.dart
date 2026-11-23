@@ -30,6 +30,10 @@ class _Servidor implements HttpClientAdapter {
   int peticiones = 0;
   final List<String> metodos = [];
 
+  /// Si se activa, responde con huella y contesta 304 cuando la que llega coincide.
+  bool conEtag = false;
+  final List<String?> huellasRecibidas = [];
+
   @override
   Future<ResponseBody> fetch(
     RequestOptions opciones,
@@ -44,8 +48,31 @@ class _Servidor implements HttpClientAdapter {
         reason: 'sin red',
       );
     }
+    final cuerpo = jsonEncode(respuesta);
+    if (conEtag) {
+      final huella = '"${cuerpo.hashCode}"';
+      final recibida = opciones.headers['If-None-Match'] as String?;
+      huellasRecibidas.add(recibida);
+      if (recibida == huella) {
+        return ResponseBody.fromString(
+          '',
+          304,
+          headers: {
+            'etag': [huella],
+          },
+        );
+      }
+      return ResponseBody.fromString(
+        cuerpo,
+        200,
+        headers: {
+          Headers.contentTypeHeader: [Headers.jsonContentType],
+          'etag': [huella],
+        },
+      );
+    }
     return ResponseBody.fromString(
-      jsonEncode(respuesta),
+      cuerpo,
       200,
       headers: {
         Headers.contentTypeHeader: [Headers.jsonContentType],
@@ -135,6 +162,52 @@ void main() {
 
     expect(avisos, isEmpty);
     await sub.cancel();
+  });
+
+  group('con ETag', () {
+    setUp(() => servidor.conEtag = true);
+
+    test('revalida con la huella y un 304 conserva lo guardado', () async {
+      await api.obtener<Map<String, dynamic>>('/api/deudas');
+      ahora = ahora.add(const Duration(minutes: 5));
+      final avisos = <String>[];
+      final sub = api.actualizaciones.listen(avisos.add);
+
+      expect(await api.obtener<Map<String, dynamic>>('/api/deudas'), {'v': 1});
+      await esperarFondo();
+
+      expect(servidor.huellasRecibidas.first, isNull);
+      expect(servidor.huellasRecibidas.last, isNotNull);
+      expect(avisos, isEmpty);
+      // El 304 no borra nada: la siguiente apertura, sin red, sigue teniendo los datos.
+      servidor.sinRed = true;
+      final otra = await crear();
+      expect(await otra.obtener<Map<String, dynamic>>('/api/deudas'), {'v': 1});
+      await sub.cancel();
+    });
+
+    test('si cambió, llega la versión nueva con su huella', () async {
+      await api.obtener<Map<String, dynamic>>('/api/deudas');
+      servidor.respuesta = const {'v': 2};
+      ahora = ahora.add(const Duration(minutes: 5));
+      final avisos = <String>[];
+      final sub = api.actualizaciones.listen(avisos.add);
+
+      await api.obtener<Map<String, dynamic>>('/api/deudas');
+      await esperarFondo();
+      expect(avisos, ['/api/deudas']);
+
+      // Y la huella guardada ya es la nueva: la siguiente revalidación da 304.
+      ahora = ahora.add(const Duration(minutes: 5));
+      expect(await api.obtener<Map<String, dynamic>>('/api/deudas'), {'v': 2});
+      await esperarFondo();
+      expect(avisos, ['/api/deudas']);
+      expect(
+        servidor.huellasRecibidas.last,
+        '"${jsonEncode({'v': 2}).hashCode}"',
+      );
+      await sub.cancel();
+    });
   });
 
   test('no repite la revalidación en ráfaga', () async {

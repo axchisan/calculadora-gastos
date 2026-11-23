@@ -72,17 +72,20 @@ class CacheLocal {
   String? leerTema() => _prefs.getString(_claveTema);
 
   /// Guarda [datos] bajo [clave]. [guardadoEn] permite usar el mismo reloj que quien compara
-  /// después las fechas.
+  /// después las fechas. [etag] es la huella que dio el servidor, para preguntarle después si
+  /// cambió algo sin volver a descargarlo.
   Future<void> guardar(
     String clave,
     Object datos, {
     DateTime? guardadoEn,
+    String? etag,
   }) async {
     await _prefs.setString(
       '$_prefijo$clave',
       jsonEncode({
         'guardadoEn': (guardadoEn ?? DateTime.now()).toIso8601String(),
         'datos': datos,
+        'etag': ?etag,
       }),
     );
   }
@@ -97,6 +100,7 @@ class CacheLocal {
       return ContenidoCache(
         datos: envoltorio['datos'],
         guardadoEn: DateTime.parse(envoltorio['guardadoEn'] as String),
+        etag: envoltorio['etag'] as String?,
       );
     } on FormatException {
       // Un formato ilegible solo puede venir de una versión anterior de la aplicación.
@@ -117,10 +121,17 @@ class CacheLocal {
 }
 
 class ContenidoCache {
-  const ContenidoCache({required this.datos, required this.guardadoEn});
+  const ContenidoCache({
+    required this.datos,
+    required this.guardadoEn,
+    this.etag,
+  });
 
   final dynamic datos;
   final DateTime guardadoEn;
+
+  /// Huella de esta versión según el servidor; null si se guardó antes de que la diera.
+  final String? etag;
 
   Duration get antiguedad => DateTime.now().difference(guardadoEn);
 

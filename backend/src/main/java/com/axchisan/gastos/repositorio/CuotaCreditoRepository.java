@@ -24,4 +24,19 @@ public interface CuotaCreditoRepository extends JpaRepository<CuotaCredito, UUID
             """)
     Optional<CuotaCredito> buscarDelUsuario(@Param("usuarioId") UUID usuarioId,
                                             @Param("id") UUID id);
+
+    /**
+     * Cuotas sin pagar de los créditos activos que vencen hasta una fecha, vencidas incluidas.
+     * Trae el crédito en la misma consulta porque quien las pide siempre muestra su entidad.
+     */
+    @Query("""
+            SELECT q FROM CuotaCredito q JOIN FETCH q.credito c
+             WHERE c.usuario.id = :usuarioId
+               AND c.activo = true
+               AND q.pagada = false
+               AND q.fecha <= :hasta
+             ORDER BY q.fecha, q.numero
+            """)
+    List<CuotaCredito> pendientesHasta(@Param("usuarioId") UUID usuarioId,
+                                       @Param("hasta") java.time.LocalDate hasta);
 }

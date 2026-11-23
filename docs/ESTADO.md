@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **1.12.0+19** (commit `2e428df`) | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **1.13.0+20** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **1.10.0+17** | `/Applications/Mis gastos.app`. Se actualiza al terminar el rediseño, no antes |
-| Backend | commit `2e428df` | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V8** | Neon, proyecto de la Calculadora (3b no necesitó migración) |
-| Pruebas | backend **276**, app **124** | todas en verde |
+| Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
+| Esquema de base de datos | migración **V8** | Neon, proyecto de la Calculadora (3b y 3c no necesitaron migración) |
+| Pruebas | backend **287**, app **129** | todas en verde |
 
 ## En curso: rediseño v2
 
@@ -32,8 +32,8 @@ uso personal, no para un contador. Documentos:
 | 2. Sistema de diseño y tema claro | Publicada (1.11.0) |
 | 3a. Lectura local de todo, precarga, aviso sin conexión | Publicada (1.11.0) |
 | 3b. Cola para apuntar sin conexión | Publicada (1.12.0) |
-| **3c. ETag y `GET /api/inicio`** | **Siguiente** |
-| 4. Navegación de 4 pestañas e Inicio nuevo | Pendiente |
+| 3c. ETag y `GET /api/inicio` con próximos pagos | Publicada (1.13.0) |
+| **4. Navegación de 4 pestañas e Inicio nuevo** | **Siguiente** |
 | 5. Movimientos | Pendiente |
 | 6. Deudas (total real, proyección) | Pendiente |
 | 7. Análisis | Pendiente |
@@ -73,6 +73,14 @@ primero). La captura por notificaciones no ha funcionado en el uso real (ver PLA
   lista con `_pendiente`, y se sincroniza en orden al volver la red. La app genera los UUID v7
   (`core/identificadores.dart`) y el backend acepta `id` opcional e idempotente en las altas de
   compras, gastos e ingresos (responde 409 `identificador_en_uso` si es de otro usuario).
+- **ETag** (`api/ConfiguracionWeb.java`): todas las lecturas llevan huella; la app la guarda con
+  cada copia (`CacheLocal`) y revalida con `If-None-Match`. Un `304` renueva la copia sin
+  descargar ni repintar.
+- **`GET /api/inicio`** (`servicio/ServicioInicio.java`): resumen del mes en curso, cuentas y
+  próximos pagos (gastos pendientes, cuotas de crédito, deudas con fecha y el próximo sueldo, a
+  30 días). En la app: `dominio/inicio.dart`, `inicioProvider` (en la precarga). La pantalla que
+  lo usa llega en la fase 4. Las compras a crédito con corte pendiente aún no entran en los
+  próximos pagos (el usuario registra la tarjeta como gasto del mes en que paga).
 
 ## Qué hace la app (funciones)
 

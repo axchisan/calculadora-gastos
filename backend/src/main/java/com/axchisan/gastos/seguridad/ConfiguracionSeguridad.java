@@ -88,7 +88,9 @@ public class ConfiguracionSeguridad {
         CorsConfiguration configuracion = new CorsConfiguration();
         configuracion.setAllowedOriginPatterns(origenesPermitidos);
         configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        configuracion.setAllowedHeaders(List.of("Authorization", "Content-Type", "If-None-Match"));
+        // Sin exponerla, la web no puede leer la huella y nunca revalidaría con ella.
+        configuracion.setExposedHeaders(List.of("ETag"));
         configuracion.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource fuente = new UrlBasedCorsConfigurationSource();
