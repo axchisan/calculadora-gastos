@@ -31,13 +31,16 @@ public class ServicioDeudas {
     private final AbonoDeudaRepository abonos;
     private final UsuarioRepository usuarios;
     private final MesPresupuestalRepository meses;
+    private final com.axchisan.gastos.repositorio.CuotaProgramadaRepository programadas;
 
     public ServicioDeudas(DeudaRepository deudas, AbonoDeudaRepository abonos,
-                          UsuarioRepository usuarios, MesPresupuestalRepository meses) {
+                          UsuarioRepository usuarios, MesPresupuestalRepository meses,
+                          com.axchisan.gastos.repositorio.CuotaProgramadaRepository programadas) {
         this.deudas = deudas;
         this.abonos = abonos;
         this.usuarios = usuarios;
         this.meses = meses;
+        this.programadas = programadas;
     }
 
     @Transactional(readOnly = true)
@@ -177,6 +180,29 @@ public class ServicioDeudas {
     @Transactional
     public void eliminar(UUID usuarioId, UUID deudaId) {
         deudas.delete(buscar(usuarioId, deudaId));
+    }
+
+    /** Reemplaza el plan de pagos mes a mes de la deuda; una lista vacía lo quita. */
+    @Transactional
+    public List<com.axchisan.gastos.dominio.CuotaProgramada> reemplazarPlan(
+            UUID usuarioId, UUID deudaId, List<java.util.Map.Entry<LocalDate, BigDecimal>> cuotas) {
+        Deuda deuda = buscar(usuarioId, deudaId);
+        programadas.borrarDeLaDeuda(deuda.getId());
+        programadas.flush();
+        java.util.Set<LocalDate> fechas = new java.util.HashSet<>();
+        for (var c : cuotas) {
+            if (!fechas.add(c.getKey())) {
+                throw new IllegalArgumentException("Hay dos cuotas el mismo día: " + c.getKey());
+            }
+            programadas.save(new com.axchisan.gastos.dominio.CuotaProgramada(deuda, c.getKey(),
+                    c.getValue()));
+        }
+        return programadas.deLaDeuda(deuda.getId());
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.axchisan.gastos.dominio.CuotaProgramada> plan(UUID usuarioId, UUID deudaId) {
+        return programadas.deLaDeuda(buscar(usuarioId, deudaId).getId());
     }
 
     @Transactional(readOnly = true)

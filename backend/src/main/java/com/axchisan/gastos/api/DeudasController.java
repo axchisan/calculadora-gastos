@@ -110,6 +110,29 @@ public class DeudasController {
                 peticion.cuotaSugerida(), peticion.fechaLimite(), peticion.montoOriginal()));
     }
 
+    public record CuotaProgramadaDto(@jakarta.validation.constraints.NotNull java.time.LocalDate fecha,
+                                     @jakarta.validation.constraints.NotNull
+                                     @jakarta.validation.constraints.Positive
+                                     java.math.BigDecimal monto) {
+    }
+
+    @GetMapping("/{deudaId}/plan")
+    @Operation(summary = "El plan de pagos mes a mes de la deuda (p. ej. los mínimos del extracto)")
+    public List<CuotaProgramadaDto> plan(@PathVariable UUID deudaId) {
+        return deudas.plan(UsuarioActual.id(), deudaId).stream()
+                .map(c -> new CuotaProgramadaDto(c.getFecha(), c.getMonto())).toList();
+    }
+
+    @org.springframework.web.bind.annotation.PutMapping("/{deudaId}/plan")
+    @Operation(summary = "Reemplaza el plan de pagos de la deuda; una lista vacía lo quita")
+    public List<CuotaProgramadaDto> reemplazarPlan(
+            @PathVariable UUID deudaId,
+            @Valid @RequestBody List<@Valid CuotaProgramadaDto> cuotas) {
+        return deudas.reemplazarPlan(UsuarioActual.id(), deudaId, cuotas.stream()
+                        .map(c -> java.util.Map.entry(c.fecha(), c.monto())).toList())
+                .stream().map(c -> new CuotaProgramadaDto(c.getFecha(), c.getMonto())).toList();
+    }
+
     @GetMapping("/{deudaId}/abonos")
     @Operation(summary = "Historial de abonos de la deuda")
     public List<AbonoDto> abonos(@PathVariable UUID deudaId) {

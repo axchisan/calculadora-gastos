@@ -13,6 +13,7 @@ import com.axchisan.gastos.dominio.Usuario;
 import com.axchisan.gastos.repositorio.CompraRepository;
 import com.axchisan.gastos.repositorio.CreditoRepository;
 import com.axchisan.gastos.repositorio.CuotaCreditoRepository;
+import com.axchisan.gastos.repositorio.CuotaProgramadaRepository;
 import com.axchisan.gastos.repositorio.DeudaRepository;
 import com.axchisan.gastos.repositorio.GastoRepository;
 import com.axchisan.gastos.repositorio.MesPresupuestalRepository;
@@ -69,13 +70,14 @@ public class ServicioPlan {
     private final CompraRepository compras;
     private final ServicioSueldo sueldo;
     private final ServicioResumen resumen;
+    private final CuotaProgramadaRepository programadas;
 
     public ServicioPlan(UsuarioRepository usuarios, MesPresupuestalRepository meses,
                         GastoRepository gastos, PlantillaGastoRepository plantillas,
                         CreditoRepository creditos, CuotaCreditoRepository cuotas,
                         DeudaRepository deudas, MetaAhorroRepository metas,
                         CompraRepository compras, ServicioSueldo sueldo,
-                        ServicioResumen resumen) {
+                        ServicioResumen resumen, CuotaProgramadaRepository programadas) {
         this.usuarios = usuarios;
         this.meses = meses;
         this.gastos = gastos;
@@ -87,6 +89,7 @@ public class ServicioPlan {
         this.compras = compras;
         this.sueldo = sueldo;
         this.resumen = resumen;
+        this.programadas = programadas;
     }
 
     public enum Origen { CREDITO, DEUDA }
@@ -144,7 +147,7 @@ public class ServicioPlan {
         BigDecimal diario = propio ? usuario.getPlanGastoDiario() : estimado;
 
         Map<YearMonth, BigDecimal> sueldos = sueldosProyectados(usuarioId, actual, n);
-        Map<YearMonth, List<Pago>> pagos = pagosPorMes(usuarioId, actual, n);
+        Map<YearMonth, List<Pago>> pagos = pagosPorMes(usuarioId, actual, n, hoy);
         BigDecimal fijosPlantilla = plantillas.listarActivas(usuarioId).stream()
                 .map(PlantillaGasto::getMontoDefault)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -268,7 +271,8 @@ public class ServicioPlan {
      * plan (cuota mensual con su interés, o pago único en la fecha límite), igual que en el
      * panorama de deudas. Se cruzan con el mes calendario, como en el resumen.
      */
-    private Map<YearMonth, List<Pago>> pagosPorMes(UUID usuarioId, YearMonth actual, int n) {
+    private Map<YearMonth, List<Pago>> pagosPorMes(UUID usuarioId, YearMonth actual, int n,
+                                                   LocalDate hoy) {
         Map<YearMonth, List<Pago>> resultado = new LinkedHashMap<>();
         YearMonth hasta = actual.plusMonths(n - 1L);
 
@@ -290,6 +294,21 @@ public class ServicioPlan {
 
         for (Deuda deuda : deudas.listarActivas(usuarioId)) {
             if (deuda.isAFavor() || deuda.getSaldo().signum() <= 0) {
+                continue;
+            }
+            // Con plan de pagos (los mínimos del extracto), se usa tal cual. Lo que ya venció se
+            // da por pagado: el saldo de la deuda lo refleja con los abonos.
+            var plan = programadas.deLaDeuda(deuda.getId());
+            if (!plan.isEmpty()) {
+                for (var c : plan) {
+                    YearMonth mes = YearMonth.from(c.getFecha());
+                    if (c.getFecha().isBefore(hoy) || mes.isAfter(hasta)) {
+                        continue;
+                    }
+                    resultado.computeIfAbsent(mes, k -> new ArrayList<>()).add(new Pago(
+                            Origen.DEUDA, deuda.getId(), deuda.getAcreedor(), c.getMonto(),
+                            c.getFecha()));
+                }
                 continue;
             }
             BigDecimal cuota = deuda.getCuotaSugerida();

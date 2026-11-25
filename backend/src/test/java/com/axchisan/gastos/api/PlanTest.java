@@ -161,6 +161,32 @@ class PlanTest {
                 .content("{\"gastoDiario\":-5}")).andExpect(status().isBadRequest());
     }
 
+    @Test
+    void una_deuda_con_plan_de_pagos_usa_sus_cuotas() throws Exception {
+        String id = json.readTree(mvc.perform(auth(get("/api/deudas"))).andReturn().getResponse()
+                .getContentAsString()).get(0).get("id").asText();
+        // Los mínimos del extracto: bajan cuando termina un avance.
+        enviar(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .put("/api/deudas/" + id + "/plan"), """
+                [{"fecha":"2026-09-04","monto":300000},{"fecha":"2026-10-04","monto":150000},
+                 {"fecha":"2026-11-04","monto":40000}]
+                """);
+        JsonNode m = plan(5).get("meses");
+        assertThat(m.get(1).get("totalPagos").decimalValue()).isEqualByComparingTo("300000");
+        assertThat(m.get(2).get("totalPagos").decimalValue()).isEqualByComparingTo("150000");
+        assertThat(m.get(3).get("totalPagos").decimalValue()).isEqualByComparingTo("40000");
+        assertThat(m.get(4).get("totalPagos").decimalValue()).isEqualByComparingTo("0");
+
+        JsonNode guardado = json.readTree(mvc.perform(auth(get("/api/deudas/" + id + "/plan")))
+                .andReturn().getResponse().getContentAsString());
+        assertThat(guardado).hasSize(3);
+        // Una lista vacía lo quita y vuelve la cuota mensual.
+        enviar(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .put("/api/deudas/" + id + "/plan"), "[]");
+        assertThat(plan(5).get("meses").get(2).get("totalPagos").decimalValue())
+                .isEqualByComparingTo("300000");
+    }
+
     // --- ayudantes ---
 
     private JsonNode plan(int cuantos) throws Exception {

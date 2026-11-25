@@ -458,6 +458,17 @@ Al abonar, el saldo baja; al llegar a cero la deuda se marca inactiva y deja de 
 Los abonos **no** generan un gasto en el mes: se contabilizan aparte en `abonosDeuda` del
 resumen. Crear además un gasto los contaría dos veces.
 
+### Plan de pagos de una deuda
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/deudas/{id}/plan` | Las cuotas programadas (`fecha`, `monto`) |
+| `PUT` | `/api/deudas/{id}/plan` | Las reemplaza; `[]` las quita |
+
+Sirve para lo que no cobra lo mismo cada mes, como los mínimos de una tarjeta que bajan al
+terminar las cuotas de un avance. Si una deuda tiene plan, «Mi plan» usa esas cuotas (las que no
+han vencido) en lugar de la cuota mensual.
+
 ### Panorama: todo lo que se debe
 
 `GET /api/deudas/panorama`: créditos activos (su capital según la primera cuota sin pagar) y
