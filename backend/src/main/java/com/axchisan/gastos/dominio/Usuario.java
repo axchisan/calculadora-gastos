@@ -28,6 +28,10 @@ public class Usuario {
     @Column(nullable = false)
     private String nombre;
 
+    /** Lo que el usuario dice gastar al mes en el día a día; null = que lo estime la app. */
+    @jakarta.persistence.Column(name = "plan_gasto_diario", precision = 14, scale = 2)
+    private java.math.BigDecimal planGastoDiario;
+
     @Column(nullable = false)
     private String moneda = "COP";
 
@@ -97,6 +101,14 @@ public class Usuario {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public java.math.BigDecimal getPlanGastoDiario() {
+        return planGastoDiario;
+    }
+
+    public void setPlanGastoDiario(java.math.BigDecimal planGastoDiario) {
+        this.planGastoDiario = planGastoDiario;
     }
 
     public String getNombre() {

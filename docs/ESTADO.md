@@ -7,11 +7,11 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **2.2.0+32** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **2.3.0+33** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **2.0.0+29** | `/Applications/Mis gastos.app` |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
-| Esquema de base de datos | migración **V15** | Neon, proyecto de la Calculadora (V12: movimientos detectados; V13: saldos que siguen a lo apuntado; V14: reglas con deuda; V15: claves de ingesta) |
-| Pruebas | backend **363**, app **166** | todas en verde |
+| Esquema de base de datos | migración **V16** | Neon, proyecto de la Calculadora (V12: movimientos detectados; V13: saldos que siguen a lo apuntado; V14: reglas con deuda; V15: claves de ingesta; V16: día a día del plan) |
+| Pruebas | backend **367**, app **168** | todas en verde |
 
 ## Rediseño v2 (terminado el 23 nov 2026)
 
@@ -63,6 +63,14 @@ Planteamiento, cobertura medida y fases en **[REGISTRO-AUTOMATICO.md](REGISTRO-A
 | C. Tiempo real: SMS en Android y Apps Script de Gmail | Publicada (2.2.0) |
 | D. Nu, Banco de Bogotá, Nequi | Pendiente |
 | E. Pulido | Pendiente |
+
+## Mi plan (2.3.0, 25 nov 2026)
+
+Cuánto sobra del sueldo cada mes después de pagar gastos fijos, deudas, créditos y el día a día,
+y cuándo se alcanza cada meta de ahorro (`ServicioPlan`, `/api/plan`, pantalla `ui/plan/`). En
+Inicio, la tarjeta «Mi plan». La meta puede llevar una foto elegida por el usuario, que se guarda
+solo en el dispositivo (el repositorio es público); sin foto se dibuja un teléfono que se llena
+con lo ahorrado.
 
 ## Cómo está hecho lo nuevo
 

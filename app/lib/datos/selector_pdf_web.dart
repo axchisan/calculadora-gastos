@@ -4,11 +4,15 @@ import 'dart:typed_data';
 
 import 'package:web/web.dart' as web;
 
-Future<Uint8List?> elegirPdf() {
+Future<Uint8List?> elegirPdf() => _elegir('application/pdf,.pdf');
+
+Future<Uint8List?> elegirImagen() => _elegir('image/*');
+
+Future<Uint8List?> _elegir(String acepta) {
   final listo = Completer<Uint8List?>();
   final campo = web.HTMLInputElement()
     ..type = 'file'
-    ..accept = 'application/pdf,.pdf';
+    ..accept = acepta;
   void terminar(Uint8List? bytes) {
     if (!listo.isCompleted) listo.complete(bytes);
   }

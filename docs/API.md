@@ -637,6 +637,24 @@ Responde `{"nuevos", "repetidos", "ignorados", "noReconocidos"}`. Sin clave o co
 401. Un aviso repetido no se duplica, y el mismo movimiento por SMS y por correo queda como
 `DUPLICADO` del primero.
 
+## Mi plan
+
+| Método | Ruta | Qué hace |
+|---|---|---|
+| `GET` | `/api/plan?meses=12` | Lo que entra, lo que sale y lo que sobra mes a mes, y cuándo se alcanza cada meta |
+| `PATCH` | `/api/plan/ajustes` | `{"gastoDiario": 350000}` fija el día a día; `null` vuelve a la estimación |
+
+Para cada mes presupuestal desde el actual: `ingreso` (el sueldo del mes; si el mes no existe, el
+que proyecta la fuente en dólares con la TRM de hoy, `ingresoEstimado`), `fijos` (los gastos del
+mes o, si no existe, las plantillas activas), `pagos` (cuotas de créditos según su cuadro y de
+deudas según su plan, por mes calendario), `diario` y `sobra`. Del mes en curso (`actual`) solo
+cuenta lo que falta: el disponible de hoy menos lo pendiente y la parte del día a día hasta el 27.
+
+El día a día estimado es la mediana de las compras al contado de los tres meses cerrados
+anteriores. Las metas con `metaMonto` reparten lo que sobra por prioridad desde el mes siguiente
+(monto fijo, porcentaje del ingreso o de lo que sobra) y dicen `alcanzaEn` y `alcanzaEnConTodo`
+(apartando todo lo que sobra).
+
 ## Festivos
 
 | Método | Ruta |

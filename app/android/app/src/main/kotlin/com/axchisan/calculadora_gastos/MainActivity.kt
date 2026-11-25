@@ -194,12 +194,12 @@ class MainActivity : FlutterActivity() {
                         respuesta.success(pdfPendiente)
                         pdfPendiente = null
                     }
-                    "elegirPdf" -> {
+                    "elegirPdf", "elegirImagen" -> {
                         eleccionPendiente?.success(null)
                         eleccionPendiente = respuesta
                         val elegir = Intent(Intent.ACTION_OPEN_DOCUMENT)
                             .addCategory(Intent.CATEGORY_OPENABLE)
-                            .setType("application/pdf")
+                            .setType(if (llamada.method == "elegirPdf") "application/pdf" else "image/*")
                         @Suppress("DEPRECATION")
                         startActivityForResult(elegir, CODIGO_ELEGIR_PDF)
                     }

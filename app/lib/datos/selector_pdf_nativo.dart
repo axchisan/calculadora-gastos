@@ -11,3 +11,11 @@ Future<Uint8List?> elegirPdf() async {
     return null;
   }
 }
+
+Future<Uint8List?> elegirImagen() async {
+  try {
+    return await _canal.invokeMethod<Uint8List>('elegirImagen');
+  } on MissingPluginException {
+    return null;
+  }
+}

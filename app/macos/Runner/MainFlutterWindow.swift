@@ -43,15 +43,16 @@ class MainFlutterWindow: NSWindow {
     let canal = FlutterMethodChannel(
       name: "com.axchisan.calculadora_gastos/extractos", binaryMessenger: mensajero)
     canal.setMethodCallHandler { llamada, respuesta in
-      guard llamada.method == "elegirPdf" else {
+      guard llamada.method == "elegirPdf" || llamada.method == "elegirImagen" else {
         respuesta(FlutterMethodNotImplemented)
         return
       }
+      let esPdf = llamada.method == "elegirPdf"
       let panel = NSOpenPanel()
-      panel.allowedContentTypes = [UTType.pdf]
+      panel.allowedContentTypes = esPdf ? [UTType.pdf] : [UTType.image]
       panel.allowsMultipleSelection = false
       panel.canChooseDirectories = false
-      panel.message = "Elige el extracto «Movimientos» del banco"
+      panel.message = esPdf ? "Elige el extracto «Movimientos» del banco" : "Elige una foto"
       panel.begin { eleccion in
         guard eleccion == .OK, let url = panel.url, let datos = try? Data(contentsOf: url) else {
           respuesta(nil)

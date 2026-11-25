@@ -116,6 +116,10 @@ class Formato {
       _capitalizar(_diaSemana.format(valor));
 
   /// Nombre del mes a partir de su número, de 1 a 12.
+  /// `enero de 2027`, en minúsculas: para meterlo en una frase.
+  static String mesEnFrase(DateTime valor) =>
+      '${DateFormat('MMMM', _localeCo).format(valor)} de ${valor.year}';
+
   static String nombreDeMes(int mes) =>
       _capitalizar(DateFormat('MMMM', _localeCo).format(DateTime(2026, mes)));
 

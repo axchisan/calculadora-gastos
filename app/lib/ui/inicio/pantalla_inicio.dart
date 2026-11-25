@@ -13,10 +13,12 @@ import '../../estado/autenticacion.dart';
 import '../../estado/inicio.dart';
 import '../../estado/mes.dart';
 import '../../estado/modulos.dart';
+import '../../estado/plan.dart';
 import '../../estado/proveedores.dart';
 import '../comun/componentes.dart';
 import '../comun/iconos.dart';
 import '../apuntar/hoja_apuntar.dart';
+import '../plan/ilustracion_meta.dart';
 
 /// Inicio: cuánto tienes, qué tienes que pagar pronto y cómo va el mes, sin hacer cuentas.
 ///
@@ -105,6 +107,7 @@ class _Contenido extends ConsumerWidget {
               _Cifra(datos: datos),
               ..._aviso(context),
               _ProximosPagos(datos: datos),
+              const _MiPlan(),
               _EsteMes(datos: datos),
               if (datos.tieneCuentas) _MisCuentas(cuentas: datos.cuentas),
               if (datos.proximoSueldo != null)
@@ -708,3 +711,68 @@ String _lista(Iterable<String> partes) {
 /// Sin lo que va entre paréntesis: «Tarjeta Nu (corte 14 nov)» → «Tarjeta Nu».
 String _corto(String titulo) =>
     titulo.replaceAll(RegExp(r'\s*\(.*?\)'), '').trim();
+
+/// «Mi plan» en una frase: cuánto sobra el próximo mes y cuándo llega la meta. Lleva al plan.
+class _MiPlan extends ConsumerWidget {
+  const _MiPlan();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final plan = ref.watch(planProvider).valueOrNull;
+    final proximo = plan?.proximo;
+    if (plan == null || proximo == null) return const SizedBox.shrink();
+    final textos = Theme.of(context).textTheme;
+    final c = context.colores;
+    final meta = plan.metas.isEmpty ? null : plan.metas.first;
+    final mes = Formato.nombreDeMes(proximo.periodo.month).toLowerCase();
+
+    return Seccion(
+      titulo: 'Mi plan',
+      accion: 'Ver',
+      alTocarAccion: () => context.push(Rutas.plan),
+      child: Panel(
+        child: InkWell(
+          onTap: () => context.push(Rutas.plan),
+          child: Row(
+            children: [
+              IlustracionMeta(progreso: meta?.progreso ?? 0.15, alto: 72),
+              const SizedBox(width: Espacio.l),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      proximo.sobra < 0
+                          ? 'En $mes te faltan ${Formato.pesos(-proximo.sobra)}'
+                          : 'En $mes te sobran ${Formato.pesos(proximo.sobra)}',
+                      style: textos.titleMedium,
+                    ),
+                    Text(
+                      'después de pagar todo',
+                      style: textos.bodySmall?.copyWith(color: c.tinta2),
+                    ),
+                    if (meta != null) ...[
+                      const SizedBox(height: Espacio.s),
+                      Text(
+                        meta.faltan <= 0
+                            ? '${meta.nombre}: ¡completa!'
+                            : meta.alcanzaEn == null
+                            ? '${meta.nombre}: no alcanza este año'
+                            : '${meta.nombre}: '
+                                  '${Formato.mesEnFrase(meta.alcanzaEn!)}',
+                        style: textos.bodyMedium?.copyWith(
+                          color: colorBorgona,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

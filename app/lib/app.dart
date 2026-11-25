@@ -24,6 +24,7 @@ import 'ui/cuentas/pantalla_cuentas.dart';
 import 'ui/sueldo/pantalla_sueldo.dart';
 import 'ui/ajustes/pantalla_registro_automatico.dart';
 import 'ui/detectados/pantalla_por_revisar.dart';
+import 'ui/plan/pantalla_plan.dart';
 import 'ui/detectados/recepcion_extractos.dart';
 import 'ui/transporte/pantalla_transporte.dart';
 
@@ -50,6 +51,9 @@ class Rutas {
   static const String cuenta = '/cuenta';
   static const String plantillas = '/plantillas';
   static const String cuentas = '/cuentas';
+
+  /// Lo que sobra del sueldo cada mes y cuándo se alcanzan las metas.
+  static const String plan = '/plan';
 
   /// SMS del banco y correos de Gmail que llegan solos a «Por revisar».
   static const String registroAutomatico = '/registro-automatico';
@@ -93,6 +97,7 @@ final enrutadorProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const PantallaPlantillas(),
       ),
       GoRoute(path: Rutas.cuentas, builder: (_, _) => const PantallaCuentas()),
+      GoRoute(path: Rutas.plan, builder: (_, _) => const PantallaPlan()),
       GoRoute(
         path: Rutas.registroAutomatico,
         builder: (_, _) => const PantallaRegistroAutomatico(),
