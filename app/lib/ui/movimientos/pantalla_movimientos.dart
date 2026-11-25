@@ -698,7 +698,11 @@ const _meses = [
   'jul', 'ago', 'sep', 'oct', 'nov', 'dic',
 ];
 
-String _mesCorto(DateTime f) => _meses[f.month - 1];
+/// «nov», o «nov 2027» si no es del año en curso: sin el año, un mes de otro año se confunde
+/// con el actual.
+String _mesCorto(DateTime f) => f.year == DateTime.now().year
+    ? _meses[f.month - 1]
+    : '${_meses[f.month - 1]} ${f.year}';
 
 /// «N movimientos del banco por revisar»: lleva a la bandeja. No ocupa nada si no hay.
 class _AvisoPorRevisar extends ConsumerWidget {

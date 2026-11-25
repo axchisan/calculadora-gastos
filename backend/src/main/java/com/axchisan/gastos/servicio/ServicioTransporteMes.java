@@ -79,6 +79,10 @@ public class ServicioTransporteMes {
             config.setDiasLaborales(previa.getDiasLaborales());
             config.setDiasKarate(previa.getDiasKarate());
             config.setDiasRemotosPorSemana(previa.getDiasRemotosPorSemana());
+            // Un presupuesto puesto a mano (0 si ya no se usa transporte) también se hereda: si
+            // no, cada mes nuevo volvía a calcular pasajes que ya no existen.
+            config.setComisionRecarga(previa.getComisionRecarga());
+            config.setPresupuestoManual(previa.getPresupuestoManual());
         }
         configuraciones.save(config);
         regenerarDias(mes, config);

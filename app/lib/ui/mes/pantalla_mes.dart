@@ -248,10 +248,13 @@ class PantallaMes extends ConsumerWidget {
 
   void _moverMes(WidgetRef ref, int desplazamiento) {
     final actual = ref.read(periodoProvider);
-    ref.read(periodoProvider.notifier).state = DateTime(
-      actual.year,
-      actual.month + desplazamiento,
-    );
+    final destino = DateTime(actual.year, actual.month + desplazamiento);
+    final hoy = DateTime.now();
+    // Igual que en el selector: no se abren (ni se crean sin querer) meses lejanos.
+    if (destino.isAfter(DateTime(hoy.year, hoy.month + mesesHaciaAdelante))) {
+      return;
+    }
+    ref.read(periodoProvider.notifier).state = destino;
   }
 
   /// Abre el formulario y añade un gasto al mes elegido. Se usa también desde Inicio.
@@ -543,6 +546,11 @@ class _SelectorDeMesState extends State<_SelectorDeMes> {
                 seleccionado:
                     _anio == widget.actual.year && mes == widget.actual.month,
                 esElDeHoy: DateTime(_anio, mes) == esteMes,
+                // Abrir un mes que no existe lo crea con el sueldo fijo de hoy: más allá de
+                // unos meses solo ensucia los datos (y el plan). Para mirar lejos está «Mi plan».
+                habilitado: !DateTime(_anio, mes).isAfter(
+                  DateTime(esteMes.year, esteMes.month + mesesHaciaAdelante),
+                ),
               ),
           ],
         ),
@@ -561,16 +569,21 @@ class _SelectorDeMesState extends State<_SelectorDeMes> {
   }
 }
 
+/// Cuántos meses después del actual se pueden abrir desde el selector.
+const int mesesHaciaAdelante = 3;
+
 class _Mes extends StatelessWidget {
   const _Mes({
     required this.periodo,
     required this.seleccionado,
     required this.esElDeHoy,
+    this.habilitado = true,
   });
 
   final DateTime periodo;
   final bool seleccionado;
   final bool esElDeHoy;
+  final bool habilitado;
 
   @override
   Widget build(BuildContext context) {
@@ -583,7 +596,7 @@ class _Mes extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
-        onTap: () => Navigator.pop(context, periodo),
+        onTap: habilitado ? () => Navigator.pop(context, periodo) : null,
         child: Container(
           alignment: Alignment.center,
           decoration: BoxDecoration(
@@ -598,7 +611,11 @@ class _Mes extends StatelessWidget {
             Formato.nombreDeMes(periodo.month),
             style: tema.textTheme.bodyMedium?.copyWith(
               fontWeight: seleccionado ? FontWeight.w700 : null,
-              color: seleccionado ? tema.colorScheme.onPrimaryContainer : null,
+              color: seleccionado
+                  ? tema.colorScheme.onPrimaryContainer
+                  : habilitado
+                  ? null
+                  : tema.disabledColor,
             ),
           ),
         ),

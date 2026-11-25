@@ -27,6 +27,25 @@ public interface GastoRepository extends JpaRepository<Gasto, UUID> {
             """)
     List<Gasto> listarDelMes(@Param("mesId") UUID mesId);
 
+    /** Los gastos en dólares que siguen pendientes en meses abiertos: su valor sigue a la TRM. */
+    @Query("""
+            SELECT g FROM Gasto g
+             WHERE g.mes.usuario.id = :usuarioId AND g.montoUsd IS NOT NULL
+               AND g.estado = com.axchisan.gastos.dominio.EstadoGasto.PENDIENTE
+               AND g.mes.cerrado = false
+            """)
+    List<Gasto> pendientesEnDolares(@Param("usuarioId") UUID usuarioId);
+
+    /** Los gastos pendientes de una plantilla en meses abiertos. */
+    @Query("""
+            SELECT g FROM Gasto g
+             WHERE g.mes.usuario.id = :usuarioId AND g.plantillaId = :plantillaId
+               AND g.estado = com.axchisan.gastos.dominio.EstadoGasto.PENDIENTE
+               AND g.mes.cerrado = false
+            """)
+    List<Gasto> pendientesDePlantilla(@Param("usuarioId") UUID usuarioId,
+                                      @Param("plantillaId") UUID plantillaId);
+
     /** Gasto que refleja el resultado del cálculo de transporte, si ya se generó. */
     @Query("""
             SELECT g FROM Gasto g

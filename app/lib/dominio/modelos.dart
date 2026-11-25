@@ -1049,6 +1049,7 @@ class PlantillaGasto {
     required this.activo,
     required this.orden,
     this.diaVencimiento,
+    this.montoUsd,
   });
 
   final String id;
@@ -1059,6 +1060,9 @@ class PlantillaGasto {
   final int orden;
   final int? diaVencimiento;
 
+  /// Si se cobra en dólares: el monto en USD; [montoDefault] sigue a la TRM.
+  final double? montoUsd;
+
   static PlantillaGasto deJson(Map<String, dynamic> j) => PlantillaGasto(
     id: j['id'] as String,
     nombre: j['nombre'] as String,
@@ -1067,5 +1071,6 @@ class PlantillaGasto {
     activo: j['activo'] as bool,
     orden: j['orden'] as int,
     diaVencimiento: j['diaVencimiento'] as int?,
+    montoUsd: (j['montoUsd'] as num?)?.toDouble(),
   );
 }

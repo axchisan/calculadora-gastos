@@ -52,6 +52,10 @@ public class Gasto {
     @Column(name = "monto_pagado", nullable = false)
     private BigDecimal montoPagado = BigDecimal.ZERO;
 
+    /** Si se cobra en dólares: el monto en USD; el de pesos sigue a la TRM mientras esté pendiente. */
+    @Column(name = "monto_usd", precision = 10, scale = 2)
+    private BigDecimal montoUsd;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoGasto estado = EstadoGasto.PENDIENTE;
@@ -194,6 +198,35 @@ public class Gasto {
             this.montoPagado = nuevoMonto;
         }
         recalcularEstado();
+    }
+
+    /**
+     * Pone el monto en pesos según la TRM si el gasto se cobra en dólares y sigue pendiente.
+     * Lo ya pagado no se toca: vale lo que de verdad se pagó.
+     *
+     * @return si cambió
+     */
+    public boolean convertirConTrm(BigDecimal trm) {
+        if (montoUsd == null || trm == null || trm.signum() <= 0
+                || estado != EstadoGasto.PENDIENTE) {
+            return false;
+        }
+        BigDecimal pesos = montoUsd.multiply(trm).setScale(0, java.math.RoundingMode.HALF_UP)
+                .setScale(2);
+        if (pesos.compareTo(monto) == 0) {
+            return false;
+        }
+        this.monto = pesos;
+        recalcularEstado();
+        return true;
+    }
+
+    public BigDecimal getMontoUsd() {
+        return montoUsd;
+    }
+
+    public void setMontoUsd(BigDecimal montoUsd) {
+        this.montoUsd = montoUsd == null || montoUsd.signum() <= 0 ? null : montoUsd;
     }
 
     private void recalcularEstado() {

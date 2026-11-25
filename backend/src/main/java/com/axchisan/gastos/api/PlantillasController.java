@@ -44,7 +44,7 @@ public class PlantillasController {
     public ResponseEntity<PlantillaDto> crear(@Valid @RequestBody CrearPlantillaRequest peticion) {
         var plantilla = plantillas.crear(UsuarioActual.id(), peticion.nombre(),
                 peticion.categoria(), peticion.montoDefault(), peticion.diaVencimiento(),
-                peticion.orden());
+                peticion.orden(), peticion.montoUsd());
         return ResponseEntity.status(HttpStatus.CREATED).body(PlantillaDto.de(plantilla));
     }
 
@@ -54,7 +54,8 @@ public class PlantillasController {
                                    @Valid @RequestBody ActualizarPlantillaRequest peticion) {
         return PlantillaDto.de(plantillas.actualizar(UsuarioActual.id(), plantillaId,
                 peticion.nombre(), peticion.categoria(), peticion.montoDefault(),
-                peticion.diaVencimiento(), peticion.activo(), peticion.orden()));
+                peticion.diaVencimiento(), peticion.activo(), peticion.orden(),
+                peticion.montoUsd()));
     }
 
     @PostMapping("/{plantillaId}/desactivar")

@@ -17,14 +17,16 @@ public final class DtosPlantilla {
     private DtosPlantilla() {
     }
 
+    /** @param montoUsd si se cobra en dólares; entonces montoDefault sigue a la TRM */
     public record PlantillaDto(UUID id, String nombre, CategoriaGasto categoria,
                                BigDecimal montoDefault, Short diaVencimiento, boolean activo,
-                               short orden) {
+                               short orden, BigDecimal montoUsd) {
 
         public static PlantillaDto de(PlantillaGasto plantilla) {
             return new PlantillaDto(plantilla.getId(), plantilla.getNombre(),
                     plantilla.getCategoria(), plantilla.getMontoDefault(),
-                    plantilla.getDiaVencimiento(), plantilla.isActivo(), plantilla.getOrden());
+                    plantilla.getDiaVencimiento(), plantilla.isActivo(), plantilla.getOrden(),
+                    plantilla.getMontoUsd());
         }
     }
 
@@ -44,7 +46,9 @@ public final class DtosPlantilla {
             @Max(value = 31, message = "El día de vencimiento debe estar entre 1 y 31")
             Short diaVencimiento,
 
-            Short orden) {
+            Short orden,
+
+            @PositiveOrZero BigDecimal montoUsd) {
     }
 
     public record ActualizarPlantillaRequest(
@@ -53,6 +57,7 @@ public final class DtosPlantilla {
             @PositiveOrZero(message = "El monto no puede ser negativo") BigDecimal montoDefault,
             @Min(1) @Max(31) Short diaVencimiento,
             Boolean activo,
-            Short orden) {
+            Short orden,
+            @PositiveOrZero BigDecimal montoUsd) {
     }
 }

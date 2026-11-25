@@ -16,6 +16,7 @@ import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -30,13 +31,16 @@ public class ServicioMeses {
     private final PlantillaGastoRepository plantillas;
     private final UsuarioRepository usuarios;
     private final ServicioTransporteMes transporte;
+    private final ConversorDolares conversor;
 
     public ServicioMeses(MesPresupuestalRepository meses, PlantillaGastoRepository plantillas,
-                         UsuarioRepository usuarios, ServicioTransporteMes transporte) {
+                         UsuarioRepository usuarios, ServicioTransporteMes transporte,
+                         ConversorDolares conversor) {
         this.meses = meses;
         this.plantillas = plantillas;
         this.usuarios = usuarios;
         this.transporte = transporte;
+        this.conversor = conversor;
     }
 
     /**
@@ -69,8 +73,10 @@ public class ServicioMeses {
         // Los gastos fijos se copian desde la plantilla; a partir de aquí son independientes de
         // ella, de modo que editar la plantilla no reescribe el histórico.
         List<PlantillaGasto> activas = plantillas.listarActivas(usuarioId);
+        Optional<BigDecimal> trm = conversor.trm(usuarioId);
         for (PlantillaGasto plantilla : activas) {
             Gasto gasto = plantilla.generarGasto();
+            trm.ifPresent(gasto::convertirConTrm);
             nuevo.agregarGasto(gasto);
         }
 
@@ -108,6 +114,7 @@ public class ServicioMeses {
                 continue;
             }
             Gasto gasto = plantilla.generarGasto();
+            conversor.trm(usuarioId).ifPresent(gasto::convertirConTrm);
             mes.agregarGasto(gasto);
             anadidos.add(gasto);
         }

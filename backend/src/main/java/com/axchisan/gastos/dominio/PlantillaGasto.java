@@ -44,6 +44,10 @@ public class PlantillaGasto {
     @Column(name = "monto_default", nullable = false)
     private BigDecimal montoDefault = BigDecimal.ZERO;
 
+    /** Si se cobra en dólares: el monto en USD; el de pesos se recalcula con la TRM. */
+    @Column(name = "monto_usd", precision = 10, scale = 2)
+    private BigDecimal montoUsd;
+
     @Column(name = "dia_vencimiento")
     private Short diaVencimiento;
 
@@ -93,7 +97,16 @@ public class PlantillaGasto {
         gasto.setPlantillaId(id);
         gasto.setDiaVencimiento(diaVencimiento);
         gasto.setOrden(orden);
+        gasto.setMontoUsd(montoUsd);
         return gasto;
+    }
+
+    public BigDecimal getMontoUsd() {
+        return montoUsd;
+    }
+
+    public void setMontoUsd(BigDecimal montoUsd) {
+        this.montoUsd = montoUsd == null || montoUsd.signum() <= 0 ? null : montoUsd;
     }
 
     public UUID getId() {

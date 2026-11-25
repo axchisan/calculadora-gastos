@@ -37,12 +37,14 @@ class ControladorPlantillas
     required CategoriaGasto categoria,
     required double monto,
     int? diaVencimiento,
+    double? montoUsd,
   }) async {
     await _repositorio.crear(
       nombre: nombre,
       categoria: categoria,
       montoDefault: monto,
       diaVencimiento: diaVencimiento,
+      montoUsd: montoUsd,
     );
     await refrescar();
   }
@@ -53,6 +55,7 @@ class ControladorPlantillas
     CategoriaGasto? categoria,
     double? monto,
     int? diaVencimiento,
+    double? montoUsd,
   }) async {
     await _repositorio.actualizar(
       id,
@@ -60,6 +63,7 @@ class ControladorPlantillas
       categoria: categoria,
       montoDefault: monto,
       diaVencimiento: diaVencimiento,
+      montoUsd: montoUsd,
     );
     await refrescar();
   }

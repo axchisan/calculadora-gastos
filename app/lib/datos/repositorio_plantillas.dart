@@ -23,6 +23,7 @@ class RepositorioPlantillas {
     required double montoDefault,
     int? diaVencimiento,
     int? orden,
+    double? montoUsd,
   }) async {
     final datos = await _api.publicar<Map<String, dynamic>>(
       '/api/plantillas',
@@ -32,6 +33,7 @@ class RepositorioPlantillas {
         'montoDefault': montoDefault,
         'diaVencimiento': ?diaVencimiento,
         'orden': ?orden,
+        'montoUsd': ?montoUsd,
       },
     );
     return PlantillaGasto.deJson(datos);
@@ -45,6 +47,7 @@ class RepositorioPlantillas {
     int? diaVencimiento,
     bool? activo,
     int? orden,
+    double? montoUsd,
   }) async {
     final datos = await _api.modificar<Map<String, dynamic>>(
       '/api/plantillas/$plantillaId',
@@ -52,6 +55,7 @@ class RepositorioPlantillas {
         'nombre': ?nombre,
         if (categoria != null) 'categoria': categoria.codigo,
         'montoDefault': ?montoDefault,
+        'montoUsd': ?montoUsd,
         'diaVencimiento': ?diaVencimiento,
         'activo': ?activo,
         'orden': ?orden,

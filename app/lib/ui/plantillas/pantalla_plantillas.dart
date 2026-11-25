@@ -6,6 +6,7 @@ import '../comun/iconos.dart';
 import '../comun/componentes.dart';
 
 import '../../core/dinero.dart';
+import '../../core/formato.dart';
 import '../../core/tema.dart';
 import '../../datos/cliente_api.dart';
 import '../../dominio/modelos.dart';
@@ -62,6 +63,7 @@ class PantallaPlantillas extends ConsumerWidget {
           categoria: datos.categoria,
           monto: datos.monto,
           diaVencimiento: datos.diaVencimiento,
+          montoUsd: datos.montoUsd,
         );
       } else {
         await controlador.actualizar(
@@ -70,6 +72,8 @@ class PantallaPlantillas extends ConsumerWidget {
           categoria: datos.categoria,
           monto: datos.monto,
           diaVencimiento: datos.diaVencimiento,
+          // 0 le quita los dólares a una plantilla que los tenía.
+          montoUsd: datos.montoUsd ?? (plantilla.montoUsd != null ? 0 : null),
         );
       }
     } on ErrorApi catch (e) {
@@ -163,9 +167,13 @@ class _Fila extends ConsumerWidget {
         child: Fila(
           inicio: IconoCaja(Iconos.deCategoria(plantilla.categoria)),
           titulo: plantilla.nombre,
-          subtitulo: plantilla.diaVencimiento == null
-              ? plantilla.categoria.etiqueta
-              : '${plantilla.categoria.etiqueta} · vence el ${plantilla.diaVencimiento}',
+          subtitulo: [
+            plantilla.categoria.etiqueta,
+            if (plantilla.montoUsd != null)
+              '${Formato.numero(plantilla.montoUsd!)} USD',
+            if (plantilla.diaVencimiento != null)
+              'vence el ${plantilla.diaVencimiento}',
+          ].join(' · '),
           final_: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -220,12 +228,16 @@ class _DatosPlantilla {
     required this.categoria,
     required this.monto,
     this.diaVencimiento,
+    this.montoUsd,
   });
 
   final String nombre;
   final CategoriaGasto categoria;
   final double monto;
   final int? diaVencimiento;
+
+  /// Si se cobra en dólares; null si es en pesos.
+  final double? montoUsd;
 }
 
 class _Formulario extends StatefulWidget {
@@ -242,7 +254,9 @@ class _FormularioState extends State<_Formulario> {
   late final TextEditingController _nombre;
   late final TextEditingController _monto;
   late final TextEditingController _dia;
+  late final TextEditingController _usd;
   late CategoriaGasto _categoria;
+  late bool _enDolares;
 
   @override
   void initState() {
@@ -253,6 +267,10 @@ class _FormularioState extends State<_Formulario> {
       text: p == null ? '' : Dinero.paraEditar(p.montoDefault),
     );
     _dia = TextEditingController(text: p?.diaVencimiento?.toString() ?? '');
+    _usd = TextEditingController(
+      text: p?.montoUsd == null ? '' : Dinero.paraEditar(p!.montoUsd!),
+    );
+    _enDolares = p?.montoUsd != null;
     _categoria = p?.categoria ?? CategoriaGasto.otro;
   }
 
@@ -261,6 +279,7 @@ class _FormularioState extends State<_Formulario> {
     _nombre.dispose();
     _monto.dispose();
     _dia.dispose();
+    _usd.dispose();
     super.dispose();
   }
 
@@ -299,25 +318,55 @@ class _FormularioState extends State<_Formulario> {
               ),
               const SizedBox(height: 16),
 
-              TextFormField(
-                controller: _monto,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _enDolares,
+                onChanged: (v) => setState(() => _enDolares = v),
+                title: const Text('Se cobra en dólares'),
+                subtitle: const Text(
+                  'El valor en pesos sigue a la TRM de tu sueldo hasta que lo pagues',
                 ),
-                inputFormatters: const [FormatoDeImporte()],
-                decoration: const InputDecoration(
-                  labelText: 'Monto habitual',
-                  prefixText: r'$ ',
-                  helperText: 'Se puede ajustar mes a mes',
-                ),
-                validator: (v) {
-                  final valor = Dinero.interpretar(v ?? '');
-                  if (valor == null || valor < 0) {
-                    return 'Escribe un monto válido';
-                  }
-                  return null;
-                },
               ),
+              if (_enDolares)
+                TextFormField(
+                  controller: _usd,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Monto en dólares',
+                    suffixText: 'USD',
+                  ),
+                  validator: (v) {
+                    final valor = double.tryParse(
+                      (v ?? '').replaceAll(',', '.').trim(),
+                    );
+                    if (valor == null || valor <= 0) {
+                      return 'Escribe cuántos dólares';
+                    }
+                    return null;
+                  },
+                )
+              else
+                TextFormField(
+                  controller: _monto,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  inputFormatters: const [FormatoDeImporte()],
+                  decoration: const InputDecoration(
+                    labelText: 'Monto habitual',
+                    prefixText: r'$ ',
+                    helperText: 'Se puede ajustar mes a mes',
+                  ),
+                  validator: (v) {
+                    final valor = Dinero.interpretar(v ?? '');
+                    if (valor == null || valor < 0) {
+                      return 'Escribe un monto válido';
+                    }
+                    return null;
+                  },
+                ),
               const SizedBox(height: 16),
 
               DropdownButtonFormField<CategoriaGasto>(
@@ -364,8 +413,14 @@ class _FormularioState extends State<_Formulario> {
                     _DatosPlantilla(
                       nombre: _nombre.text.trim(),
                       categoria: _categoria,
-                      monto: Dinero.interpretar(_monto.text)!,
+                      // En dólares el servidor pone los pesos con la TRM.
+                      monto: _enDolares
+                          ? (widget.plantilla?.montoDefault ?? 0)
+                          : Dinero.interpretar(_monto.text)!,
                       diaVencimiento: int.tryParse(_dia.text),
+                      montoUsd: _enDolares
+                          ? double.parse(_usd.text.replaceAll(',', '.').trim())
+                          : null,
                     ),
                   );
                 },

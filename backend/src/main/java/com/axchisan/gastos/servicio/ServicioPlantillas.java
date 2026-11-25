@@ -1,8 +1,10 @@
 package com.axchisan.gastos.servicio;
 
 import com.axchisan.gastos.dominio.CategoriaGasto;
+import com.axchisan.gastos.dominio.Gasto;
 import com.axchisan.gastos.dominio.PlantillaGasto;
 import com.axchisan.gastos.dominio.Usuario;
+import com.axchisan.gastos.repositorio.GastoRepository;
 import com.axchisan.gastos.repositorio.PlantillaGastoRepository;
 import com.axchisan.gastos.repositorio.UsuarioRepository;
 import org.springframework.stereotype.Service;
@@ -18,10 +20,15 @@ public class ServicioPlantillas {
 
     private final PlantillaGastoRepository plantillas;
     private final UsuarioRepository usuarios;
+    private final GastoRepository gastos;
+    private final ConversorDolares conversor;
 
-    public ServicioPlantillas(PlantillaGastoRepository plantillas, UsuarioRepository usuarios) {
+    public ServicioPlantillas(PlantillaGastoRepository plantillas, UsuarioRepository usuarios,
+                              GastoRepository gastos, ConversorDolares conversor) {
         this.plantillas = plantillas;
         this.usuarios = usuarios;
+        this.gastos = gastos;
+        this.conversor = conversor;
     }
 
     @Transactional(readOnly = true)
@@ -32,6 +39,13 @@ public class ServicioPlantillas {
     @Transactional
     public PlantillaGasto crear(UUID usuarioId, String nombre, CategoriaGasto categoria,
                                 BigDecimal montoDefault, Short diaVencimiento, Short orden) {
+        return crear(usuarioId, nombre, categoria, montoDefault, diaVencimiento, orden, null);
+    }
+
+    @Transactional
+    public PlantillaGasto crear(UUID usuarioId, String nombre, CategoriaGasto categoria,
+                                BigDecimal montoDefault, Short diaVencimiento, Short orden,
+                                BigDecimal montoUsd) {
         Usuario usuario = usuarios.findById(usuarioId)
                 .orElseThrow(() -> new RecursoNoEncontrado("el usuario", usuarioId));
 
@@ -40,6 +54,10 @@ public class ServicioPlantillas {
         if (orden != null) {
             plantilla.setOrden(orden);
         }
+        plantilla.setMontoUsd(montoUsd);
+        conversor.trm(usuarioId).filter(t -> plantilla.getMontoUsd() != null)
+                .ifPresent(t -> plantilla.setMontoDefault(
+                        ConversorDolares.pesos(plantilla.getMontoUsd(), t)));
         return plantillas.save(plantilla);
     }
 
@@ -47,7 +65,30 @@ public class ServicioPlantillas {
     public PlantillaGasto actualizar(UUID usuarioId, UUID plantillaId, String nombre,
                                      CategoriaGasto categoria, BigDecimal montoDefault,
                                      Short diaVencimiento, Boolean activo, Short orden) {
+        return actualizar(usuarioId, plantillaId, nombre, categoria, montoDefault,
+                diaVencimiento, activo, orden, null);
+    }
+
+    /**
+     * @param montoUsd el monto en dólares; 0 quita la conversión y null no la cambia. Al ponerlo
+     *                 se lleva también a los gastos pendientes de esta plantilla en los meses
+     *                 abiertos, que pasan a seguir la TRM.
+     */
+    @Transactional
+    public PlantillaGasto actualizar(UUID usuarioId, UUID plantillaId, String nombre,
+                                     CategoriaGasto categoria, BigDecimal montoDefault,
+                                     Short diaVencimiento, Boolean activo, Short orden,
+                                     BigDecimal montoUsd) {
         PlantillaGasto plantilla = buscar(usuarioId, plantillaId);
+        if (montoUsd != null) {
+            plantilla.setMontoUsd(montoUsd);
+            for (Gasto g : gastos.pendientesDePlantilla(usuarioId, plantillaId)) {
+                g.setMontoUsd(plantilla.getMontoUsd());
+            }
+            if (plantilla.getMontoUsd() != null) {
+                conversor.recalcular(usuarioId);
+            }
+        }
 
         if (nombre != null) {
             plantilla.setNombre(nombre);

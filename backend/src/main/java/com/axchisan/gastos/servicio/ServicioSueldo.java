@@ -90,8 +90,19 @@ public class ServicioSueldo {
      * <p>Solo toca meses abiertos, desde el actual, que tienen la marca: los que se editaron a
      * mano o donde ya llegó el pago real tienen la marca quitada y no se pisan.
      */
+    private ConversorDolares conversor;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void usarConversor(ConversorDolares conversor) {
+        this.conversor = conversor;
+    }
+
     @Transactional
     public void recalcularSueldosAutomaticos(UUID usuarioId) {
+        // Los gastos en dólares siguen a la misma TRM que el sueldo.
+        if (conversor != null) {
+            conversor.recalcular(usuarioId);
+        }
         YearMonth actual = CalculadoraSueldo.mesPresupuestal(hoy());
         Map<YearMonth, BigDecimal> porMes = new LinkedHashMap<>();
         for (FuenteIngreso fuente : fuentes.listarDelUsuario(usuarioId)) {

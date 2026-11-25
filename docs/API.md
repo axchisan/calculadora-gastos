@@ -350,6 +350,13 @@ el calendario y el segundo desde el módulo de deudas. Marcarlos como pagados s�
 | `gasto_no_editable` | 409 |
 | `peticion_invalida` (abono mayor al saldo) | 400 |
 
+### Gastos fijos en dólares
+
+Una plantilla puede llevar `montoUsd` (p. ej. una suscripción de 20 USD). Su `montoDefault` y el
+de los gastos pendientes que genera se calculan con la TRM de la fuente de ingreso en dólares y
+se recalculan cuando esa TRM cambia; lo ya pagado no se toca. En `PATCH /api/plantillas/{id}`,
+`montoUsd: 0` quita la conversión.
+
 ## Transporte
 
 | Método | Ruta | Descripción |

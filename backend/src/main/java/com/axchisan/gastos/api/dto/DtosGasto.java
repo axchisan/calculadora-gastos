@@ -30,7 +30,7 @@ public final class DtosGasto {
     public record GastoDto(UUID id, String nombre, CategoriaGasto categoria, BigDecimal monto,
                            BigDecimal montoPagado, BigDecimal saldoPendiente, EstadoGasto estado,
                            LocalDate fechaPago, Short diaVencimiento, OrigenGasto origen,
-                           boolean editable, String notas, short orden) {
+                           boolean editable, String notas, short orden, BigDecimal montoUsd) {
 
         public static GastoDto de(Gasto gasto) {
             return new GastoDto(
@@ -38,7 +38,7 @@ public final class DtosGasto {
                     gasto.getMontoPagado(), gasto.saldoPendiente(), gasto.getEstado(),
                     gasto.getFechaPago(), gasto.getDiaVencimiento(), gasto.getOrigen(),
                     !gasto.getOrigen().esGeneradoPorElSistema(), gasto.getNotas(),
-                    gasto.getOrden());
+                    gasto.getOrden(), gasto.getMontoUsd());
         }
     }
 
