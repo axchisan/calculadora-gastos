@@ -110,6 +110,13 @@ void main() {
       find.text('Con todo lo que te sobra: diciembre de 2026.'),
       findsOneWidget,
     );
+    // Por defecto no resta el día a día (400.000): 1.100.000 + 400.000.
+    expect(find.text('Sobran \$1.500.000'), findsOneWidget);
+    expect(find.text('Sobran \$350.000'), findsOneWidget);
+
+    // Con el interruptor encendido sí lo resta.
+    await tester.tap(find.text('Restar el día a día'));
+    await tester.pumpAndSettle();
     expect(find.text('Sobran \$1.100.000'), findsOneWidget);
     expect(find.text('Faltan \$50.000'), findsOneWidget);
     expect(find.textContaining('lo que falta'), findsOneWidget);

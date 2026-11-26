@@ -545,21 +545,34 @@ class _DiaADia extends ConsumerWidget {
           final_: Icon(Iconos.editar, color: context.colores.tinta3, size: 20),
           alTocar: () => _editar(context, ref),
         ),
+        SwitchListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          value: ref.watch(restarDiaADiaProvider),
+          onChanged: (v) => ref.read(restarDiaADiaProvider.notifier).cambiar(v),
+          title: const Text('Restar el día a día'),
+          subtitle: Text(
+            'Apagado, lo que sobra es después de gastos fijos, deudas y créditos. '
+            'La fecha de la meta siempre lo cuenta.',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: context.colores.tinta2),
+          ),
+        ),
       ],
     );
   }
 }
 
-class _TarjetaMes extends StatefulWidget {
+class _TarjetaMes extends ConsumerStatefulWidget {
   const _TarjetaMes({required this.mes});
 
   final MesPlan mes;
 
   @override
-  State<_TarjetaMes> createState() => _EstadoTarjetaMes();
+  ConsumerState<_TarjetaMes> createState() => _EstadoTarjetaMes();
 }
 
-class _EstadoTarjetaMes extends State<_TarjetaMes> {
+class _EstadoTarjetaMes extends ConsumerState<_TarjetaMes> {
   bool _abierto = false;
 
   @override
@@ -568,6 +581,8 @@ class _EstadoTarjetaMes extends State<_TarjetaMes> {
     final textos = Theme.of(context).textTheme;
     final c = context.colores;
     final nombre = Formato.mesYAnio(m.periodo);
+    final restar = ref.watch(restarDiaADiaProvider);
+    final sobra = sobraSegun(m, restarDiaADia: restar);
 
     Widget fila(
       String etiqueta,
@@ -616,11 +631,11 @@ class _EstadoTarjetaMes extends State<_TarjetaMes> {
                 ),
               ),
               Text(
-                m.sobra < 0
-                    ? 'Faltan ${Formato.pesos(-m.sobra)}'
-                    : 'Sobran ${Formato.pesos(m.sobra)}',
+                sobra < 0
+                    ? 'Faltan ${Formato.pesos(-sobra)}'
+                    : 'Sobran ${Formato.pesos(sobra)}',
                 style: textos.titleMedium?.copyWith(
-                  color: m.sobra < 0 ? c.negativo : c.positivo,
+                  color: sobra < 0 ? c.negativo : c.positivo,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -666,7 +681,7 @@ class _EstadoTarjetaMes extends State<_TarjetaMes> {
                   ],
                 ),
               ),
-          fila('Día a día', m.diario),
+          if (restar) fila('Día a día', m.diario),
         ],
       ),
     );

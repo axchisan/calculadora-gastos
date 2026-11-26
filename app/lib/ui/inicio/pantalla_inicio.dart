@@ -725,6 +725,8 @@ class _MiPlan extends ConsumerWidget {
     final c = context.colores;
     final meta = plan.metas.isEmpty ? null : plan.metas.first;
     final mes = Formato.nombreDeMes(proximo.periodo.month).toLowerCase();
+    final restar = ref.watch(restarDiaADiaProvider);
+    final sobra = sobraSegun(proximo, restarDiaADia: restar);
 
     return Seccion(
       titulo: 'Mi plan',
@@ -742,13 +744,15 @@ class _MiPlan extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      proximo.sobra < 0
-                          ? 'En $mes te faltan ${Formato.pesos(-proximo.sobra)}'
-                          : 'En $mes te sobran ${Formato.pesos(proximo.sobra)}',
+                      sobra < 0
+                          ? 'En $mes te faltan ${Formato.pesos(-sobra)}'
+                          : 'En $mes te sobran ${Formato.pesos(sobra)}',
                       style: textos.titleMedium,
                     ),
                     Text(
-                      'después de pagar todo',
+                      restar
+                          ? 'después de pagar todo y el día a día'
+                          : 'después de pagar gastos fijos y deudas',
                       style: textos.bodySmall?.copyWith(color: c.tinta2),
                     ),
                     if (meta != null) ...[
