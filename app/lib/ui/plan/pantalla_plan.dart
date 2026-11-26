@@ -583,6 +583,7 @@ class _EstadoTarjetaMes extends ConsumerState<_TarjetaMes> {
     final nombre = Formato.mesYAnio(m.periodo);
     final restar = ref.watch(restarDiaADiaProvider);
     final sobra = sobraSegun(m, restarDiaADia: restar);
+    final gastos = m.fijos + m.totalPagos + (restar ? m.diario : 0);
 
     Widget fila(
       String etiqueta,
@@ -682,6 +683,26 @@ class _EstadoTarjetaMes extends ConsumerState<_TarjetaMes> {
                 ),
               ),
           if (restar) fila('Día a día', m.diario),
+          // El total de lo que sale en el mes, para verlo de un vistazo.
+          if (gastos > 0) ...[
+            Divider(height: Espacio.l, color: c.linea),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    m.actual ? 'Falta gastar en total' : 'Gastas en total',
+                    style: textos.titleSmall,
+                  ),
+                ),
+                Text(
+                  '−${Formato.pesos(gastos)}',
+                  style: textos.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

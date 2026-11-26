@@ -112,6 +112,10 @@ void main() {
     );
     // Por defecto no resta el día a día (400.000): 1.100.000 + 400.000.
     expect(find.text('Sobran \$1.500.000'), findsOneWidget);
+    // Gastos fijos 200.000 + deudas 300.000 en cada mes (en el actual, lo que falta).
+    expect(find.text('Gastas en total'), findsNWidgets(2));
+    expect(find.text('Falta gastar en total'), findsOneWidget);
+    expect(find.text('−\$500.000'), findsNWidgets(3));
     expect(find.text('Sobran \$350.000'), findsOneWidget);
 
     // Con el interruptor encendido sí lo resta.
@@ -119,6 +123,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Sobran \$1.100.000'), findsOneWidget);
     expect(find.text('Faltan \$50.000'), findsOneWidget);
+    // Con el día a día: 200.000 + 300.000 + 400.000.
+    expect(find.text('−\$900.000'), findsNWidgets(3));
     expect(find.textContaining('lo que falta'), findsOneWidget);
     expect(find.text('Día a día: \$400.000 al mes'), findsOneWidget);
   });

@@ -7,7 +7,7 @@ falta, para retomar el trabajo sin tener que reconstruirlo.
 
 | Pieza | Versión | Dónde |
 |---|---|---|
-| App en el teléfono y la web | **2.4.1+35** | APK instalado por cable · gastos.axchisan.com |
+| App en el teléfono y la web | **2.4.2+36** | APK instalado por cable · gastos.axchisan.com |
 | App en el Mac | **2.0.0+29** | `/Applications/Mis gastos.app` |
 | Backend | fase 3c (ETag y `/api/inicio`) | Lambda `calculadora-gastos-api`, alias `live` |
 | Esquema de base de datos | migración **V18** | Neon, proyecto de la Calculadora (V12: movimientos detectados; V13: saldos que siguen a lo apuntado; V14: reglas con deuda; V15: claves de ingesta; V16: día a día del plan; V17: plan de pagos de deudas; V18: gastos en dólares) |
